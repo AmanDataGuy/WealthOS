@@ -1,0 +1,160 @@
+version: "3.9"
+
+services:
+
+  # ── 1. FastAPI Backend ─────────────────────────────────
+  wealthos-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: wealthos-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      - wealthos-db
+      - wealthos-redis
+      - wealthos-kafka
+      - wealthos-qdrant
+      - wealthos-temporal
+    networks:
+      - wealthos-network
+
+  # ── 2. MCP Servers ─────────────────────────────────────
+  wealthos-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    container_name: wealthos-mcp
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      - wealthos-db
+      - wealthos-redis
+      - wealthos-qdrant
+    networks:
+      - wealthos-network
+
+  # ── 3. Frontend ────────────────────────────────────────
+  wealthos-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    container_name: wealthos-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - wealthos-api
+    networks:
+      - wealthos-network
+
+  # ── 4. PostgreSQL + pgvector ───────────────────────────
+  wealthos-db:
+    image: pgvector/pgvector:pg16
+    container_name: wealthos-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: wealthos
+      POSTGRES_PASSWORD: wealthos
+      POSTGRES_DB: wealthos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - wealthos-network
+
+  # ── 5. Qdrant Vector DB ────────────────────────────────
+  wealthos-qdrant:
+    image: qdrant/qdrant:latest
+    container_name: wealthos-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - wealthos-network
+
+  # ── 6. Redis ───────────────────────────────────────────
+  wealthos-redis:
+    image: redis:7-alpine
+    container_name: wealthos-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - wealthos-network
+
+  # ── 7. Kafka + Zookeeper ───────────────────────────────
+  wealthos-zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: wealthos-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - wealthos-network
+
+  wealthos-kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: wealthos-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: wealthos-zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://wealthos-kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - wealthos-zookeeper
+    networks:
+      - wealthos-network
+
+  # ── 8. Ollama (local LLM) ──────────────────────────────
+  wealthos-ollama:
+    image: ollama/ollama:latest
+    container_name: wealthos-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - wealthos-network
+
+  # ── 9. Temporal ────────────────────────────────────────
+  wealthos-temporal:
+    image: temporalio/auto-setup:1.22.0
+    container_name: wealthos-temporal
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=wealthos
+      - POSTGRES_PWD=wealthos
+      - POSTGRES_SEEDS=wealthos-db
+    depends_on:
+      - wealthos-db
+    networks:
+      - wealthos-network
+
+# ── Volumes ─────────────────────────────────────────────
+volumes:
+  postgres_data:
+  qdrant_data:
+  redis_data:
+  ollama_data:
+
+# ── Network ─────────────────────────────────────────────
+networks:
+  wealthos-network:
+    driver: bridge
