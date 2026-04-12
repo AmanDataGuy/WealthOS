@@ -137,7 +137,7 @@ async def send_briefing(user_id: str, briefing: str) -> dict:
 
 # ── Cron Workflow ─────────────────────────────────────────────────────────────
 
-@workflow.defn
+@workflow.defn(sandboxed=False)
 class MorningBriefingWorkflow:
     """
     Runs daily at 8 AM via Temporal cron.
@@ -149,19 +149,22 @@ class MorningBriefingWorkflow:
         workflow.logger.info(f"Morning briefing starting for {user_id}")
 
         data = await workflow.execute_activity(
-            fetch_briefing_data, user_id,
-            start_to_close_timeout=timedelta(seconds=60),
+            fetch_briefing_data,
+            args=[user_id],
+            start_to_close_timeout=timedelta(seconds=120),
             retry_policy=RETRY_ONCE,
         )
 
         briefing = await workflow.execute_activity(
-            generate_briefing, data,
-            start_to_close_timeout=timedelta(seconds=45),
+            generate_briefing,
+            args=[data],
+            start_to_close_timeout=timedelta(seconds=120),
             retry_policy=RETRY_ONCE,
         )
 
         await workflow.execute_activity(
-            send_briefing, user_id, briefing,
+            send_briefing,
+            args=[user_id, briefing],
             start_to_close_timeout=timedelta(seconds=30),
             retry_policy=RETRY_ONCE,
         )
@@ -210,6 +213,7 @@ async def send_now(user_id: str = "test-user") -> str:
         user_id,
         id=f"morning-briefing-now-{user_id}-{int(time.time())}",
         task_queue=TASK_QUEUE,
+        execution_timeout=timedelta(minutes=5),
     )
     print(f"\nBriefing:\n{result}")
     return result
