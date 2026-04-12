@@ -3,10 +3,12 @@
 WealthOS FastAPI backend.
 
 Endpoints:
-  POST /analyze          → run full pipeline, return memo
-  POST /analyze/stream   → run pipeline, stream memo chunks
-  GET  /health           → service health check
-  GET  /state/{ticker}   → last known state for a ticker (from Redis)
+  POST /analyze            → run full pipeline, return memo
+  POST /analyze/stream     → run pipeline, stream memo chunks
+  GET  /health             → service health check
+  GET  /state/{ticker}     → last known state for a ticker (from Redis)
+  POST /briefing/send-now  → trigger morning briefing immediately (testing)
+  GET  /briefing/history/{user_id} → last 7 briefings from Redis
 """
 
 import os
@@ -35,7 +37,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # tighten in production
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -44,10 +46,10 @@ app.add_middleware(
 # ── Request / Response schemas ─────────────────────────────────────────────────
 
 class AnalyzeRequest(BaseModel):
-    query:      str
-    ticker:     str
-    user_id:    str = "test-user"
-    invest_amount: Optional[float] = 20000.0   # amount being considered
+    query:         str
+    ticker:        str
+    user_id:       str = "test-user"
+    invest_amount: Optional[float] = 20000.0
 
 class AnalyzeResponse(BaseModel):
     ticker:     str
@@ -57,6 +59,9 @@ class AnalyzeResponse(BaseModel):
     dcf_value:  Optional[float]
     messages:   list[str]
     error:      Optional[str]
+
+class BriefingRequest(BaseModel):
+    user_id: str = "test-user"
 
 
 # ── Health check ───────────────────────────────────────────────────────────────
@@ -70,16 +75,13 @@ async def health():
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(req: AnalyzeRequest):
-    """
-    Run the full 7-agent pipeline and return the complete memo.
-    Typical latency: 60-120 seconds depending on Ollama load.
-    """
     ticker = req.ticker.upper().strip()
 
     initial_state: WealthOSState = {
         "query":              req.query,
         "tickers":            [ticker],
         "user_id":            req.user_id,
+        "user_memory":        None,
         "personal_finance":   None,
         "financial_snapshot": None,
         "research_output":    None,
@@ -96,19 +98,17 @@ async def analyze(req: AnalyzeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    # Extract key fields for the response
     risk    = result.get("risk_report") or {}
     code    = result.get("code_output") or {}
     dcf_val = None
     if code.get("dcf"):
         dcf_val = code["dcf"].get("intrinsic_value")
 
-    # Cache result in Redis for /state endpoint
     try:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         await redis.setex(
             f"analysis:{ticker}",
-            3600,   # 1 hour
+            3600,
             json.dumps({
                 "memo":       result.get("final_memo"),
                 "risk_score": risk.get("risk_score"),
@@ -118,7 +118,7 @@ async def analyze(req: AnalyzeRequest):
         )
         await redis.aclose()
     except Exception:
-        pass   # Redis failure should not break the response
+        pass
 
     return AnalyzeResponse(
         ticker=ticker,
@@ -135,16 +135,13 @@ async def analyze(req: AnalyzeRequest):
 
 @app.post("/analyze/stream")
 async def analyze_stream(req: AnalyzeRequest):
-    """
-    Same pipeline as /analyze but streams the memo word by word.
-    Connect with EventSource or fetch with ReadableStream on the frontend.
-    """
     ticker = req.ticker.upper().strip()
 
     initial_state: WealthOSState = {
         "query":              req.query,
         "tickers":            [ticker],
         "user_id":            req.user_id,
+        "user_memory":        None,
         "personal_finance":   None,
         "financial_snapshot": None,
         "research_output":    None,
@@ -157,22 +154,16 @@ async def analyze_stream(req: AnalyzeRequest):
     }
 
     async def event_stream():
-        # Stream node progress events first
         yield f"data: {json.dumps({'event': 'start', 'ticker': ticker})}\n\n"
-
         try:
             result = await wealthos_graph.ainvoke(initial_state)
             memo   = result.get("final_memo", "")
-
-            # Stream the memo word by word
-            words = memo.split(" ")
+            words  = memo.split(" ")
             for i, word in enumerate(words):
                 chunk = word + (" " if i < len(words) - 1 else "")
                 yield f"data: {json.dumps({'event': 'chunk', 'text': chunk})}\n\n"
-                await asyncio.sleep(0.02)   # ~50 words/sec
-
+                await asyncio.sleep(0.02)
             yield f"data: {json.dumps({'event': 'done', 'messages': result.get('messages', [])})}\n\n"
-
         except Exception as e:
             yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
 
@@ -183,7 +174,6 @@ async def analyze_stream(req: AnalyzeRequest):
 
 @app.get("/state/{ticker}")
 async def get_state(ticker: str):
-    """Return the last cached analysis for a ticker (up to 1 hour old)."""
     try:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         raw   = await redis.get(f"analysis:{ticker.upper()}")
@@ -193,6 +183,55 @@ async def get_state(ticker: str):
         return json.loads(raw)
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Phase 6: Morning briefing endpoints ───────────────────────────────────────
+
+@app.post("/briefing/send-now")
+async def send_briefing_now(req: BriefingRequest):
+    """
+    Trigger a morning briefing immediately for a user.
+    Used for testing — no need to wait for 8 AM cron.
+    Requires Temporal worker to be running.
+    """
+    try:
+        from temporalio.client import Client
+        from workflows.morning_briefing import MorningBriefingWorkflow, TASK_QUEUE
+
+        client = await Client.connect("localhost:7233")
+        result = await client.execute_workflow(
+            MorningBriefingWorkflow.run,
+            req.user_id,
+            id=f"briefing-now-{req.user_id}-{int(asyncio.get_event_loop().time())}",
+            task_queue=TASK_QUEUE,
+        )
+
+        # Cache in Redis for history
+        try:
+            redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+            history_key = f"briefing:history:{req.user_id}"
+            await redis.lpush(history_key, json.dumps({"date": str(__import__('datetime').date.today()), "text": result}))
+            await redis.ltrim(history_key, 0, 6)   # keep last 7
+            await redis.aclose()
+        except Exception:
+            pass
+
+        return {"user_id": req.user_id, "briefing": result}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Briefing failed: {e}")
+
+
+@app.get("/briefing/history/{user_id}")
+async def briefing_history(user_id: str):
+    """Return last 7 morning briefings for a user."""
+    try:
+        redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+        items = await redis.lrange(f"briefing:history:{user_id}", 0, 6)
+        await redis.aclose()
+        return {"user_id": user_id, "history": [json.loads(i) for i in items]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
