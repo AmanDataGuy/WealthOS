@@ -13,10 +13,13 @@ class WealthOSState(TypedDict):
     tickers:        list[str]
     user_id:        str
 
+    # ── Phase 6: Mem0 long-term memory ─────────────────────
+    user_memory:    Optional[str]   # injected at start of finance_node
+
     # ── Agent outputs ───────────────────────────────────────
     personal_finance:       Optional[dict]   # Finance Agent
     financial_snapshot:     Optional[dict]   # Data Agent
-    research_output:        Optional[dict]   # Research Agent (stub for now)
+    research_output:        Optional[dict]   # Research Agent
     risk_report:            Optional[dict]   # Risk Agent
     code_output:            Optional[dict]   # Code Agent
     rebalance_suggestion:   Optional[dict]   # Rebalancing Agent
