@@ -224,10 +224,14 @@ class FilingIndexer:
                 inserted        = 0
                 section_counts  = {}   # track how many chunks per section (useful for debugging)
 
+                current_section = "unknown"   # carries forward between chunks
                 for i, chunk in enumerate(chunks):
 
-                    # ── Section detection (new) ────────────────────────────
-                    section = detect_section(chunk)
+                    # ── Section detection (carry-forward) ─────────────────
+                    detected = detect_section(chunk)
+                    if detected != "unknown":
+                        current_section = detected   # new header found — update
+                    section = current_section
                     section_counts[section] = section_counts.get(section, 0) + 1
 
                     # ── Embedding ──────────────────────────────────────────
