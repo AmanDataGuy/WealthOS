@@ -1,44 +1,38 @@
 # rag/query_engine.py
 """
-Query Engine
-============
-The main entry point for all RAG queries in WealthOS.
+Custom Agentic RAG — no LlamaIndex dependency.
+Uses a ReAct (Reason + Act) loop driven by qwen2.5:7b via Ollama.
 
-How it works
-------------
-1. Router reads the question → picks a route
-2. Route 2 (SQL)         → hits financial_facts table directly, exact number
-3. Route 3 (section_rag) → filters chunks by section, then vector search
-4. Route 1 (vector)      → searches all chunks, default behaviour
-
-No hardcoded numbers anywhere. Each route is built for what it's good at.
+Tools available to the agent:
+  1. financial_facts_sql  — exact numbers from financial_facts table
+  2. vector_search        — semantic search over document_embeddings
+  3. section_search       — vector search filtered by section name
 """
 
 import os
+import json
 import asyncio
-from dotenv import load_dotenv
-
+import time
 import asyncpg
 import httpx
+from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Settings ──────────────────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────
+DATABASE_URL = os.getenv("WEALTHOS_DB_URL", "postgresql://postgres:postgres@localhost:5432/wealthos")
+OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
+EMBED_MODEL  = "mxbai-embed-large"
+GEN_MODEL    = "qwen2.5:7b"
 
-DB_URL      = os.getenv("WEALTHOS_DB_URL", "postgresql://postgres:wealth123@localhost:5432/wealthos")
-OLLAMA_URL  = os.getenv("OLLAMA_URL", "http://localhost:11434")
-EMBED_MODEL = "mxbai-embed-large"
-GEN_MODEL   = "qwen2.5:7b"
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def clean_db_url(url: str) -> str:
+def clean_url(url: str) -> str:
     return url.replace("postgresql+asyncpg://", "postgresql://")
 
 
+# ── Embedding ─────────────────────────────────────────────────────────────────
+
 async def embed(text: str, client: httpx.AsyncClient) -> list[float]:
-    """Turn a text string into a vector using Ollama."""
     resp = await client.post(
         f"{OLLAMA_URL}/api/embeddings",
         json={"model": EMBED_MODEL, "prompt": text},
@@ -48,37 +42,13 @@ async def embed(text: str, client: httpx.AsyncClient) -> list[float]:
     return resp.json()["embedding"]
 
 
-async def generate(question: str, chunks: list[dict], client: httpx.AsyncClient) -> str:
-    """Send question + context chunks to qwen2.5:7b and get a grounded answer."""
+# ── LLM call ──────────────────────────────────────────────────────────────────
 
-    # build the context block the LLM will read
-    context = "\n\n---\n\n".join(
-        f"[Source {i+1} | {c['ticker']} {c['doc_type']}]\n{c['chunk_text']}"
-        for i, c in enumerate(chunks)
-    )
-
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a financial analyst. Answer using ONLY the provided context.\n\n"
-                "RULES:\n"
-                "1. Never use outside knowledge — only what is in the sources.\n"
-                "2. When a table shows two years side by side, LEFT = earlier year, RIGHT = later year.\n"
-                "3. Always cite which Source number you got each figure from.\n"
-                "4. Never use a number from one company to answer about a different company.\n"
-                "5. If the answer is not in any source, say so clearly.\n"
-            ),
-        },
-        {
-            "role": "user",
-            "content": (
-                f"CONTEXT:\n{context}\n\n"
-                f"QUESTION: {question}\n\n"
-                "Answer directly with exact figures and source citations."
-            ),
-        },
-    ]
+async def llm(prompt: str, client: httpx.AsyncClient, system: str = "") -> str:
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
 
     resp = await client.post(
         f"{OLLAMA_URL}/api/chat",
@@ -89,273 +59,255 @@ async def generate(question: str, chunks: list[dict], client: httpx.AsyncClient)
     return resp.json()["message"]["content"].strip()
 
 
-# ── Route handlers ────────────────────────────────────────────────────────────
+# ── Tool implementations ───────────────────────────────────────────────────────
 
-async def route_sql(question: str, ticker: str, conn: asyncpg.Connection) -> dict:
-    """
-    Route 2 — SQL on financial_facts table.
-
-    Maps common question words to metric names in the DB,
-    then does a direct SELECT. No LLM involved for the number itself.
-
-    Example: "What is Tesla's revenue?" → SELECT where metric = 'total_revenue'
-    """
-
-    # map question keywords → DB metric names
+async def tool_sql(ticker: str, metric: str, conn: asyncpg.Connection) -> str:
+    """Query financial_facts for an exact number."""
+    # normalize metric name
     metric_map = {
-        "revenue":          "total_revenue",
-        "net sales":        "total_revenue",
-        "net income":       "net_income",
-        "profit":           "net_income",
-        "operating income": "operating_income",
-        "gross profit":     "gross_profit",
-        "assets":           "total_assets",
-        "liabilities":      "total_liabilities",
-        "debt":             "long_term_debt",
-        "cash":             "cash_and_equivalents",
-        "cash flow":        "operating_cash_flow",
-        "capital expenditure": "capital_expenditure",
-        "r&d":              "research_and_development",
+        "revenue": "total_revenue", "total revenue": "total_revenue",
+        "net income": "net_income", "earnings": "net_income",
+        "gross profit": "gross_profit", "operating income": "operating_income",
+        "ebitda": "ebitda", "free cash flow": "free_cash_flow",
+        "total assets": "total_assets", "total debt": "total_debt",
+        "cash": "cash_and_equivalents", "eps": "eps_diluted",
+        "eps basic": "eps_basic", "eps diluted": "eps_diluted",
     }
+    metric_key = metric_map.get(metric.lower().strip(), metric.lower().strip().replace(" ", "_"))
 
-    q       = question.lower()
-    metric  = next((v for k, v in metric_map.items() if k in q), None)
+    rows = await conn.fetch(
+        """
+        SELECT metric, value, fiscal_year, unit
+        FROM financial_facts
+        WHERE ticker = $1 AND metric = $2
+        ORDER BY fiscal_year DESC
+        LIMIT 5
+        """,
+        ticker.upper(), metric_key
+    )
 
-    # try to detect fiscal year from question (e.g. "FY2024", "2024", "fiscal 2024")
-    import re
-    year_match = re.search(r"20\d{2}", question)
-    fiscal_year = int(year_match.group()) if year_match else None
-
-    if not metric:
-        # can't map to a metric — fall back to vector search
-        return None
-
-    # build query — with or without year filter
-    if fiscal_year:
+    if not rows:
+        # try partial match
         rows = await conn.fetch(
             """
             SELECT metric, value, fiscal_year, unit
             FROM financial_facts
-            WHERE ticker = $1 AND metric = $2 AND fiscal_year = $3
+            WHERE ticker = $1 AND metric ILIKE $2
             ORDER BY fiscal_year DESC
-            LIMIT 1
+            LIMIT 5
             """,
-            ticker, metric, fiscal_year,
-        )
-    else:
-        # no year mentioned → return most recent
-        rows = await conn.fetch(
-            """
-            SELECT metric, value, fiscal_year, unit
-            FROM financial_facts
-            WHERE ticker = $1 AND metric = $2
-            ORDER BY fiscal_year DESC
-            LIMIT 1
-            """,
-            ticker, metric,
+            ticker.upper(), f"%{metric_key}%"
         )
 
     if not rows:
-        return {
-            "answer":  f"No data found for {ticker} {metric} in financial_facts. Try re-running edgar_ingestor.py.",
-            "sources": [],
-            "route":   "sql",
-        }
+        return f"No data found for {ticker} metric '{metric}' in financial_facts table."
 
-    row    = rows[0]
-    answer = (
-        f"{ticker} {row['metric'].replace('_', ' ').title()} "
-        f"FY{row['fiscal_year']}: "
-        f"${row['value']:,.0f}M "
-        f"(Source: SEC EDGAR financial_facts table)"
-    )
-
-    return {
-        "answer":  answer,
-        "sources": [dict(row)],
-        "route":   "sql",
-    }
+    lines = [f"{ticker} {r['metric']} FY{r['fiscal_year']}: ${r['value']:,.0f}M" for r in rows]
+    return "\n".join(lines)
 
 
-async def route_vector(
+async def tool_vector_search(
     question: str,
-    ticker: str | None,
+    ticker: str,
     conn: asyncpg.Connection,
     client: httpx.AsyncClient,
     section: str | None = None,
-    top_k: int = 10,
-) -> dict:
-    """
-    Route 1 (vector) and Route 3 (section_rag) share this function.
+    top_k: int = 6,
+) -> str:
+    """Semantic search over document_embeddings, optionally filtered by section."""
+    vector = await embed(question, client)
+    vector_str = "[" + ",".join(str(v) for v in vector) + "]"
 
-    Pass section='risk_factors' etc. for section-aware filtering.
-    Pass section=None for full document search.
-    """
-
-    # embed the question
-    vector      = await embed(question, client)
-    vector_str  = "[" + ",".join(str(v) for v in vector) + "]"
-
-    # build query — filter by ticker and optionally by section
-    if ticker and section:
+    if section:
         rows = await conn.fetch(
             """
-            SELECT chunk_text, ticker, doc_type, metadata,
-                   1 - (embedding <=> $1::vector) AS score
+            SELECT chunk_text, section,
+                   1 - (embedding <=> $1::text::vector) AS score
             FROM document_embeddings
             WHERE ticker = $2 AND section = $3
-            ORDER BY embedding <=> $1::vector
+            ORDER BY embedding <=> $1::text::vector
             LIMIT $4
             """,
-            vector_str, ticker, section, top_k,
+            vector_str, ticker.upper(), section, top_k
         )
-    elif ticker:
+        # fallback to full vector if section has no chunks
+        if not rows:
+            section = None
+
+    if not section:
         rows = await conn.fetch(
             """
-            SELECT chunk_text, ticker, doc_type, metadata,
-                   1 - (embedding <=> $1::vector) AS score
+            SELECT chunk_text, section,
+                   1 - (embedding <=> $1::text::vector) AS score
             FROM document_embeddings
             WHERE ticker = $2
-            ORDER BY embedding <=> $1::vector
+            ORDER BY embedding <=> $1::text::vector
             LIMIT $3
             """,
-            vector_str, ticker, top_k,
-        )
-    else:
-        rows = await conn.fetch(
-            """
-            SELECT chunk_text, ticker, doc_type, metadata,
-                   1 - (embedding <=> $1::vector) AS score
-            FROM document_embeddings
-            ORDER BY embedding <=> $1::vector
-            LIMIT $2
-            """,
-            vector_str, top_k,
+            vector_str, ticker.upper(), top_k
         )
 
     if not rows:
-        return {
-            "answer":  "No relevant chunks found. Have you indexed filings for this ticker?",
-            "sources": [],
-            "route":   "section_rag" if section else "vector",
-        }
+        return f"No filing chunks found for {ticker}. Has this ticker been indexed?"
 
-    chunks = [
-        {
-            "chunk_text": r["chunk_text"],
-            "ticker":     r["ticker"],
-            "doc_type":   r["doc_type"],
-            "score":      round(float(r["score"]), 3),
-        }
+    chunks = "\n\n---\n\n".join(
+        f"[Section: {r['section']} | Score: {float(r['score']):.3f}]\n{r['chunk_text']}"
         for r in rows
-    ]
-
-    answer = await generate(question, chunks, client)
-
-    return {
-        "answer":  answer,
-        "sources": chunks,
-        "route":   "section_rag" if section else "vector",
-    }
+    )
+    return chunks
 
 
-def detect_section(question: str) -> str | None:
-    """
-    Maps question intent to a section tag in document_embeddings.
-    Returns None if no specific section is relevant.
-    """
-    q = question.lower()
+# ── ReAct Agent Loop ──────────────────────────────────────────────────────────
 
-    if any(w in q for w in ["risk", "risks", "uncertainty"]):
-        return "risk_factors"
-    if any(w in q for w in ["management", "md&a", "discuss", "ceo", "outlook"]):
-        return "md_and_a"
-    if any(w in q for w in ["revenue", "income", "profit", "sales"]):
-        return "income_statement"
+SYSTEM_PROMPT = """You are a financial research assistant with access to tools.
+Use the ReAct format — reason step by step, then call ONE tool at a time.
 
-    return None
+Available tools:
+1. financial_facts_sql(metric) — get exact financial numbers (revenue, net income, EPS, debt, cash flow, assets)
+2. vector_search(query) — semantic search over SEC filing text (strategy, products, general info)
+3. section_search(query, section) — search a specific filing section. Sections: md_and_a, risk_factors, income_statement, balance_sheet, cash_flow
+
+Format your response EXACTLY like this:
+Thought: [your reasoning about what to do next]
+Action: tool_name
+Input: {"key": "value"}
+
+When you have enough information to answer, respond EXACTLY like this:
+Thought: I now have enough information to answer.
+Final Answer: [your complete answer]
+
+Rules:
+- ALWAYS use financial_facts_sql for specific numbers (revenue, income, EPS, debt)
+- Use section_search with section=md_and_a for management commentary and outlook
+- Use section_search with section=risk_factors for risks and threats
+- Use vector_search for general qualitative questions
+- You may call multiple tools before giving Final Answer
+- Never hallucinate numbers — only state figures returned by financial_facts_sql
+"""
 
 
-# ── Main engine class ─────────────────────────────────────────────────────────
+async def react_agent(
+    question: str,
+    ticker: str,
+    conn: asyncpg.Connection,
+    client: httpx.AsyncClient,
+    max_iterations: int = 6,
+) -> str:
+    """Run the ReAct loop until Final Answer or max iterations."""
+
+    conversation = f"Company: {ticker}\nQuestion: {question}"
+    tool_results = []
+    seen_calls = set()          
+
+    for i in range(max_iterations):
+        # Build prompt with all tool results so far
+        full_prompt = conversation
+        if tool_results:
+            full_prompt += "\n\n" + "\n\n".join(tool_results)
+        full_prompt += "\n\nWhat do you do next?"
+
+        response = await llm(full_prompt, client, system=SYSTEM_PROMPT)
+
+        print(f"\n[agent] Iteration {i+1}:")
+        print(response[:300])
+
+        # Check for Final Answer
+        if "Final Answer:" in response:
+            final = response.split("Final Answer:")[-1].strip()
+            return final
+
+        # Parse tool call
+        try:
+            action_line = [l for l in response.splitlines() if l.startswith("Action:")][0]
+            input_line  = [l for l in response.splitlines() if l.startswith("Input:")][0]
+
+            tool_name = action_line.replace("Action:", "").strip()
+            tool_input = json.loads(input_line.replace("Input:", "").strip())
+        except (IndexError, json.JSONDecodeError):
+            # LLM didn't follow format — ask it to try again
+            tool_results.append("System: Your last response didn't follow the required format. Please use Thought/Action/Input format or give a Final Answer.")
+            continue
+
+        # Dedup — skip if same tool+input already called
+        call_sig = f"{tool_name}:{json.dumps(tool_input, sort_keys=True)}"
+        if call_sig in seen_calls:
+            tool_results.append(
+                f"System: You already called {tool_name} with that exact input. "
+                f"Use the results you already have, or give a Final Answer."
+            )
+            continue
+        seen_calls.add(call_sig)
+
+        # Execute tool
+        print(f"[agent] Calling tool: {tool_name} with {tool_input}")
+
+        if tool_name == "financial_facts_sql":
+            metric = tool_input.get("metric", "total_revenue")
+            result = await tool_sql(ticker, metric, conn)
+
+        elif tool_name == "vector_search":
+            query = tool_input.get("query", question)
+            result = await tool_vector_search(question=query, ticker=ticker, conn=conn, client=client)
+
+        elif tool_name == "section_search":
+            query   = tool_input.get("query", question)
+            section = tool_input.get("section", "md_and_a")
+            result  = await tool_vector_search(question=query, ticker=ticker, conn=conn, client=client, section=section)
+
+        else:
+            result = f"Unknown tool: {tool_name}. Available tools: financial_facts_sql, vector_search, section_search"
+
+        tool_results.append(f"Tool: {tool_name}\nResult:\n{result}")
+
+    # Max iterations hit — ask LLM to summarize what it has
+    summary_prompt = (
+        f"Question: {question}\n\n"
+        f"Here is the information collected:\n\n"
+        + "\n\n".join(tool_results)
+        + "\n\nPlease give your best answer based on the above."
+    )
+    return await llm(summary_prompt, client)
+
+
+# ── Main engine ───────────────────────────────────────────────────────────────
 
 class FilingQueryEngine:
 
-    def __init__(self):
-        self.db_url = clean_db_url(DB_URL)
+    async def query(self, question: str, ticker: str | None = None) -> dict:
+        start = time.time()
+        db_url = clean_url(DATABASE_URL)
 
-    async def query(
-        self,
-        question: str,
-        ticker: str | None = None,
-        top_k: int = 10,
-    ) -> dict:
-        """
-        Main query method. Called by agents and the CLI.
-
-        Steps
-        -----
-        1. Router decides the route
-        2. SQL route  → direct DB lookup, return exact number
-        3. Section RAG → vector search within one section
-        4. Vector     → vector search across all chunks
-        5. Log the query for debugging
-        """
-
-        # import here to avoid circular imports
-        from rag.router import route
-
-        conn = await asyncpg.connect(self.db_url)
-
+        conn = await asyncpg.connect(db_url)
         try:
             async with httpx.AsyncClient() as client:
-
-                # ── Step 1: decide route ───────────────────────────────────
-                chosen_route = route(question)
-                print(f"[query_engine] Route: {chosen_route} | Q: {question[:60]}")
-
-                # ── Step 2: SQL route ──────────────────────────────────────
-                if chosen_route == "sql" and ticker:
-                    result = await route_sql(question, ticker, conn)
-
-                    # if SQL couldn't map to a metric, fall back to vector
-                    if result is not None:
-                        result["question"] = question
-                        result["ticker"]   = ticker
-                        await log_query(conn, question, ticker, result["route"], result["answer"])
-                        return result
-
-                # ── Step 3: Section RAG ────────────────────────────────────
-                if chosen_route == "section_rag":
-                    section = detect_section(question)
-                    result  = await route_vector(question, ticker, conn, client, section=section, top_k=top_k)
-                    result["question"] = question
-                    result["ticker"]   = ticker
-                    await log_query(conn, question, ticker, result["route"], result["answer"])
-                    return result
-
-                # ── Step 4: Default vector search ──────────────────────────
-                result = await route_vector(question, ticker, conn, client, top_k=top_k)
-                result["question"] = question
-                result["ticker"]   = ticker
-                await log_query(conn, question, ticker, result["route"], result["answer"])
-                return result
-
+                if ticker:
+                    answer = await react_agent(question, ticker, conn, client)
+                else:
+                    # No ticker — pure vector search
+                    answer = await tool_vector_search(question, "", conn, client)
         finally:
             await conn.close()
 
+        latency_ms = int((time.time() - start) * 1000)
 
-async def log_query(conn, question, ticker, route_used, answer):
-    """Save every query to query_logs for debugging and demo purposes."""
-    try:
-        await conn.execute(
-            """
-            INSERT INTO query_logs (question, ticker, route_used, answer)
-            VALUES ($1, $2, $3, $4)
-            """,
-            question, ticker, route_used, answer[:500],
-        )
-    except Exception:
-        pass  # logging should never break the main flow
+        # Log to query_logs
+        try:
+            conn2 = await asyncpg.connect(db_url)
+            await conn2.execute(
+                "INSERT INTO query_logs (question, ticker, route_used, answer, latency_ms) VALUES ($1,$2,$3,$4,$5)",
+                question, ticker, "agentic", answer[:500], latency_ms
+            )
+            await conn2.close()
+        except Exception:
+            pass
+
+        return {
+            "question":   question,
+            "ticker":     ticker,
+            "answer":     answer,
+            "route":      "agentic",
+            "latency_ms": latency_ms,
+        }
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -371,19 +323,11 @@ if __name__ == "__main__":
         result = await engine.query(question, ticker=ticker)
 
         print(f"\n{'═' * 60}")
-        print(f"  Q : {result['question']}")
-        print(f"  🗺  Route  : {result.get('route', 'unknown')}")
-        print(f"  🏷  Ticker : {result['ticker']}")
+        print(f"  Q        : {result['question']}")
+        print(f"  Ticker   : {result['ticker']}")
+        print(f"  Latency  : {result['latency_ms']}ms")
         print(f"{'─' * 60}")
         print(f"  A : {result['answer']}")
-        print(f"{'─' * 60}")
-
-        sources = result.get("sources", [])
-        if sources and isinstance(sources[0], dict) and "chunk_text" in sources[0]:
-            print(f"\n  Sources ({len(sources)}):")
-            for i, s in enumerate(sources):
-                print(f"    [{i+1}] {s['ticker']} {s['doc_type']} | score: {s.get('score', 'N/A')}")
-                print(f"         {s['chunk_text'][:100]}...")
-        print()
+        print(f"{'═' * 60}\n")
 
     asyncio.run(main())
