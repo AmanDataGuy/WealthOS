@@ -15,7 +15,7 @@ Start the briefing cron:
 Send immediately for one user (testing):
   python -m workflows.morning_briefing now test-user
 """
-
+import time
 import asyncio
 import os
 import sys
@@ -208,7 +208,7 @@ async def send_now(user_id: str = "test-user") -> str:
     result = await client.execute_workflow(
         MorningBriefingWorkflow.run,
         user_id,
-        id=f"morning-briefing-now-{user_id}",
+        id=f"morning-briefing-now-{user_id}-{int(time.time())}",
         task_queue=TASK_QUEUE,
     )
     print(f"\nBriefing:\n{result}")
