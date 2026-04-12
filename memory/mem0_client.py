@@ -35,7 +35,7 @@ def read_memory(user_id: str) -> str:
         client = get_client()
         memories = client.search(
             query="financial analysis investment risk portfolio",
-            user_id=user_id,
+            filters={"user_id": user_id},
             limit=10,
         )
         if not memories:
