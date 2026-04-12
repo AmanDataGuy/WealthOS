@@ -1,13 +1,15 @@
 # news_server.py
 # Fetches financial news and computes sentiment for stocks.
-# Uses NewsAPI as primary source.
+# Uses NewsAPI as primary source + Firecrawl for Reddit community sentiment.
 #
 # Tools:
-#   search_news    — search recent news articles for a query or ticker
-#   get_headlines  — get top N headlines for a ticker
-#   get_sentiment  — score overall sentiment for a ticker (positive/negative/neutral)
+#   search_news           — search recent news articles for a query or ticker
+#   get_headlines         — get top N headlines for a ticker
+#   get_sentiment         — score overall sentiment for a ticker (positive/negative/neutral)
+#   get_reddit_sentiment  — scrape Reddit finance subreddits via Firecrawl (no Reddit API needed)
 
 import os
+import re
 import json
 import logging
 from datetime import datetime, timedelta
@@ -22,18 +24,20 @@ load_dotenv()
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__) 
+logger = logging.getLogger(__name__)
 
 mcp = FastMCP("news-mcp")
 
 r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
 
-NEWSAPI_KEY  = os.getenv("NEWSAPI_KEY", "")
-NEWSAPI_BASE = "https://newsapi.org/v2/everything"
+NEWSAPI_KEY       = os.getenv("NEWSAPI_KEY", "")
+NEWSAPI_BASE      = "https://newsapi.org/v2/everything"
+FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", "")
 
 # Cache durations
-TTL_NEWS      = 60 * 30   # 30 minutes — news changes but not every second
+TTL_NEWS      = 60 * 30   # 30 minutes
 TTL_SENTIMENT = 60 * 30   # 30 minutes
+TTL_REDDIT    = 60 * 30   # 30 minutes
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -86,7 +90,7 @@ def fetch_articles(query: str, days: int = 7, count: int = 10) -> list[dict]:
                 "description": a.get("description", ""),
                 "source":      a.get("source", {}).get("name", ""),
                 "url":         a.get("url", ""),
-                "published":   a.get("publishedAt", "")[:10],  # date only
+                "published":   a.get("publishedAt", "")[:10],
             })
         return articles
 
@@ -100,7 +104,7 @@ def score_sentiment(articles: list[dict]) -> dict:
     Simple keyword-based sentiment scoring.
     Returns: positive_count, negative_count, neutral_count, overall score and label.
 
-    NOTE: This is a lightweight rule-based scorer.
+    NOTE: Lightweight rule-based scorer.
     In production this gets replaced by a Groq LLM call for better accuracy.
     """
     positive_words = [
@@ -132,7 +136,6 @@ def score_sentiment(articles: list[dict]) -> dict:
     if total == 0:
         return {"positive": 0, "negative": 0, "neutral": 0, "score": 0.0, "label": "neutral"}
 
-    # Score: +1 for positive, -1 for negative, normalized to -1..+1
     score = round((pos - neg) / total, 2)
 
     if score > 0.2:
@@ -146,9 +149,73 @@ def score_sentiment(articles: list[dict]) -> dict:
         "positive": pos,
         "negative": neg,
         "neutral":  neu,
-        "score":    score,   # -1.0 (very negative) to +1.0 (very positive)
+        "score":    score,
         "label":    label,
     }
+
+
+def scrape_reddit_firecrawl(ticker: str, subreddit: str) -> list[dict]:
+    """
+    Scrape a Reddit subreddit search page for a ticker using Firecrawl.
+    Parses post titles and URLs from the returned markdown.
+    No Reddit API credentials needed.
+    """
+    if not FIRECRAWL_API_KEY:
+        logger.warning("FIRECRAWL_API_KEY not set — skipping Reddit scrape")
+        return []
+
+    try:
+        from firecrawl import FirecrawlApp
+        app = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
+
+        url = (
+            f"https://www.reddit.com/r/{subreddit}/search/"
+            f"?q={ticker.replace(' ', '+')}&t=week&sort=relevance"
+        )
+
+        result = app.scrape_url(url, params={"formats": ["markdown"]})
+        markdown = result.get("markdown", "")
+
+        if not markdown:
+            return []
+
+        posts = []
+        lines = markdown.split("\n")
+
+        for line in lines:
+            line = line.strip()
+
+            # Match markdown links: [Post Title](reddit_url)
+            match = re.search(
+                r'\[([^\]]{15,200})\]\((https://www\.reddit\.com/r/[^\)]+)\)',
+                line
+            )
+            if match:
+                title   = match.group(1).strip()
+                post_url = match.group(2).strip()
+
+                # Skip navigation / UI links
+                skip_patterns = [
+                    "search", "subscribe", "log in", "sign up", "cookies",
+                    "sort by", "top posts", "new posts", "hot", "reddit premium"
+                ]
+                if any(p in title.lower() for p in skip_patterns):
+                    continue
+                if len(title) < 15:
+                    continue
+
+                posts.append({
+                    "title":     title,
+                    "url":       post_url,
+                    "subreddit": subreddit,
+                    "source":    "firecrawl",
+                })
+
+        return posts
+
+    except Exception as e:
+        logger.error("Firecrawl Reddit scrape failed for r/%s: %s", subreddit, e)
+        return []
 
 
 # ── Tools ─────────────────────────────────────────────────────────────────────
@@ -174,11 +241,11 @@ def search_news(query: str, days: int = 7, count: int = 10) -> dict:
     articles = fetch_articles(query, days=days, count=count)
 
     data = {
-        "query":       query,
-        "days":        days,
-        "count":       len(articles),
-        "articles":    articles,
-        "from_cache":  False,
+        "query":      query,
+        "days":       days,
+        "count":      len(articles),
+        "articles":   articles,
+        "from_cache": False,
     }
     to_cache(cache_key, data, TTL_NEWS)
     return data
@@ -199,10 +266,8 @@ def get_headlines(ticker: str, count: int = 5) -> dict:
         cached["from_cache"] = True
         return cached
 
-    # Search by ticker name for better results
     articles = fetch_articles(ticker, days=7, count=count)
 
-    # Return only the headline-level fields
     headlines = [
         {
             "title":     a["title"],
@@ -269,6 +334,108 @@ def get_sentiment(ticker: str) -> dict:
         "from_cache": False,
     }
     to_cache(cache_key, data, TTL_SENTIMENT)
+    return data
+
+
+@mcp.tool()
+def get_reddit_sentiment(ticker: str) -> dict:
+    """
+    Scrape Reddit finance subreddits for posts about a stock ticker
+    and compute community sentiment. Uses Firecrawl — no Reddit API needed.
+
+    Searches:
+        r/IndiaInvestments  — primary Indian retail investor community
+        r/IndiaFinance      — Indian personal finance discussions
+        r/stocks            — global stock discussions
+        r/investing         — global investing community
+        r/SecurityAnalysis  — fundamental analysis discussions
+
+    Args:
+        ticker: stock ticker or company name — e.g. "Reliance" or "Infosys"
+
+    Returns:
+        posts:               list of post titles + urls found across subreddits
+        total_posts:         total posts found
+        sentiment:           overall sentiment label across all post titles
+        sentiment_score:     float -1.0 to +1.0
+        breakdown:           positive / negative / neutral post counts
+        subreddits_searched: which subreddits were scraped
+        from_cache:          whether result came from cache
+
+    Example: get_reddit_sentiment("Reliance Industries")
+    """
+    cache_key = f"news:reddit_fc:{ticker.lower().replace(' ', '_')}"
+    cached = from_cache(cache_key)
+    if cached:
+        cached["from_cache"] = True
+        return cached
+
+    if not FIRECRAWL_API_KEY:
+        return {
+            "ticker":        ticker,
+            "posts":         [],
+            "total_posts":   0,
+            "sentiment":     "neutral",
+            "sentiment_score": 0.0,
+            "breakdown":     {"positive": 0, "negative": 0, "neutral": 0},
+            "note":          "FIRECRAWL_API_KEY not set — add it to .env",
+            "from_cache":    False,
+        }
+
+    subreddits = [
+        "IndiaInvestments",
+        "IndiaFinance",
+        "stocks",
+        "investing",
+        "SecurityAnalysis",
+    ]
+
+    all_posts = []
+    for sub in subreddits:
+        posts = scrape_reddit_firecrawl(ticker, sub)
+        all_posts.extend(posts)
+        logger.info("r/%s → %d posts found for '%s'", sub, len(posts), ticker)
+
+    if not all_posts:
+        return {
+            "ticker":        ticker,
+            "posts":         [],
+            "total_posts":   0,
+            "sentiment":     "neutral",
+            "sentiment_score": 0.0,
+            "breakdown":     {"positive": 0, "negative": 0, "neutral": 0},
+            "note":          "No Reddit posts found — try full company name e.g. 'Reliance Industries'",
+            "subreddits_searched": subreddits,
+            "from_cache":    False,
+        }
+
+    # Deduplicate by title
+    seen = set()
+    unique_posts = []
+    for p in all_posts:
+        if p["title"] not in seen:
+            seen.add(p["title"])
+            unique_posts.append(p)
+
+    # Score sentiment across all post titles
+    reddit_articles = [{"title": p["title"], "description": ""} for p in unique_posts]
+    sentiment_result = score_sentiment(reddit_articles)
+
+    data = {
+        "ticker":            ticker,
+        "posts":             unique_posts[:25],   # cap at 25
+        "total_posts":       len(unique_posts),
+        "sentiment":         sentiment_result["label"],
+        "sentiment_score":   sentiment_result["score"],
+        "breakdown": {
+            "positive": sentiment_result["positive"],
+            "negative": sentiment_result["negative"],
+            "neutral":  sentiment_result["neutral"],
+        },
+        "subreddits_searched": subreddits,
+        "from_cache":        False,
+    }
+    to_cache(cache_key, data, TTL_REDDIT)
     return data
 
 
