@@ -1,9 +1,18 @@
 # rag/query_engine.py
-# Retrieval + Generation engine.
-# 1. Embeds the question via Ollama mxbai-embed-large
-# 2. Finds top-k similar chunks in pgvector
-# 2b. ALWAYS prepends keyword hits for financial figure queries (not a fallback)
-# 3. Passes chunks to qwen2.5:7b for a grounded, cited answer
+"""
+Query Engine
+============
+The main entry point for all RAG queries in WealthOS.
+
+How it works
+------------
+1. Router reads the question → picks a route
+2. Route 2 (SQL)         → hits financial_facts table directly, exact number
+3. Route 3 (section_rag) → filters chunks by section, then vector search
+4. Route 1 (vector)      → searches all chunks, default behaviour
+
+No hardcoded numbers anywhere. Each route is built for what it's good at.
+"""
 
 import os
 import asyncio
@@ -12,80 +21,24 @@ from dotenv import load_dotenv
 import asyncpg
 import httpx
 
-# ── Query expansion for common financial question patterns ────────────────────
-QUERY_EXPANSIONS = {
-    "business segments":  "three segments North America International AWS organized operations",
-    "main business":      "three segments organized operations reporting structure",
-    "total revenue":      "total revenues net sales consolidated December 31 table",
-    "total net sales":    "consolidated net sales North America International table December",
-    "alphabet's total":   "Total revenues Google Search YouTube Google Cloud December 31",
-    "revenue for fiscal": "total revenues net sales consolidated table fiscal year ended",
-    "risk factors":       "risks uncertainties business operations may be harmed",
-    "tesla's total":      "total revenues automotive energy services fiscal year ended December",
-}
-
-
-def expand_query(question: str) -> str:
-    q = question.lower()
-    for key, expansion in QUERY_EXPANSIONS.items():
-        if key in q:
-            return question + " " + expansion
-    return question
-
-
-# ── Keyword extractor — targets actual dollar-figure strings in the DB ────────
-def extract_keywords(question: str) -> list[str]:
-    """
-    Returns ILIKE keywords that directly match financial table rows.
-    Used for ALWAYS-ON keyword injection (not just a low-score fallback).
-    """
-    q = question.lower()
-    keywords = []
-
-    # Revenue / net sales queries → inject the known consolidated totals
-    if "revenue" in q or "net sales" in q:
-        if "amazon" in q or "amzn" in q:
-            keywords.extend(["637,959", "716,924"])   # 2024 | 2025
-        elif "alphabet" in q or "google" in q or "googl" in q:
-            keywords.extend(["350,018", "402,836"])   # 2024 | 2025
-        elif "tesla" in q or "tsla" in q:
-            keywords.extend(["97,690", "94,827"])     # 2024 | 2023
-        elif "microsoft" in q or "msft" in q:
-            keywords.extend(["245,122", "211,915"])   # FY2024 | FY2023
-        elif "apple" in q or "aapl" in q:
-            keywords.extend(["391,035", "383,285"])   # FY2024 | FY2023
-        else:
-            keywords.append("total revenues")
-
-    # Segment queries
-    if "segment" in q or "business" in q:
-        if "amazon" in q or "amzn" in q:
-            keywords.extend(["North America", "AWS", "three segments"])
-        elif "alphabet" in q or "google" in q or "googl" in q:
-            keywords.extend(["Google Cloud", "Google Services", "Other Bets"])
-        elif "tesla" in q or "tsla" in q:
-            keywords.extend(["Automotive", "Energy generation", "Services"])
-
-    # Risk factor queries
-    if "risk" in q:
-        keywords.append("Risk Factors")
-
-    return keywords
-
-
 load_dotenv()
 
-DATABASE_URL = os.getenv("WEALTHOS_DB_URL", "postgresql://postgres:postgres@localhost:5432/wealthos")
-OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
-EMBED_MODEL  = "mxbai-embed-large"
-GEN_MODEL    = "qwen2.5:7b"
+# ── Settings ──────────────────────────────────────────────────────────────────
+
+DB_URL      = os.getenv("WEALTHOS_DB_URL", "postgresql://postgres:wealth123@localhost:5432/wealthos")
+OLLAMA_URL  = os.getenv("OLLAMA_URL", "http://localhost:11434")
+EMBED_MODEL = "mxbai-embed-large"
+GEN_MODEL   = "qwen2.5:7b"
 
 
-def _strip_asyncpg_prefix(url: str) -> str:
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def clean_db_url(url: str) -> str:
     return url.replace("postgresql+asyncpg://", "postgresql://")
 
 
-async def get_embedding(text: str, client: httpx.AsyncClient) -> list[float]:
+async def embed(text: str, client: httpx.AsyncClient) -> list[float]:
+    """Turn a text string into a vector using Ollama."""
     resp = await client.post(
         f"{OLLAMA_URL}/api/embeddings",
         json={"model": EMBED_MODEL, "prompt": text},
@@ -95,39 +48,26 @@ async def get_embedding(text: str, client: httpx.AsyncClient) -> list[float]:
     return resp.json()["embedding"]
 
 
-async def generate_answer(
-    question: str,
-    context_chunks: list[dict],
-    client: httpx.AsyncClient,
-) -> str:
-    """Send question + retrieved chunks to qwen2.5:7b via /api/chat."""
+async def generate(question: str, chunks: list[dict], client: httpx.AsyncClient) -> str:
+    """Send question + context chunks to qwen2.5:7b and get a grounded answer."""
+
+    # build the context block the LLM will read
     context = "\n\n---\n\n".join(
         f"[Source {i+1} | {c['ticker']} {c['doc_type']}]\n{c['chunk_text']}"
-        for i, c in enumerate(context_chunks)
+        for i, c in enumerate(chunks)
     )
 
     messages = [
         {
             "role": "system",
             "content": (
-                "You are a financial analyst that extracts data strictly from SEC 10-K filings.\n\n"
-                "STRICT RULES:\n"
-                "1. Use ONLY the provided context — absolutely no outside knowledge or training data.\n"
-                "2. Tables in the context contain real financial data. "
-                "Read dollar figures directly from the table rows.\n"
-                "3. YEAR COLUMNS: When a table shows two years side by side like '2024    2025', "
-                "the LEFT column is ALWAYS the earlier year and RIGHT is ALWAYS the later year. "
-                "If asked for 2024, use the LEFT column value. If asked for 2025, use the RIGHT. "
-                "Example: 'Consolidated $ 637,959 $ 716,924' — 637,959 is 2024, 716,924 is 2025.\n"
-                "4. NEVER say 'I could not find' if any relevant number or text exists in any source.\n"
-                "5. If the exact answer is in a table, state it plainly — e.g. "
-                "'Amazon total net sales 2024: $637,959 million (Source 2).'\n"
-                "6. Only say you cannot find something if zero relevant numbers appear across ALL sources.\n"
-                "7. Always cite the source number you drew each figure from.\n"
-                "8. TICKER ISOLATION — CRITICAL: You are answering about a specific company. "
-                "NEVER use a number from one company's filing to answer about a different company. "
-                "If TSLA sources show no revenue figure, do NOT use any number from AMZN or GOOGL sources. "
-                "Say explicitly: 'The revenue figure was not present in the retrieved TSLA sources.'"
+                "You are a financial analyst. Answer using ONLY the provided context.\n\n"
+                "RULES:\n"
+                "1. Never use outside knowledge — only what is in the sources.\n"
+                "2. When a table shows two years side by side, LEFT = earlier year, RIGHT = later year.\n"
+                "3. Always cite which Source number you got each figure from.\n"
+                "4. Never use a number from one company to answer about a different company.\n"
+                "5. If the answer is not in any source, say so clearly.\n"
             ),
         },
         {
@@ -135,156 +75,315 @@ async def generate_answer(
             "content": (
                 f"CONTEXT:\n{context}\n\n"
                 f"QUESTION: {question}\n\n"
-                "Answer directly. State exact figures with their source numbers. "
-                "Remember: left column = earlier year, right column = later year."
+                "Answer directly with exact figures and source citations."
             ),
         },
     ]
 
     resp = await client.post(
         f"{OLLAMA_URL}/api/chat",
-        json={
-            "model":    GEN_MODEL,
-            "messages": messages,
-            "stream":   False,
-        },
+        json={"model": GEN_MODEL, "messages": messages, "stream": False},
         timeout=120.0,
     )
     resp.raise_for_status()
     return resp.json()["message"]["content"].strip()
 
 
+# ── Route handlers ────────────────────────────────────────────────────────────
+
+async def route_sql(question: str, ticker: str, conn: asyncpg.Connection) -> dict:
+    """
+    Route 2 — SQL on financial_facts table.
+
+    Maps common question words to metric names in the DB,
+    then does a direct SELECT. No LLM involved for the number itself.
+
+    Example: "What is Tesla's revenue?" → SELECT where metric = 'total_revenue'
+    """
+
+    # map question keywords → DB metric names
+    metric_map = {
+        "revenue":          "total_revenue",
+        "net sales":        "total_revenue",
+        "net income":       "net_income",
+        "profit":           "net_income",
+        "operating income": "operating_income",
+        "gross profit":     "gross_profit",
+        "assets":           "total_assets",
+        "liabilities":      "total_liabilities",
+        "debt":             "long_term_debt",
+        "cash":             "cash_and_equivalents",
+        "cash flow":        "operating_cash_flow",
+        "capital expenditure": "capital_expenditure",
+        "r&d":              "research_and_development",
+    }
+
+    q       = question.lower()
+    metric  = next((v for k, v in metric_map.items() if k in q), None)
+
+    # try to detect fiscal year from question (e.g. "FY2024", "2024", "fiscal 2024")
+    import re
+    year_match = re.search(r"20\d{2}", question)
+    fiscal_year = int(year_match.group()) if year_match else None
+
+    if not metric:
+        # can't map to a metric — fall back to vector search
+        return None
+
+    # build query — with or without year filter
+    if fiscal_year:
+        rows = await conn.fetch(
+            """
+            SELECT metric, value, fiscal_year, unit
+            FROM financial_facts
+            WHERE ticker = $1 AND metric = $2 AND fiscal_year = $3
+            ORDER BY fiscal_year DESC
+            LIMIT 1
+            """,
+            ticker, metric, fiscal_year,
+        )
+    else:
+        # no year mentioned → return most recent
+        rows = await conn.fetch(
+            """
+            SELECT metric, value, fiscal_year, unit
+            FROM financial_facts
+            WHERE ticker = $1 AND metric = $2
+            ORDER BY fiscal_year DESC
+            LIMIT 1
+            """,
+            ticker, metric,
+        )
+
+    if not rows:
+        return {
+            "answer":  f"No data found for {ticker} {metric} in financial_facts. Try re-running edgar_ingestor.py.",
+            "sources": [],
+            "route":   "sql",
+        }
+
+    row    = rows[0]
+    answer = (
+        f"{ticker} {row['metric'].replace('_', ' ').title()} "
+        f"FY{row['fiscal_year']}: "
+        f"${row['value']:,.0f}M "
+        f"(Source: SEC EDGAR financial_facts table)"
+    )
+
+    return {
+        "answer":  answer,
+        "sources": [dict(row)],
+        "route":   "sql",
+    }
+
+
+async def route_vector(
+    question: str,
+    ticker: str | None,
+    conn: asyncpg.Connection,
+    client: httpx.AsyncClient,
+    section: str | None = None,
+    top_k: int = 10,
+) -> dict:
+    """
+    Route 1 (vector) and Route 3 (section_rag) share this function.
+
+    Pass section='risk_factors' etc. for section-aware filtering.
+    Pass section=None for full document search.
+    """
+
+    # embed the question
+    vector      = await embed(question, client)
+    vector_str  = "[" + ",".join(str(v) for v in vector) + "]"
+
+    # build query — filter by ticker and optionally by section
+    if ticker and section:
+        rows = await conn.fetch(
+            """
+            SELECT chunk_text, ticker, doc_type, metadata,
+                   1 - (embedding <=> $1::vector) AS score
+            FROM document_embeddings
+            WHERE ticker = $2 AND section = $3
+            ORDER BY embedding <=> $1::vector
+            LIMIT $4
+            """,
+            vector_str, ticker, section, top_k,
+        )
+    elif ticker:
+        rows = await conn.fetch(
+            """
+            SELECT chunk_text, ticker, doc_type, metadata,
+                   1 - (embedding <=> $1::vector) AS score
+            FROM document_embeddings
+            WHERE ticker = $2
+            ORDER BY embedding <=> $1::vector
+            LIMIT $3
+            """,
+            vector_str, ticker, top_k,
+        )
+    else:
+        rows = await conn.fetch(
+            """
+            SELECT chunk_text, ticker, doc_type, metadata,
+                   1 - (embedding <=> $1::vector) AS score
+            FROM document_embeddings
+            ORDER BY embedding <=> $1::vector
+            LIMIT $2
+            """,
+            vector_str, top_k,
+        )
+
+    if not rows:
+        return {
+            "answer":  "No relevant chunks found. Have you indexed filings for this ticker?",
+            "sources": [],
+            "route":   "section_rag" if section else "vector",
+        }
+
+    chunks = [
+        {
+            "chunk_text": r["chunk_text"],
+            "ticker":     r["ticker"],
+            "doc_type":   r["doc_type"],
+            "score":      round(float(r["score"]), 3),
+        }
+        for r in rows
+    ]
+
+    answer = await generate(question, chunks, client)
+
+    return {
+        "answer":  answer,
+        "sources": chunks,
+        "route":   "section_rag" if section else "vector",
+    }
+
+
+def detect_section(question: str) -> str | None:
+    """
+    Maps question intent to a section tag in document_embeddings.
+    Returns None if no specific section is relevant.
+    """
+    q = question.lower()
+
+    if any(w in q for w in ["risk", "risks", "uncertainty"]):
+        return "risk_factors"
+    if any(w in q for w in ["management", "md&a", "discuss", "ceo", "outlook"]):
+        return "md_and_a"
+    if any(w in q for w in ["revenue", "income", "profit", "sales"]):
+        return "income_statement"
+
+    return None
+
+
+# ── Main engine class ─────────────────────────────────────────────────────────
+
 class FilingQueryEngine:
+
     def __init__(self):
-        self.db_url = _strip_asyncpg_prefix(DATABASE_URL)
+        self.db_url = clean_db_url(DB_URL)
 
     async def query(
         self,
         question: str,
         ticker: str | None = None,
-        top_k: int = 15,
+        top_k: int = 10,
     ) -> dict:
         """
-        Full RAG query:
-          1. Embed the (expanded) question
-          2. Vector similarity search in pgvector
-          2b. ALWAYS inject keyword-matched chunks for financial queries
-              (keyword hits prepended so they appear first in LLM context)
-          3. Generate grounded answer with qwen2.5:7b
-          4. Return answer + source citations
+        Main query method. Called by agents and the CLI.
+
+        Steps
+        -----
+        1. Router decides the route
+        2. SQL route  → direct DB lookup, return exact number
+        3. Section RAG → vector search within one section
+        4. Vector     → vector search across all chunks
+        5. Log the query for debugging
         """
+
+        # import here to avoid circular imports
+        from rag.router import route
+
         conn = await asyncpg.connect(self.db_url)
+
         try:
             async with httpx.AsyncClient() as client:
 
-                # 1. Embed question (with query expansion)
-                expanded = expand_query(question)
-                question_vector = await get_embedding(expanded, client)
-                vector_str = "[" + ",".join(str(v) for v in question_vector) + "]"
+                # ── Step 1: decide route ───────────────────────────────────
+                chosen_route = route(question)
+                print(f"[query_engine] Route: {chosen_route} | Q: {question[:60]}")
 
-                # 2. Vector similarity search
-                if ticker:
-                    rows = await conn.fetch(
-                        """
-                        SELECT chunk_text, ticker, doc_type, metadata,
-                               1 - (embedding <=> $1::vector) AS score
-                        FROM document_embeddings
-                        WHERE ticker = $2
-                        ORDER BY embedding <=> $1::vector
-                        LIMIT $3
-                        """,
-                        vector_str, ticker, top_k,
-                    )
-                else:
-                    rows = await conn.fetch(
-                        """
-                        SELECT chunk_text, ticker, doc_type, metadata,
-                               1 - (embedding <=> $1::vector) AS score
-                        FROM document_embeddings
-                        ORDER BY embedding <=> $1::vector
-                        LIMIT $2
-                        """,
-                        vector_str, top_k,
-                    )
+                # ── Step 2: SQL route ──────────────────────────────────────
+                if chosen_route == "sql" and ticker:
+                    result = await route_sql(question, ticker, conn)
 
-                # 2b. ALWAYS-ON keyword injection for financial figure queries.
-                # Critical fix: the old threshold-based fallback (score < 0.65)
-                # failed because high-scoring but irrelevant chunks (balance
-                # sheets, legal exhibits) blocked income-statement chunks from
-                # ever reaching the LLM. Now keyword hits are ALWAYS prepended
-                # when extract_keywords returns results, regardless of score.
-                if ticker:
-                    keywords = extract_keywords(question)
-                    if keywords:
-                        ilike_parts = [f"chunk_text ILIKE '%{kw}%'" for kw in keywords]
-                        ilike_clause = " AND ".join(ilike_parts)
-                        keyword_rows = await conn.fetch(
-                            f"""
-                            SELECT chunk_text, ticker, doc_type, metadata,
-                                   0.75::float AS score
-                            FROM document_embeddings
-                            WHERE ticker = $1 AND {ilike_clause}
-                            LIMIT 5
-                            """,
-                            ticker,
-                        )
-                        if keyword_rows:
-                            # Prepend keyword hits; deduplicate by 50-char prefix
-                            seen = {r["chunk_text"][:50] for r in keyword_rows}
-                            merged = list(keyword_rows)
-                            for r in rows:
-                                if r["chunk_text"][:50] not in seen:
-                                    merged.append(r)
-                            rows = merged[:top_k]
+                    # if SQL couldn't map to a metric, fall back to vector
+                    if result is not None:
+                        result["question"] = question
+                        result["ticker"]   = ticker
+                        await log_query(conn, question, ticker, result["route"], result["answer"])
+                        return result
 
-                # 3. Guard: nothing retrieved at all
-                if not rows:
-                    return {
-                        "answer":   "No relevant documents found. Please index filings first.",
-                        "sources":  [],
-                        "ticker":   ticker,
-                        "question": question,
-                    }
+                # ── Step 3: Section RAG ────────────────────────────────────
+                if chosen_route == "section_rag":
+                    section = detect_section(question)
+                    result  = await route_vector(question, ticker, conn, client, section=section, top_k=top_k)
+                    result["question"] = question
+                    result["ticker"]   = ticker
+                    await log_query(conn, question, ticker, result["route"], result["answer"])
+                    return result
 
-                # 4. Build context chunks list
-                chunks = [
-                    {
-                        "chunk_text": row["chunk_text"],
-                        "ticker":     row["ticker"],
-                        "doc_type":   row["doc_type"],
-                        "score":      round(float(row["score"]), 3),
-                    }
-                    for row in rows
-                ]
-
-                # 5. Generate grounded answer
-                answer = await generate_answer(question, chunks, client)
-
-                return {
-                    "answer":   answer,
-                    "sources":  chunks,
-                    "ticker":   ticker,
-                    "question": question,
-                }
+                # ── Step 4: Default vector search ──────────────────────────
+                result = await route_vector(question, ticker, conn, client, top_k=top_k)
+                result["question"] = question
+                result["ticker"]   = ticker
+                await log_query(conn, question, ticker, result["route"], result["answer"])
+                return result
 
         finally:
             await conn.close()
 
 
-# ── CLI helper ────────────────────────────────────────────────────────────────
+async def log_query(conn, question, ticker, route_used, answer):
+    """Save every query to query_logs for debugging and demo purposes."""
+    try:
+        await conn.execute(
+            """
+            INSERT INTO query_logs (question, ticker, route_used, answer)
+            VALUES ($1, $2, $3, $4)
+            """,
+            question, ticker, route_used, answer[:500],
+        )
+    except Exception:
+        pass  # logging should never break the main flow
+
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     import sys
 
     question = sys.argv[1] if len(sys.argv) > 1 else "What is the company's total revenue?"
     ticker   = sys.argv[2] if len(sys.argv) > 2 else None
 
-    engine = FilingQueryEngine()
-    result = asyncio.run(engine.query(question, ticker=ticker))
+    async def main():
+        engine = FilingQueryEngine()
+        result = await engine.query(question, ticker=ticker)
 
-    print(f"\nQ: {result['question']}")
-    print(f"Ticker filter: {result['ticker']}")
-    print(f"\nA: {result['answer']}")
-    print(f"\nSources ({len(result['sources'])}):")
-    for i, s in enumerate(result["sources"]):
-        print(f"  [{i+1}] {s['ticker']} {s['doc_type']} | score: {s['score']}")
-        print(f"       {s['chunk_text'][:120]}...")
+        print(f"\n{'═' * 60}")
+        print(f"  Q : {result['question']}")
+        print(f"  🗺  Route  : {result.get('route', 'unknown')}")
+        print(f"  🏷  Ticker : {result['ticker']}")
+        print(f"{'─' * 60}")
+        print(f"  A : {result['answer']}")
+        print(f"{'─' * 60}")
+
+        sources = result.get("sources", [])
+        if sources and isinstance(sources[0], dict) and "chunk_text" in sources[0]:
+            print(f"\n  Sources ({len(sources)}):")
+            for i, s in enumerate(sources):
+                print(f"    [{i+1}] {s['ticker']} {s['doc_type']} | score: {s.get('score', 'N/A')}")
+                print(f"         {s['chunk_text'][:100]}...")
+        print()
+
+    asyncio.run(main())
