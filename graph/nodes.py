@@ -6,11 +6,13 @@ Errors are caught per-node so one failure doesn't kill the whole pipeline.
 
 ## Phase 5 addition
 `validation_node` added between risk_and_code and rebalancing.
-Runs guardrails/validators.py checks and logs any issues to state messages.
+
+## Phase 6 addition
+`finance_node` now reads Mem0 memory at the start.
+`writer_node` now writes results to Mem0 at the end.
 """
 
 import time
-from typing import Any
 from agents.data_agent        import run_data_agent
 from agents.risk_agent        import run_risk_agent
 from agents.code_agent        import run_code_agent
@@ -21,20 +23,29 @@ from guardrails.validators    import validate_all, validate_memo
 
 
 def log(state: WealthOSState, msg: str) -> list[str]:
-    """Append a timestamped message to state['messages']."""
     messages = state.get("messages", [])
     messages.append(f"[{time.strftime('%H:%M:%S')}] {msg}")
     return messages
 
 
 # ── Finance Node ───────────────────────────────────────────────────────────────
-# Stub — Finance Agent is built but needs real user transaction data in Postgres.
-# For Phase 4 we use a test PersonalFinanceSnapshot so the rest of the pipeline
-# gets real personal context. Swap in run_finance_agent() in Phase 8 (frontend).
+# Phase 6: reads Mem0 memory before doing anything else.
+# The user_memory string flows into every downstream agent via state.
 
 async def finance_node(state: WealthOSState) -> dict:
     print("\n[Graph] Finance Node running...")
     try:
+        # Phase 6 — pull long-term memory for this user
+        user_id = state.get("user_id", "test-user")
+        user_memory = ""
+        try:
+            from memory.mem0_client import read_memory
+            user_memory = read_memory(user_id)
+            if user_memory:
+                print(f"  [mem0] Loaded memory for {user_id}")
+        except Exception as e:
+            print(f"  [mem0] ⚠️  Could not load memory: {e}")
+
         personal_finance = {
             "monthly_income":    150000,
             "monthly_surplus":   30000,
@@ -47,8 +58,9 @@ async def finance_node(state: WealthOSState) -> dict:
         }
         return {
             **state,
+            "user_memory":    user_memory,
             "personal_finance": personal_finance,
-            "messages": log(state, "Finance Node ✅ (test context)"),
+            "messages": log(state, f"Finance Node ✅ (test context, memory={'yes' if user_memory else 'none'})"),
         }
     except Exception as e:
         return {
@@ -94,7 +106,6 @@ async def research_node(state: WealthOSState) -> dict:
             "messages": log(state, f"Research Node ✅ {ticker}"),
         }
     except Exception as e:
-        # Research is non-critical — Writer Agent handles None research_output fine
         return {
             **state,
             "research_output": {"summary": f"Research unavailable: {e}"},
@@ -154,9 +165,6 @@ async def code_node(state: WealthOSState) -> dict:
 
 
 # ── Validation Node ────────────────────────────────────────────────────────────
-# Phase 5 addition — runs guardrails checks on risk_report and financial_snapshot
-# before the rebalancing and writer nodes see the data.
-# Logs any issues but does NOT hard-stop the pipeline — continues with a warning.
 
 async def validation_node(state: WealthOSState) -> dict:
     print("\n[Graph] Validation Node running...")
@@ -167,8 +175,6 @@ async def validation_node(state: WealthOSState) -> dict:
             "messages": log(state, "Validation Node ✅ all agent outputs passed checks"),
         }
     else:
-        # Log the problem but let the pipeline continue
-        # Writer Agent and Rebalancing Agent handle missing/bad data gracefully
         print(f"  [validation] ⚠️  {error}")
         return {
             **state,
@@ -183,7 +189,6 @@ async def rebalancing_node(state: WealthOSState) -> dict:
     user_id = state.get("user_id", "test-user")
     ticker  = state["tickers"][0] if state.get("tickers") else None
 
-    # Build a NewInvestment from the query if we have snapshot data
     new_inv  = None
     snapshot = state.get("financial_snapshot")
     if ticker and snapshot:
@@ -209,6 +214,7 @@ async def rebalancing_node(state: WealthOSState) -> dict:
 
 
 # ── Writer Node ────────────────────────────────────────────────────────────────
+# Phase 6: writes results to Mem0 after memo is complete.
 
 async def writer_node(state: WealthOSState) -> dict:
     print("\n[Graph] Writer Node running...")
@@ -224,10 +230,19 @@ async def writer_node(state: WealthOSState) -> dict:
             research_snapshot=state.get("research_output"),
         )
 
-        # Validate the memo before we call it done
         valid, error = validate_memo(memo.full_memo)
         if not valid:
             print(f"  [validation] ⚠️  Memo validation: {error}")
+
+        # Phase 6 — save this analysis to Mem0
+        try:
+            from memory.mem0_client import write_memory
+            write_memory(state.get("user_id", "test-user"), {
+                **state,
+                "final_memo": memo.full_memo,
+            })
+        except Exception as e:
+            print(f"  [mem0] ⚠️  write failed: {e}")
 
         return {
             **state,
