@@ -1,0 +1,36 @@
+model_list:
+  - model_name: groq-llama
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: os.environ/GROQ_API_KEY
+
+  - model_name: openai-gpt4
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: deepseek-r1
+    litellm_params:
+      model: deepseek/deepseek-r1
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  - model_name: ollama-llama
+    litellm_params:
+      model: ollama/llama3.2
+      api_base: http://localhost:11434
+
+router_settings:
+  routing_strategy: latency-based-routing
+  fallbacks:
+    - groq-llama:
+        - openai-gpt4
+
+litellm_settings:
+  success_callback:
+    - langsmith
+  failure_callback:
+    - langsmith
+    
+general_settings:
+  disable_spend_logs: true
+  disable_master_key_checking: true
