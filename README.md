@@ -1,443 +1,422 @@
-# WealthOS 💰
-### Personal Financial Intelligence Platform
+<div align="center">
 
-> *"Should I invest ₹20,000 in Reliance right now?"*
-> WealthOS knows your monthly surplus is ₹18,000, your food spending spiked 35% last month, you have an outstanding EMI of ₹12,000, and your portfolio is already 18% overweight in energy — and gives you an answer built for **your** financial life, not a generic one.
+# WealthOS v2.0
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/yourusername/wealthOS/ci.yml?branch=main&style=flat-square)](https://github.com/yourusername/wealthOS/actions)
-[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen?style=flat-square)](https://wealthos.yourdomain.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)](https://www.python.org/)
+**Personal Financial Intelligence Platform**
+
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Orchestrator-1C3A5E?style=flat-square)](https://langchain.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-336791?style=flat-square&logo=postgresql&logoColor=white)](https://postgresql.org)
+[![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
+
+*7 specialized agents × 7 MCP servers × 43 tools → one personalized investment memo in under 90 seconds.*
+
+</div>
 
 ---
 
 ## What It Does
 
-WealthOS is a **7-agent personal financial intelligence platform** that does two things no existing tool combines: it analyzes stocks like a Wall Street research desk, and it analyzes *your* personal finances like a CFO — then cross-references both.
+A user asks: **"Should I invest ₹20,000 in Reliance right now?"**
 
-The result is not generic advice. It's a memo that knows your surplus, your EMIs, your goals, your existing portfolio allocation — and tells you specifically whether *you* should buy this stock, and what to do with the rest of your portfolio when you do.
-
----
-
-## Demo
-
-> *Screenshots / GIF coming soon — first working demo after Phase 3*
-
----
-
-## Input — Four Ways to Talk to WealthOS
-
-| Mode | How | Handled By | Best For |
-|---|---|---|---|
-| **Text** | Type in chat | CopilotKit | Questions, manual expense entry |
-| **Voice** | Tap microphone → speak | OpenAI Whisper STT | Hands-free queries |
-| **Image** | Upload JPEG/PNG | Claude 3.5 Sonnet (vision) | Receipts, salary slips, expense screenshots |
-| **PDF** | Upload PDF | Claude 3.5 Sonnet (vision, page-by-page) | Bank statements, payslips, tax documents |
-
-All four input types normalize into the same pipeline. Uploading a 3-month bank statement PDF gives you the same depth of personal finance analysis as entering your expenses manually.
+WealthOS knows their monthly surplus is ₹18,000, food spending spiked 35% last month, they have an outstanding home loan EMI, and their 80C deduction is unutilized. The output is not generic advice — it is advice for **this person, at this moment in their financial life.**
 
 ---
 
 ## Architecture
 
-```
-[Text] [Voice → Whisper] [Image → Claude Vision] [PDF → Claude Vision]
-                         │
-                   Input Router
-                         │
-                         ▼
-          LiteLLM Gateway (Groq / Bedrock / DeepSeek R1 / Ollama)
-                         │
-                         ▼
-        LangGraph Orchestrator + Temporal (durable workflows)
-                         │
-       ┌─────────────────┼──────────────────────────────┐
-       ▼                 ▼                              ▼
- Finance Agent     Research Agent                  Data Agent
- - OCR inputs       - Browser-Use                  - yfinance MCP
- - Anomaly detect     live web nav                 - SEC EDGAR MCP
- - Health Score     - Firecrawl news               - LlamaIndex + Qdrant
- - Tax/goals/debt   - Sentiment                    - PydanticAI validated
-       │                 │                              │
-       └─────────────────┴──────────────────────────────┘
-                         │
-              ┌──────────┴───────────┐
-              ▼                      ▼
-        Risk Agent             Code Agent
-        CrewAI +               Smolagents +
-        DeepSeek R1            E2B sandbox
-        (personal              DCF + Monte Carlo
-        risk score)            Python execution
-              │                      │
-              └──────────┬───────────┘
-                         │
-               Rebalancing Agent
-               - Current holdings
-               - Drift from target
-               - Buy/sell suggestions
-                         │
-              [HITL Checkpoint — AG-UI]
-                         │
-               Writer Agent
-               DSPy-optimized prompts
-               Streaming personalized memo
-                         │
-            ┌────────────┼─────────────┐
-            ▼            ▼             ▼
-         PDF Export   Kafka        WhatsApp /
-         → Drive      price        Gmail
-                      alerts       alerts
+```svg
+<svg viewBox="0 0 860 560" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
+    </linearGradient>
+    <linearGradient id="inputGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="mcpGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0ea5e9"/>
+      <stop offset="100%" style="stop-color:#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="agentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#34d399"/>
+    </linearGradient>
+    <linearGradient id="orchGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#fbbf24"/>
+    </linearGradient>
+    <linearGradient id="outGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ef4444"/>
+      <stop offset="100%" style="stop-color:#f97316"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="860" height="560" fill="url(#bg)" rx="12"/>
+
+  <!-- Title -->
+  <text x="430" y="32" text-anchor="middle" fill="#f8fafc" font-size="15" font-weight="700" letter-spacing="2">WEALTHOS v2.0 — SYSTEM ARCHITECTURE</text>
+
+  <!-- ── ROW 1: INPUT MODES ── -->
+  <text x="430" y="62" text-anchor="middle" fill="#94a3b8" font-size="10" letter-spacing="1">INPUT</text>
+
+  <!-- 4 input boxes -->
+  <rect x="60" y="70" width="95" height="28" rx="6" fill="url(#inputGrad)" opacity="0.85"/>
+  <text x="107" y="88" text-anchor="middle" fill="white" font-size="10" font-weight="600">📝  Text</text>
+
+  <rect x="175" y="70" width="95" height="28" rx="6" fill="url(#inputGrad)" opacity="0.85"/>
+  <text x="222" y="88" text-anchor="middle" fill="white" font-size="10" font-weight="600">🎙  Voice</text>
+
+  <rect x="290" y="70" width="95" height="28" rx="6" fill="url(#inputGrad)" opacity="0.85"/>
+  <text x="337" y="88" text-anchor="middle" fill="white" font-size="10" font-weight="600">🖼  Image</text>
+
+  <rect x="405" y="70" width="95" height="28" rx="6" fill="url(#inputGrad)" opacity="0.85"/>
+  <text x="452" y="88" text-anchor="middle" fill="white" font-size="10" font-weight="600">📄  PDF</text>
+
+  <!-- FastAPI box -->
+  <rect x="560" y="70" width="240" height="28" rx="6" fill="#1e3a5f" stroke="#0ea5e9" stroke-width="1"/>
+  <text x="680" y="88" text-anchor="middle" fill="#7dd3fc" font-size="10" font-weight="600">FastAPI  ·  Streamlit</text>
+
+  <!-- Arrows down -->
+  <line x1="430" y1="98" x2="430" y2="118" stroke="#475569" stroke-width="1.2" stroke-dasharray="3,2"/>
+
+  <!-- ── ROW 2: MCP SERVERS ── -->
+  <text x="430" y="130" text-anchor="middle" fill="#94a3b8" font-size="10" letter-spacing="1">7 MCP SERVERS · 43 TOOLS</text>
+
+  <!-- MCP server pills -->
+  <rect x="22" y="138" width="112" height="30" rx="6" fill="url(#mcpGrad)" opacity="0.8" filter="url(#glow)"/>
+  <text x="78" y="158" text-anchor="middle" fill="white" font-size="9.5" font-weight="700">market_server</text>
+  <text x="78" y="168" text-anchor="middle" fill="#e0f2fe" font-size="7.5">10 tools · yfinance</text>
+
+  <rect x="148" y="138" width="112" height="30" rx="6" fill="url(#mcpGrad)" opacity="0.8"/>
+  <text x="204" y="158" text-anchor="middle" fill="white" font-size="9.5" font-weight="700">sec_edgar_server</text>
+  <text x="204" y="168" text-anchor="middle" fill="#e0f2fe" font-size="7.5">3 tools · 10-K / 10-Q</text>
+
+  <rect x="274" y="138" width="112" height="30" rx="6" fill="url(#mcpGrad)" opacity="0.8"/>
+  <text x="330" y="158" text-anchor="middle" fill="white" font-size="9.5" font-weight="700">news_server</text>
+  <text x="330" y="168" text-anchor="middle" fill="#e0f2fe" font-size="7.5">3 tools · sentiment</text>
+
+  <rect x="400" y="138" width="112" height="30" rx="6" fill="url(#mcpGrad)" opacity="0.8"/>
+  <text x="456" y="158" text-anchor="middle" fill="white" font-size="9.5" font-weight="700">finance_server</text>
+  <text x="456" y="168" text-anchor="middle" fill="#e0f2fe" font-size="7.5">5 tools · transactions</text>
+
+  <rect x="526" y="138" width="112" height="30" rx="6" fill="url(#mcpGrad)" opacity="0.8"/>
+  <text x="582" y="158" text-anchor="middle" fill="white" font-size="9.5" font-weight="700">calculator_server</text>
+  <text x="582" y="168" text-anchor="middle" fill="#e0f2fe" font-size="7.5">13 tools · DCF·WACC</text>
+
+  <rect x="652" y="138" width="95" height="30" rx="6" fill="url(#mcpGrad)" opacity="0.8"/>
+  <text x="699" y="158" text-anchor="middle" fill="white" font-size="9.5" font-weight="700">tax_server</text>
+  <text x="699" y="168" text-anchor="middle" fill="#e0f2fe" font-size="7.5">5 tools · 80C·HRA</text>
+
+  <rect x="761" y="138" width="78" height="30" rx="6" fill="url(#mcpGrad)" opacity="0.8"/>
+  <text x="800" y="158" text-anchor="middle" fill="white" font-size="9.5" font-weight="700">portfolio</text>
+  <text x="800" y="168" text-anchor="middle" fill="#e0f2fe" font-size="7.5">4 tools · P&amp;L</text>
+
+  <!-- Arrow down -->
+  <line x1="430" y1="170" x2="430" y2="190" stroke="#475569" stroke-width="1.2" stroke-dasharray="3,2"/>
+
+  <!-- ── ROW 3: 7 AGENTS ── -->
+  <text x="430" y="202" text-anchor="middle" fill="#94a3b8" font-size="10" letter-spacing="1">7 SPECIALIZED AGENTS</text>
+
+  <rect x="22" y="210" width="109" height="38" rx="6" fill="url(#agentGrad)" opacity="0.85"/>
+  <text x="76" y="226" text-anchor="middle" fill="white" font-size="9" font-weight="700">Finance Agent</text>
+  <text x="76" y="240" text-anchor="middle" fill="#d1fae5" font-size="7.5">Pure Python · z-score</text>
+  <text x="76" y="250" text-anchor="middle" fill="#d1fae5" font-size="7.5">Health Score 0-100</text>
+
+  <rect x="143" y="210" width="109" height="38" rx="6" fill="url(#agentGrad)" opacity="0.85"/>
+  <text x="197" y="226" text-anchor="middle" fill="white" font-size="9" font-weight="700">Research Agent</text>
+  <text x="197" y="240" text-anchor="middle" fill="#d1fae5" font-size="7.5">asyncio.gather</text>
+  <text x="197" y="250" text-anchor="middle" fill="#d1fae5" font-size="7.5">parallel fetch</text>
+
+  <rect x="264" y="210" width="109" height="38" rx="6" fill="url(#agentGrad)" opacity="0.85"/>
+  <text x="318" y="226" text-anchor="middle" fill="white" font-size="9" font-weight="700">Data Agent</text>
+  <text x="318" y="240" text-anchor="middle" fill="#d1fae5" font-size="7.5">PydanticAI · Redis</text>
+  <text x="318" y="250" text-anchor="middle" fill="#d1fae5" font-size="7.5">15-min TTL cache</text>
+
+  <rect x="385" y="210" width="109" height="38" rx="6" fill="url(#agentGrad)" opacity="0.85"/>
+  <text x="439" y="226" text-anchor="middle" fill="white" font-size="9" font-weight="700">Risk Agent</text>
+  <text x="439" y="240" text-anchor="middle" fill="#d1fae5" font-size="7.5">CrewAI 3-node</text>
+  <text x="439" y="250" text-anchor="middle" fill="#d1fae5" font-size="7.5">debate pattern</text>
+
+  <rect x="506" y="210" width="109" height="38" rx="6" fill="url(#agentGrad)" opacity="0.85"/>
+  <text x="560" y="226" text-anchor="middle" fill="white" font-size="9" font-weight="700">Code Agent</text>
+  <text x="560" y="240" text-anchor="middle" fill="#d1fae5" font-size="7.5">Smolagents · E2B</text>
+  <text x="560" y="250" text-anchor="middle" fill="#d1fae5" font-size="7.5">DCF · Monte Carlo</text>
+
+  <rect x="627" y="210" width="109" height="38" rx="6" fill="url(#agentGrad)" opacity="0.85"/>
+  <text x="681" y="226" text-anchor="middle" fill="white" font-size="9" font-weight="700">Rebalancing Agent</text>
+  <text x="681" y="240" text-anchor="middle" fill="#d1fae5" font-size="7.5">Pure Python</text>
+  <text x="681" y="250" text-anchor="middle" fill="#d1fae5" font-size="7.5">&gt;40% sector warn</text>
+
+  <rect x="748" y="210" width="91" height="38" rx="6" fill="url(#agentGrad)" opacity="0.85"/>
+  <text x="793" y="226" text-anchor="middle" fill="white" font-size="9" font-weight="700">Writer Agent</text>
+  <text x="793" y="240" text-anchor="middle" fill="#d1fae5" font-size="7.5">DSPy compiled</text>
+  <text x="793" y="250" text-anchor="middle" fill="#d1fae5" font-size="7.5">Guardrails AI</text>
+
+  <!-- Arrow down -->
+  <line x1="430" y1="250" x2="430" y2="270" stroke="#475569" stroke-width="1.2" stroke-dasharray="3,2"/>
+
+  <!-- ── ROW 4: ORCHESTRATOR ── -->
+  <text x="430" y="283" text-anchor="middle" fill="#94a3b8" font-size="10" letter-spacing="1">LANGGRAPH ORCHESTRATOR · 8 NODES · 60–90s PIPELINE</text>
+
+  <!-- Execution flow boxes -->
+  <rect x="30" y="291" width="120" height="32" rx="6" fill="url(#orchGrad)" opacity="0.85"/>
+  <text x="90" y="306" text-anchor="middle" fill="#1c1917" font-size="9" font-weight="700">① finance_node</text>
+  <text x="90" y="318" text-anchor="middle" fill="#292524" font-size="7.5">personal context</text>
+
+  <line x1="150" y1="307" x2="175" y2="307" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="175" y="291" width="148" height="32" rx="6" fill="url(#orchGrad)" opacity="0.85"/>
+  <text x="249" y="306" text-anchor="middle" fill="#1c1917" font-size="9" font-weight="700">② PARALLEL NODE</text>
+  <text x="249" y="318" text-anchor="middle" fill="#292524" font-size="7.5">data + research (asyncio.gather)</text>
+
+  <line x1="323" y1="307" x2="348" y2="307" stroke="#fbbf24" stroke-width="1.5"/>
+
+  <rect x="348" y="291" width="148" height="32" rx="6" fill="url(#orchGrad)" opacity="0.85"/>
+  <text x="422" y="306" text-anchor="middle" fill="#1c1917" font-size="9" font-weight="700">③ PARALLEL NODE</text>
+  <text x="422" y="318" text-anchor="middle" fill="#292524" font-size="7.5">risk + code (asyncio.gather)</text>
+
+  <line x1="496" y1="307" x2="521" y2="307" stroke="#fbbf24" stroke-width="1.5"/>
+
+  <rect x="521" y="291" width="120" height="32" rx="6" fill="url(#orchGrad)" opacity="0.85"/>
+  <text x="581" y="306" text-anchor="middle" fill="#1c1917" font-size="9" font-weight="700">④ rebalancing</text>
+  <text x="581" y="318" text-anchor="middle" fill="#292524" font-size="7.5">sector allocation</text>
+
+  <line x1="641" y1="307" x2="666" y2="307" stroke="#fbbf24" stroke-width="1.5"/>
+
+  <rect x="666" y="291" width="163" height="32" rx="6" fill="url(#orchGrad)" opacity="0.85"/>
+  <text x="747" y="306" text-anchor="middle" fill="#1c1917" font-size="9" font-weight="700">⑤ writer_node → END</text>
+  <text x="747" y="318" text-anchor="middle" fill="#292524" font-size="7.5">DSPy · Guardrails AI</text>
+
+  <!-- Arrow down -->
+  <line x1="430" y1="324" x2="430" y2="344" stroke="#475569" stroke-width="1.2" stroke-dasharray="3,2"/>
+
+  <!-- ── ROW 5: INTELLIGENCE LAYER ── -->
+  <text x="430" y="356" text-anchor="middle" fill="#94a3b8" font-size="10" letter-spacing="1">INTELLIGENCE LAYER</text>
+
+  <!-- RAG -->
+  <rect x="22" y="364" width="180" height="50" rx="7" fill="#1e293b" stroke="#6366f1" stroke-width="1.2"/>
+  <text x="112" y="380" text-anchor="middle" fill="#a5b4fc" font-size="9.5" font-weight="700">RAG Pipeline</text>
+  <text x="112" y="394" text-anchor="middle" fill="#c7d2fe" font-size="8">mxbai-embed-large · 1024-dim</text>
+  <text x="112" y="406" text-anchor="middle" fill="#c7d2fe" font-size="8">5 tickers · 1,640 chunks · pgvector</text>
+
+  <!-- Memory -->
+  <rect x="220" y="364" width="160" height="50" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.2"/>
+  <text x="300" y="380" text-anchor="middle" fill="#6ee7b7" font-size="9.5" font-weight="700">Mem0 Memory</text>
+  <text x="300" y="394" text-anchor="middle" fill="#a7f3d0" font-size="8">Long-term user context</text>
+  <text x="300" y="406" text-anchor="middle" fill="#a7f3d0" font-size="8">vector search · dedup</text>
+
+  <!-- Temporal -->
+  <rect x="398" y="364" width="160" height="50" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2"/>
+  <text x="478" y="380" text-anchor="middle" fill="#fcd34d" font-size="9.5" font-weight="700">Temporal Workflows</text>
+  <text x="478" y="394" text-anchor="middle" fill="#fde68a" font-size="8">Durable · crash-safe</text>
+  <text x="478" y="406" text-anchor="middle" fill="#fde68a" font-size="8">Morning briefing · 8 AM cron</text>
+
+  <!-- Observability -->
+  <rect x="576" y="364" width="260" height="50" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2"/>
+  <text x="706" y="380" text-anchor="middle" fill="#fca5a5" font-size="9.5" font-weight="700">Observability  ×  3 Layers</text>
+  <text x="706" y="394" text-anchor="middle" fill="#fecaca" font-size="8">LangSmith  ·  AgentOps  ·  W&amp;B Weave</text>
+  <text x="706" y="406" text-anchor="middle" fill="#fecaca" font-size="8">pipeline traces · agent decisions · eval scores</text>
+
+  <!-- Arrow down -->
+  <line x1="430" y1="416" x2="430" y2="434" stroke="#475569" stroke-width="1.2" stroke-dasharray="3,2"/>
+
+  <!-- ── ROW 6: DATA LAYER ── -->
+  <text x="430" y="446" text-anchor="middle" fill="#94a3b8" font-size="10" letter-spacing="1">DATA LAYER</text>
+
+  <rect x="30" y="453" width="145" height="32" rx="6" fill="#1e293b" stroke="#38bdf8" stroke-width="1"/>
+  <text x="102" y="468" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="600">PostgreSQL + pgvector</text>
+  <text x="102" y="480" text-anchor="middle" fill="#bae6fd" font-size="7.5">9 tables · IVFFlat index</text>
+
+  <rect x="193" y="453" width="120" height="32" rx="6" fill="#1e293b" stroke="#f87171" stroke-width="1"/>
+  <text x="253" y="468" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600">Redis Cache</text>
+  <text x="253" y="480" text-anchor="middle" fill="#fecaca" font-size="7.5">15-min TTL · pub/sub</text>
+
+  <rect x="331" y="453" width="130" height="32" rx="6" fill="#1e293b" stroke="#34d399" stroke-width="1"/>
+  <text x="396" y="468" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="600">Composio</text>
+  <text x="396" y="480" text-anchor="middle" fill="#a7f3d0" font-size="7.5">Gmail · WhatsApp alerts</text>
+
+  <rect x="479" y="453" width="130" height="32" rx="6" fill="#1e293b" stroke="#a78bfa" stroke-width="1"/>
+  <text x="544" y="468" text-anchor="middle" fill="#c4b5fd" font-size="9" font-weight="600">Ollama (local)</text>
+  <text x="544" y="480" text-anchor="middle" fill="#ddd6fe" font-size="7.5">qwen2.5:7b · zero cost</text>
+
+  <rect x="627" y="453" width="200" height="32" rx="6" fill="#1e293b" stroke="#fb923c" stroke-width="1"/>
+  <text x="727" y="468" text-anchor="middle" fill="#fdba74" font-size="9" font-weight="600">E2B Sandbox</text>
+  <text x="727" y="480" text-anchor="middle" fill="#fed7aa" font-size="7.5">safe Python execution · DCF · Monte Carlo</text>
+
+  <!-- ── FOOTER METRICS ── -->
+  <rect x="22" y="500" width="816" height="42" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="430" y="516" text-anchor="middle" fill="#64748b" font-size="8.5" letter-spacing="0.5">KEY METRICS</text>
+  <text x="100" y="533" text-anchor="middle" fill="#38bdf8" font-size="9" font-weight="700">7 Agents</text>
+  <text x="100" y="543" text-anchor="middle" fill="#7dd3fc" font-size="7.5">5 frameworks</text>
+
+  <text x="215" y="533" text-anchor="middle" fill="#38bdf8" font-size="9" font-weight="700">43 MCP Tools</text>
+  <text x="215" y="543" text-anchor="middle" fill="#7dd3fc" font-size="7.5">7 servers</text>
+
+  <text x="330" y="533" text-anchor="middle" fill="#38bdf8" font-size="9" font-weight="700">60–90s Pipeline</text>
+  <text x="330" y="543" text-anchor="middle" fill="#7dd3fc" font-size="7.5">vs 120s sequential</text>
+
+  <text x="445" y="533" text-anchor="middle" fill="#38bdf8" font-size="9" font-weight="700">1,640 Chunks</text>
+  <text x="445" y="543" text-anchor="middle" fill="#7dd3fc" font-size="7.5">5 tickers · RAG</text>
+
+  <text x="560" y="533" text-anchor="middle" fill="#38bdf8" font-size="9" font-weight="700">$0.00 Embedding</text>
+  <text x="560" y="543" text-anchor="middle" fill="#7dd3fc" font-size="7.5">fully local Ollama</text>
+
+  <text x="675" y="533" text-anchor="middle" fill="#38bdf8" font-size="9" font-weight="700">9 DB Tables</text>
+  <text x="675" y="543" text-anchor="middle" fill="#7dd3fc" font-size="7.5">pgvector + pgcrypto</text>
+
+  <text x="780" y="533" text-anchor="middle" fill="#38bdf8" font-size="9" font-weight="700">3-Layer Observability</text>
+  <text x="780" y="543" text-anchor="middle" fill="#7dd3fc" font-size="7.5">LangSmith·AgentOps·Weave</text>
+</svg>
 ```
 
 ---
 
-## 7 Agents
+## Agents
 
-| # | Agent | Framework | What It Does |
+| Agent | Framework | Key Capability | Output |
 |---|---|---|---|
-| 1 | **Finance Agent** | Agno | Builds your complete financial picture — spending anomalies, EMIs, goals, tax gaps, insurance. Computes Financial Health Score. Runs first, always. |
-| 2 | **Research Agent** | Agno + Browser-Use | Navigates live NSE/Moneycontrol/analyst pages with a real browser. Extracts analyst recommendations, news sentiment, macro trends. |
-| 3 | **Data Agent** | PydanticAI + AWS Bedrock | Fetches validated financial numbers via yfinance + SEC EDGAR. Queries 10-K/10-Q filings semantically via LlamaIndex + Qdrant. Zero hallucinated numbers. |
-| 4 | **Risk Agent** | CrewAI + DeepSeek R1 | Scores investment risk 1-10 — adjusted for your actual EMI burden, surplus, and goal timeline. Uses chain-of-thought reasoning. |
-| 5 | **Code Agent** | Smolagents + E2B | Writes and executes real Python: 5-year DCF model, 10,000-path Monte Carlo simulation, sensitivity table. Verified numbers from a real sandbox. |
-| 6 | **Rebalancing Agent** | Agno | Checks your current portfolio, computes sector drift from your target allocation, and tells you exactly what to buy/sell when you make the new investment. |
-| 7 | **Writer Agent** | LangGraph + DSPy | Synthesizes all 6 agents into a personalized investment memo. Prompts are DSPy-compiled against a golden dataset, not hand-written. |
+| Finance Agent | Pure Python | z-score anomaly detection (σ = 1.5) | Health Score 0–100, surplus, subscriptions |
+| Research Agent | asyncio | parallel fetch — market + news + SEC | Sentiment, macro context |
+| Data Agent | PydanticAI | schema-validated numbers, Redis 15-min TTL | `FinancialSnapshot` with confidence flag |
+| Risk Agent | CrewAI | 3-node multi-agent debate | Bull / Bear / Moderator verdict |
+| Code Agent | Smolagents + E2B | sandbox-executed Python | DCF intrinsic value, Monte Carlo distribution |
+| Rebalancing Agent | Pure Python | >40% sector concentration warning | Rebalance recommendation |
+| Writer Agent | DSPy + LangGraph | compiled few-shot prompt, Guardrails AI validated | Final investment memo |
 
 ---
 
-## Key Features
+## MCP Servers
 
-### Financial Health Score
-A single **0–100 score** summarizing your financial health across 5 dimensions: surplus ratio, debt burden, goal progress, tax utilization, and insurance coverage. Shown on the dashboard. Embedded in every investment memo.
+| Server | Tools | Data Source |
+|---|---|---|
+| `market_server` | 10 | yfinance — price, P/E, market cap, historical |
+| `sec_edgar_server` | 3 | SEC EDGAR — 10-K / 10-Q filing URLs |
+| `news_server` | 3 | Financial headlines + sentiment |
+| `finance_server` | 5 | PostgreSQL — transactions, anomalies, subscriptions |
+| `calculator_server` | 13 | DCF, WACC, CAGR, capital gains, tax comparison |
+| `tax_server` | 5 | 80C / HRA / slab — old vs new regime |
+| `portfolio_server` | 4 | Holdings, P&L, sector allocation |
 
-| Score | Grade |
+**Total: 43 tools across 7 servers**
+
+---
+
+## RAG Pipeline — Phase 2
+
+| Property | Value |
 |---|---|
-| 80–100 | Excellent |
-| 65–79 | Good |
-| 50–64 | Fair |
-| < 50 | Needs Attention |
+| Embedding model | `mxbai-embed-large` via Ollama (1,024-dim) |
+| Vector store | pgvector inside PostgreSQL — IVFFlat, 100 lists |
+| Generation model | `qwen2.5:7b` via Ollama |
+| Tickers indexed | AAPL, MSFT, TSLA, GOOGL, AMZN |
+| Total chunks | ~1,640 |
+| Embedding cost | **$0.00** — fully local |
+| Chunking strategy | HTML-parsed 10-K/10-Q with XBRL tags stripped |
 
 ---
 
-### Portfolio Rebalancing
-Before recommending any investment, the Rebalancing Agent looks at your *actual holdings* and shows you:
-- Your current sector allocation vs your target
-- How the new investment changes that allocation
-- Specific buy/sell actions with rupee amounts to stay on target
+## DSPy Prompt Optimization — Phase 5
 
-> *"Buying Reliance at ₹20,000 increases your energy sector weight from 18% to 26% vs your 20% target. Consider trimming ₹12,000 from ONGC to rebalance."*
-
----
-
-### Morning Briefing (Proactive Agent)
-Every morning at **8:00 AM**, without you asking, WealthOS sends a 5-line briefing to WhatsApp or Gmail:
-
-```
-WealthOS Morning Briefing
-
-📉 Reliance: -4.2% overnight (Q3 miss, analyst downgrade)
-💰 Your food spend is 28% above average this month
-🔔 TCS is within 1.8% of your ₹3,800 price alert
-🌐 RBI rate decision today at 2 PM — affects your HDFC holding
-💡 ₹42,000 in unutilized 80C with 3 months left in FY
-```
-
-Powered by Temporal cron + Kafka + Composio.
-
----
-
-### PDF Export
-After every analysis, export the full investment memo as a formatted PDF. Automatically pushed to your Google Drive via Composio.
-
----
-
-### Price Alerts
-Set a price target during HITL review → Kafka watches for it → WhatsApp/Gmail notification when it triggers.
-
----
-
-### Multi-Stock Comparison
-Ask: *"Compare Reliance vs TCS vs Infosys"* → 3 parallel pipelines → side-by-side memo ranked by fit to *your* portfolio.
-
----
-
-### Privacy Mode
-Toggle on → all personal bank data and spending analysis routes through local **Ollama** inference. Nothing sensitive leaves your environment.
-
----
-
-## Personal Finance Features (Finance Agent)
-
-- Spending anomaly detection — z-score vs 3-month rolling average, flags > 1.5σ
-- Goal tracker — back-calculates monthly savings needed per goal
-- Debt optimizer — avalanche vs snowball for active EMIs
-- Tax optimizer — unutilized 80C, 80D, HRA deductions
-- Subscription auditor — recurring charges with no recent usage
-- Insurance gap analyzer — coverage vs recommended multiple of income
-- Peer benchmarking — your spending vs anonymized income-bracket cohort
-- Receipt OCR — photograph a receipt → auto-categorized transaction
-- Bank statement parser — upload PDF → full transaction history extracted
+| Property | Value |
+|---|---|
+| Algorithm | BootstrapFewShot |
+| Training examples | 15 input → output pairs |
+| Optimizer target | Writer Agent prompt |
+| Validation | Guardrails AI — blocks `risk_score > 10`, invalid recommendations |
+| Output | Compiled program saved to JSON, loaded at runtime |
 
 ---
 
 ## Tech Stack
 
-### Core Infrastructure
 | Layer | Technology |
 |---|---|
-| Orchestration | LangGraph v0.2 + Temporal |
-| LLM Gateway | LiteLLM (Groq / AWS Bedrock / DeepSeek R1 / o3-mini / Ollama) |
-| Agent Protocol | Google A2A |
-| Tool Protocol | MCP (11 custom servers) + Composio |
-| Frontend | CopilotKit + AG-UI |
-| Backend | FastAPI + JWT |
-| Database | PostgreSQL + pgvector |
-
-### AI & Agents
-| Component | Technology |
-|---|---|
-| Finance + Rebalancing Agent | Agno |
-| Data Agent | PydanticAI + AWS Bedrock |
-| Risk Agent | CrewAI + DeepSeek R1 |
-| Code Agent | Smolagents + E2B sandbox |
-| Vision / OCR (image + PDF) | Claude 3.5 Sonnet (multimodal) |
-| Voice Input | OpenAI Whisper |
-| Document RAG | LlamaIndex + Qdrant |
-| Web Navigation | Browser-Use |
-| Web Scraping | Firecrawl |
-| Prompt Optimization | DSPy |
-| Output Validation | Guardrails AI + PydanticAI |
-| Long-term Memory | Mem0 |
-| Reasoning | DeepSeek R1 / o3-mini |
-| Local Inference | Ollama |
-
-### Infrastructure
-| Component | Technology |
-|---|---|
-| Vector DB | Qdrant |
-| Caching | Redis |
-| Event Streaming | Kafka |
-| Self-hosted Embeddings | Modal (bge-large on A100) |
-| Fine-tuning | Modal H100 (QLoRA) |
-| Observability | LangSmith + AgentOps + W&B Weave |
-| Cloud | AWS Bedrock + S3 + App Runner + CloudWatch |
-| Deployment | Docker + GitHub Actions → ECR → App Runner |
-| Notifications | Composio (Gmail + WhatsApp + Google Drive) |
+| Orchestration | LangGraph (8-node state machine) + Temporal (durable workflows) |
+| Agents | PydanticAI · CrewAI · Smolagents · Pure Python |
+| LLM | qwen2.5:7b via Ollama (local) · Groq fallback |
+| RAG | Custom indexer · pgvector · mxbai-embed-large |
+| Memory | Mem0 (long-term, cross-session) |
+| Prompt Optimization | DSPy BootstrapFewShot |
+| Output Validation | Guardrails AI + Pydantic v2 |
+| Code Execution | E2B Sandbox |
+| Database | PostgreSQL 16 — 9 tables, pgvector, pgcrypto |
+| Cache | Redis — 15-min TTL, pub/sub price alerts |
+| Notifications | Composio → Gmail + WhatsApp |
+| Observability | LangSmith · AgentOps · W&B Weave |
+| Backend | FastAPI |
+| Frontend | Streamlit |
 
 ---
 
-## 11 Custom MCP Servers
+## Screenshots Needed
 
-| Server | Tools |
-|---|---|
-| `yfinance-mcp` | get_price, get_financials, get_history, get_info |
-| `sec-edgar-mcp` | get_10k, get_10q, get_filings_list |
-| `news-mcp` | search_news, get_sentiment, get_headlines |
-| `finance-mcp` | parse_transactions, detect_anomalies, calc_surplus, audit_subscriptions |
-| `calculator-mcp` | calc_cagr, calc_wacc, calc_dcf_inputs, calc_intrinsic_value |
-| `tax-mcp` | calc_80c_remaining, calc_hra, estimate_tax, get_optimal_regime |
-| `portfolio-mcp` | get_holdings, get_correlation, get_exposure, get_sector_weight |
-| `macro-mcp` | get_interest_rates, get_inflation, get_sector_performance |
-| `alert-mcp` | set_price_alert, cancel_alert, list_alerts |
-| `competitor-mcp` | get_peers, compare_metrics, get_market_share |
-| `qdrant-mcp` | embed_and_store, similarity_search, find_related |
+> Take these **in this order** to match the README sections.
+
+| # | Screenshot | What to capture |
+|---|---|---|
+| 1 | **Streamlit — Full Analysis** | Run a query like `"Should I invest ₹20,000 in RELIANCE.NS?"` · capture the full memo output |
+| 2 | **LangSmith — Pipeline Trace** | Open a completed run · show the 8-node tree with latency per node |
+| 3 | **AgentOps Dashboard** | Session view showing tool calls, LLM calls, and agent decisions |
+| 4 | **W&B Weave — Eval Scores** | Show DSPy baseline vs compiled comparison table |
+| 5 | **Portfolio P&L View** | Streamlit section with holdings, current value, sector allocation pie |
+| 6 | **Code Agent — DCF Output** | Terminal or UI showing Monte Carlo distribution and DCF intrinsic value |
+| 7 | **FastAPI Swagger UI** | `localhost:8000/docs` — show all endpoints |
+| 8 | **Morning Briefing** | Gmail or WhatsApp screenshot of the 8 AM Composio notification |
+| 9 | **Mem0 Memory Read** | Console or UI showing past memories retrieved at pipeline start |
+| 10 | **DB Schema** | `psql \dt` or pgAdmin showing all 9 tables |
 
 ---
 
-## Setup
-
-### Prerequisites
-- Docker + Docker Compose
-- Python 3.11+
-- Node.js 18+
-
-### Quick Start
+## Quick Start
 
 ```bash
-git clone https://github.com/yourusername/wealthOS
-cd wealthOS
+git clone https://github.com/YOUR_USERNAME/WealthOS
+cd WealthOS
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
 cp .env.example .env
-# Fill in your API keys
-docker-compose up --build
+
+# Start services (WSL)
+sudo service postgresql start
+redis-server --daemonize yes
+ollama serve &
+ollama pull qwen2.5:7b
+ollama pull mxbai-embed-large
+
+# Run
+uvicorn api.main:app --reload --port 8000
+streamlit run wealthos_app.py --server.port 8501
 ```
 
-Visit `http://localhost:3000`
+---
 
-### Environment Variables
+## Project Status
 
-```env
-# LLM Providers
-OPENAI_API_KEY=
-GROQ_API_KEY=
-ANTHROPIC_API_KEY=
-DEEPSEEK_API_KEY=
-
-# Observability
-LANGCHAIN_API_KEY=
-AGENTOPS_API_KEY=
-WANDB_API_KEY=
-
-# Tools
-MEM0_API_KEY=
-FIRECRAWL_API_KEY=
-COMPOSIO_API_KEY=
-E2B_API_KEY=
-
-# Infrastructure
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/wealthOS
-QDRANT_URL=http://localhost:6333
-REDIS_URL=redis://localhost:6379
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-
-# AWS
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=us-east-1
-
-# Auth + Modal + Other
-JWT_SECRET_KEY=
-MODAL_TOKEN_ID=
-MODAL_TOKEN_SECRET=
-NEWSAPI_KEY=
-FRED_API_KEY=
-TEMPORAL_HOST=localhost:7233
-```
-
-### Services
-
-| Service | Port | Purpose |
+| Phase | Description | Status |
 |---|---|---|
-| `wealthOS-api` | 8000 | FastAPI + LangGraph backend |
-| `wealthOS-frontend` | 3000 | Next.js + CopilotKit |
-| `wealthOS-mcp` | 8001 | All 11 MCP servers |
-| `wealthOS-db` | 5432 | PostgreSQL 16 + pgvector |
-| `wealthOS-qdrant` | 6333 | Qdrant vector database |
-| `wealthOS-redis` | 6379 | Redis 7 |
-| `wealthOS-kafka` | 9092 | Kafka + Zookeeper |
-| `wealthOS-ollama` | 11434 | Ollama (privacy mode) |
-| `wealthOS-temporal` | 7233 | Temporal workflow engine |
+| 0 | Foundation — PostgreSQL · Redis · project structure | ✅ |
+| 1 | 7 MCP servers — 43 tools | ✅ |
+| 2 | RAG pipeline — 1,640 chunks · pgvector | ✅ ~80% |
+| 3 | 7 agents standalone — Finance · Research · Data · Risk · Code · Rebalancing · Writer | ✅ |
+| 4 | LangGraph orchestrator — 8 nodes · FastAPI | ✅ |
+| 5 | DSPy optimization · Guardrails AI validation | ✅ |
+| 6 | Mem0 memory · Temporal workflows · Morning briefing · Composio | ✅ |
+| 7 | Observability — LangSmith · AgentOps · W&B Weave | ✅ |
+| 8 | Streamlit frontend | ✅ |
+| 9 | Docker + CI/CD → AWS | 🔄 Planned |
 
 ---
 
-## API
-
-```
-POST /analyze              — main analysis (streaming)
-POST /analyze/compare      — multi-stock comparison
-POST /approve              — HITL approval
-POST /transcribe           — Whisper STT
-POST /export/pdf           — export memo as PDF
-
-POST /finance/snapshot     — upload bank statement / receipt (image or PDF)
-POST /finance/goals        — set financial goals
-GET  /finance/{user_id}    — PersonalFinanceSnapshot
-GET  /finance/health/{user_id} — Financial Health Score
-
-GET  /memory/{user_id}     — memory history
-GET  /alerts/{user_id}     — active price alerts
-POST /alerts               — set alert
-DELETE /alerts/{id}        — cancel alert
-
-POST /briefing/enable      — enable morning briefing
-PUT  /briefing/time        — set briefing time
-
-GET  /portfolio/{user_id}  — holdings + rebalance suggestion
-POST /portfolio/holdings   — update holdings
-
-GET  /health               — service health
-```
-
----
-
-## Evaluation
-
-> *Results updated as each phase completes*
-
-| Metric | Target | Result |
-|---|---|---|
-| Data Agent accuracy (price, P/E, EPS) | 99%+ | — |
-| Finance anomaly detection F1 | > 0.85 | — |
-| DCF vs analyst consensus | within 15% | — |
-| Rebalancing drift calculation | 100% accurate | — |
-| Health Score computation | 100% accurate | — |
-| Research quality (LLM-as-Judge, 1-5) | > 4.0 | — |
-| Writer quality — baseline | — | — |
-| Writer quality — DSPy compiled | +0.3–0.5 over baseline | — |
-| Writer quality — fine-tuned | best | — |
-| p95 latency (10 concurrent users) | < 90s | — |
-| Error rate under load | 0% 5xx | — |
-| Kafka alert lag | < 5s | — |
-| Morning briefing delivery | < 30s after 8 AM | — |
-
----
-
-## Build Phases
-
-- [ ] **Phase 0** — Foundation: Docker stack, LiteLLM gateway, Input Router (all 4 input types)
-- [ ] **Phase 1** — 11 MCP servers with pytest coverage
-- [ ] **Phase 2** — LlamaIndex + Qdrant RAG pipeline over 10-K/10-Q filings
-- [ ] **Phase 3** — All 7 agents built and tested standalone ← *apply to jobs here*
-- [ ] **Phase 4** — LangGraph orchestrator + Temporal + Morning Briefing + Multi-stock mode
-- [ ] **Phase 5** — DSPy prompt optimization
-- [ ] **Phase 6** — Mem0 + Redis + Kafka + WhatsApp/Gmail alerts + PDF export
-- [ ] **Phase 7** — Observability (LangSmith + AgentOps + W&B Weave)
-- [ ] **Phase 8** — Frontend (CopilotKit, 4 input modes, Finance dashboard, Rebalancing panel)
-- [ ] **Phase 9** — FastAPI + Docker + CI/CD → AWS App Runner (live URL)
-- [ ] **Phase 10** — Evaluation suite (all metrics in table above)
-- [ ] **Phase 11** — Modal fine-tuning + inference endpoint
-
----
-
-## Project Structure
-
-```
-wealthOS/
-├── agents/
-│   ├── finance_agent.py
-│   ├── research_agent.py
-│   ├── data_agent.py
-│   ├── risk_agent.py
-│   ├── code_agent.py
-│   ├── rebalancing_agent.py
-│   └── writer_agent.py
-├── mcp_servers/          # 11 MCP servers
-├── graph/
-│   ├── state.py
-│   └── nodes.py
-├── rag/
-│   ├── indexer.py
-│   └── query_engine.py
-├── input/
-│   ├── router.py         # InputRouter — normalizes all 4 input types
-│   ├── whisper_handler.py
-│   ├── vision_handler.py
-│   └── pdf_processor.py
-├── memory/
-│   └── mem0_client.py
-├── gateway/
-│   └── litellm_config.yaml
-├── workflows/
-│   ├── temporal_workflows.py
-│   └── morning_briefing.py
-├── api/
-│   ├── main.py
-│   └── export.py         # PDF export
-├── health/
-│   └── score.py          # HealthScore computation
-├── frontend/
-├── eval/
-│   ├── writer_golden_dataset.json
-│   └── compiled_writer.json
-├── modal_apps/
-│   ├── embedder.py
-│   ├── finetune_writer.py
-│   └── writer_inference.py
-└── .github/workflows/
-    └── ci.yml
-```
-
----
-
-## License
-
-MIT
+<div align="center">
+<sub>Built by Aman · <a href="https://github.com/AmanDataGuy">GitHub</a> · <a href="https://linkedin.com">LinkedIn</a></sub>
+</div>
