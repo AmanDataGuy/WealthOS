@@ -68,4 +68,8 @@ redis_data/
 # PDF uploads / temp files
 *.pdf
 uploads/
-temp/
+temp/*Notes.md
+*notes.md
+plan.md
+phase*
+test_*.py
