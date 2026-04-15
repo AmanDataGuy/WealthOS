@@ -73,3 +73,5 @@ temp/*Notes.md
 plan.md
 phase*
 test_*.py
+tests/
+mcp_servers/test_*.py
