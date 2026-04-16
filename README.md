@@ -1,214 +1,443 @@
-<div align="center">
+# WealthOS 💰
+### Personal Financial Intelligence Platform
 
-# WealthOS
+> *"Should I invest ₹20,000 in Reliance right now?"*
+> WealthOS knows your monthly surplus is ₹18,000, your food spending spiked 35% last month, you have an outstanding EMI of ₹12,000, and your portfolio is already 18% overweight in energy — and gives you an answer built for **your** financial life, not a generic one.
 
-**Personal Financial Intelligence Platform**
-
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![LangGraph](https://img.shields.io/badge/LangGraph-Orchestrator-1C3A5E?style=flat-square)](https://langchain.com)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-336791?style=flat-square&logo=postgresql&logoColor=white)](https://postgresql.org)
-[![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
-
-*7 specialized agents × 7 MCP servers × 43 tools → one personalized investment memo in under 90 seconds.*
-
-</div>
+[![Build Status](https://img.shields.io/github/actions/workflow/status/yourusername/wealthOS/ci.yml?branch=main&style=flat-square)](https://github.com/yourusername/wealthOS/actions)
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen?style=flat-square)](https://wealthos.yourdomain.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)](https://www.python.org/)
 
 ---
 
 ## What It Does
 
-A user asks: **"Should I invest ₹20,000 in Reliance right now?"**
+WealthOS is a **7-agent personal financial intelligence platform** that does two things no existing tool combines: it analyzes stocks like a Wall Street research desk, and it analyzes *your* personal finances like a CFO — then cross-references both.
 
-WealthOS knows their monthly surplus is ₹18,000, food spending spiked 35% last month, they have an outstanding home loan EMI, and their 80C deduction is unutilized. The output is not generic advice — it is advice for **this person, at this moment in their financial life.**
+The result is not generic advice. It's a memo that knows your surplus, your EMIs, your goals, your existing portfolio allocation — and tells you specifically whether *you* should buy this stock, and what to do with the rest of your portfolio when you do.
 
 ---
+
+## Demo
+
+> *Screenshots / GIF coming soon — first working demo after Phase 3*
+
+---
+
+## Input — Four Ways to Talk to WealthOS
+
+| Mode | How | Handled By | Best For |
+|---|---|---|---|
+| **Text** | Type in chat | CopilotKit | Questions, manual expense entry |
+| **Voice** | Tap microphone → speak | OpenAI Whisper STT | Hands-free queries |
+| **Image** | Upload JPEG/PNG | Claude 3.5 Sonnet (vision) | Receipts, salary slips, expense screenshots |
+| **PDF** | Upload PDF | Claude 3.5 Sonnet (vision, page-by-page) | Bank statements, payslips, tax documents |
+
+All four input types normalize into the same pipeline. Uploading a 3-month bank statement PDF gives you the same depth of personal finance analysis as entering your expenses manually.
 
 ---
 
 ## Architecture
-```mermaid
-flowchart LR
-    %% Color Classes for Beautification
-    classDef input fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
-    classDef interface fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#064e3b
-    classDef mcp fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
-    classDef agent fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
-    classDef orch fill:#f1f5f9,stroke:#f97316,stroke-width:3px,color:#7c2d12
-    classDef intel fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
-    classDef data fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
-    classDef output fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
 
-    %% Row 1: Input and Interface
-    Input[Multi-Modal Input<br>Text / Voice / PDF]:::input --> FastAPI[FastAPI + Streamlit<br>Unified Interface]:::interface
-
-    %% Row 2: MCP Servers (Horizontal)
-    FastAPI --> M1[Market Data<br>yfinance]:::mcp
-    FastAPI --> M2[SEC Filings<br>10-K / 10-Q]:::mcp
-    FastAPI --> M3[News & Sentiment]:::mcp
-    FastAPI --> M4[Finance Calculators<br>DCF / WACC]:::mcp
-    FastAPI --> M5[Tax & Portfolio]:::mcp
-
-    %% Row 3: 7 Agents (Horizontal)
-    M1 & M2 & M3 & M4 & M5 --> A1[Finance Agent<br>Health Score]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A2[Research Agent<br>Parallel Fetch]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A3[Data Agent<br>PydanticAI + Redis]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A4[Risk Agent<br>Debate Pattern]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A5[Code Agent<br>Smolagents + E2B]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A6[Rebalancing Agent<br>Allocation Warnings]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A7[Writer Agent<br>DSPy + Guardrails]:::agent
-
-    %% Row 4: Orchestrator
-    A1 & A2 & A3 & A4 & A5 & A6 & A7 --> Orchestrator[LangGraph Orchestrator<br>8 Nodes · Parallel Execution]:::orch
-
-    %% Row 5: Intelligence Layer (Horizontal)
-    Orchestrator --> RAG[RAG Pipeline<br>mxbai-embed · pgvector]:::intel
-    Orchestrator --> Mem0[Mem0 Memory<br>User Context]:::intel
-    Orchestrator --> Temporal[Temporal<br>Scheduled Workflows]:::intel
-
-    %% Row 6: Data Layer (Horizontal)
-    Orchestrator --> DB[(PostgreSQL<br>+ pgvector)]:::data
-    Orchestrator --> Cache[(Redis Cache)]:::data
-    Orchestrator --> Sandbox[E2B Sandbox]:::data
-    Orchestrator --> Ollama[Ollama Local<br>qwen2.5:7b]:::data
-
-    %% Row 7: Output
-    Orchestrator --> Output[Final Report / Alert]:::output
+```
+[Text] [Voice → Whisper] [Image → Claude Vision] [PDF → Claude Vision]
+                         │
+                   Input Router
+                         │
+                         ▼
+          LiteLLM Gateway (Groq / Bedrock / DeepSeek R1 / Ollama)
+                         │
+                         ▼
+        LangGraph Orchestrator + Temporal (durable workflows)
+                         │
+       ┌─────────────────┼──────────────────────────────┐
+       ▼                 ▼                              ▼
+ Finance Agent     Research Agent                  Data Agent
+ - OCR inputs       - Browser-Use                  - yfinance MCP
+ - Anomaly detect     live web nav                 - SEC EDGAR MCP
+ - Health Score     - Firecrawl news               - LlamaIndex + Qdrant
+ - Tax/goals/debt   - Sentiment                    - PydanticAI validated
+       │                 │                              │
+       └─────────────────┴──────────────────────────────┘
+                         │
+              ┌──────────┴───────────┐
+              ▼                      ▼
+        Risk Agent             Code Agent
+        CrewAI +               Smolagents +
+        DeepSeek R1            E2B sandbox
+        (personal              DCF + Monte Carlo
+        risk score)            Python execution
+              │                      │
+              └──────────┬───────────┘
+                         │
+               Rebalancing Agent
+               - Current holdings
+               - Drift from target
+               - Buy/sell suggestions
+                         │
+              [HITL Checkpoint — AG-UI]
+                         │
+               Writer Agent
+               DSPy-optimized prompts
+               Streaming personalized memo
+                         │
+            ┌────────────┼─────────────┐
+            ▼            ▼             ▼
+         PDF Export   Kafka        WhatsApp /
+         → Drive      price        Gmail
+                      alerts       alerts
 ```
 
 ---
 
----
+## 7 Agents
 
-<div align="center">
-
-## Agents
-
-| Agent | Framework | Key Capability | Output |
-|:---:|:---:|:---:|:---:|
-| Finance Agent | Pure Python | z-score anomaly detection (σ = 1.5) | Health Score 0–100, surplus, subscriptions |
-| Research Agent | asyncio | parallel fetch — market + news + SEC | Sentiment, macro context |
-| Data Agent | PydanticAI | schema-validated numbers, Redis 15-min TTL | `FinancialSnapshot` with confidence flag |
-| Risk Agent | LangGraph (3-node debate) | Macro, Stock, Scorer agents | Risk score 1–10 + recommendation |
-| Code Agent | Smolagents + E2B | sandbox-executed Python | DCF intrinsic value, Monte Carlo distribution |
-| Rebalancing Agent | Pure Python | >40% sector concentration warning | Rebalance recommendation |
-| Writer Agent | DSPy + LangGraph | compiled few-shot prompt, Guardrails AI validated | Final investment memo |
-
-</div>
+| # | Agent | Framework | What It Does |
+|---|---|---|---|
+| 1 | **Finance Agent** | Agno | Builds your complete financial picture — spending anomalies, EMIs, goals, tax gaps, insurance. Computes Financial Health Score. Runs first, always. |
+| 2 | **Research Agent** | Agno + Browser-Use | Navigates live NSE/Moneycontrol/analyst pages with a real browser. Extracts analyst recommendations, news sentiment, macro trends. |
+| 3 | **Data Agent** | PydanticAI + AWS Bedrock | Fetches validated financial numbers via yfinance + SEC EDGAR. Queries 10-K/10-Q filings semantically via LlamaIndex + Qdrant. Zero hallucinated numbers. |
+| 4 | **Risk Agent** | CrewAI + DeepSeek R1 | Scores investment risk 1-10 — adjusted for your actual EMI burden, surplus, and goal timeline. Uses chain-of-thought reasoning. |
+| 5 | **Code Agent** | Smolagents + E2B | Writes and executes real Python: 5-year DCF model, 10,000-path Monte Carlo simulation, sensitivity table. Verified numbers from a real sandbox. |
+| 6 | **Rebalancing Agent** | Agno | Checks your current portfolio, computes sector drift from your target allocation, and tells you exactly what to buy/sell when you make the new investment. |
+| 7 | **Writer Agent** | LangGraph + DSPy | Synthesizes all 6 agents into a personalized investment memo. Prompts are DSPy-compiled against a golden dataset, not hand-written. |
 
 ---
 
----
+## Key Features
 
-<div align="center">
+### Financial Health Score
+A single **0–100 score** summarizing your financial health across 5 dimensions: surplus ratio, debt burden, goal progress, tax utilization, and insurance coverage. Shown on the dashboard. Embedded in every investment memo.
 
-##  MCP Servers
-
-| Server | Tools | Data Source |
-|:---:|:---:|:---:|
-| `market_server` | 10 | yfinance — price, P/E, market cap, historical |
-| `sec_edgar_server` | 3 | SEC EDGAR — 10‑K / 10‑Q filing URLs |
-| `news_server` | 3 | NewsAPI — headlines + sentiment |
-| `finance_server` | 5 | PostgreSQL — transactions, anomalies, subscriptions |
-| `calculator_server` | 13 | DCF, WACC, CAGR, capital gains, tax math |
-| `tax_server` | 5 | 80C / HRA / slabs — old vs new regime |
-| `portfolio_server` | 4 | PostgreSQL + yfinance — holdings, P&L, allocation |
-
-**Total: 43 tools across 7 servers**
-
-</div>
+| Score | Grade |
+|---|---|
+| 80–100 | Excellent |
+| 65–79 | Good |
+| 50–64 | Fair |
+| < 50 | Needs Attention |
 
 ---
 
----
+### Portfolio Rebalancing
+Before recommending any investment, the Rebalancing Agent looks at your *actual holdings* and shows you:
+- Your current sector allocation vs your target
+- How the new investment changes that allocation
+- Specific buy/sell actions with rupee amounts to stay on target
 
-<div align="center">
-
-## 🔬 Under the Hood
-
-| Category | Implementation | Why It Matters |
-|:---:|:---:|:---|
-| **Observability** | LangSmith · AgentOps · W&B Weave | 3‑layer tracing: pipeline latency, agent decisions, eval scores |
-| **Memory** | Mem0 vector memory | Cross‑session recall of past analyses and user context |
-| **Durability** | Temporal workflows | Crash‑safe execution with automatic retry & checkpointing |
-| **Code Sandbox** | E2B | Secure Python execution for DCF & Monte Carlo models |
-| **Retrieval** | Hybrid (vector + keyword injection) | Prevents hallucinated numbers from financial tables |
-| **LLM Stack** | `qwen2.5:7b` + `mxbai-embed-large` (Ollama) | 100% local · zero API cost · fits on RTX 3050 6GB |
-| **Parallelism** | `asyncio.gather` in LangGraph | 2× speedup vs sequential agent execution |
-| **Validation** | Guardrails AI + Pydantic v2 | Blocks impossible outputs before they reach the user |
-| **Prompt Optimization** | DSPy BootstrapFewShot (15 golden examples) | Compiled prompt measurably outperforms hand‑written baseline |
-| **Notifications** | Composio | Gmail + WhatsApp alerts without OAuth boilerplate |
-| **Vector Store** | pgvector (PostgreSQL extension) | One database for everything—no separate Qdrant container |
-
-</div>
+> *"Buying Reliance at ₹20,000 increases your energy sector weight from 18% to 26% vs your 20% target. Consider trimming ₹12,000 from ONGC to rebalance."*
 
 ---
 
----
+### Morning Briefing (Proactive Agent)
+Every morning at **8:00 AM**, without you asking, WealthOS sends a 5-line briefing to WhatsApp or Gmail:
 
-<div align="center">
+```
+WealthOS Morning Briefing
 
-## 🧰 Tech Stack
+📉 Reliance: -4.2% overnight (Q3 miss, analyst downgrade)
+💰 Your food spend is 28% above average this month
+🔔 TCS is within 1.8% of your ₹3,800 price alert
+🌐 RBI rate decision today at 2 PM — affects your HDFC holding
+💡 ₹42,000 in unutilized 80C with 3 months left in FY
+```
 
-| Layer | Technologies |
-|:---:|:---|
-| **Orchestration** | LangGraph (8‑node state machine) · Temporal (durable workflows) |
-| **Agents** | PydanticAI · Smolagents · Pure Python |
-| **LLM** | `qwen2.5:7b` (Ollama) · Groq (fallback) |
-| **RAG** | Custom indexer · pgvector · `mxbai-embed-large` (1,024‑dim · ~1,640 chunks) |
-| **Memory** | Mem0 (cross‑session vector memory) |
-| **Prompt Optimization** | DSPy (BootstrapFewShot) |
-| **Validation** | Guardrails AI · Pydantic v2 |
-| **Code Execution** | E2B Sandbox |
-| **Database** | PostgreSQL 16 (9 tables, pgvector, pgcrypto) |
-| **Cache** | Redis (15‑min TTL, pub/sub) |
-| **Notifications** | Composio (Gmail + WhatsApp) |
-| **Observability** | LangSmith · AgentOps · W&B Weave |
-| **Backend** | FastAPI |
-| **Frontend** | Streamlit |
-
-</div>
+Powered by Temporal cron + Kafka + Composio.
 
 ---
 
----
-
-<div align="center">
-
-## 🚧 Roadmap
-
-| Feature | Status |
-|:---:|:---:|
-| Docker Compose · AWS EC2 deployment | 🔄 In Progress |
-| Multi‑user authentication & isolated portfolios | 🔄 Planned |
-| Real‑time price alerts via Kafka | 🔄 Planned |
-| Fine‑tuned Writer Agent (LoRA on Qwen) | 🔄 Planned |
-
-</div>
+### PDF Export
+After every analysis, export the full investment memo as a formatted PDF. Automatically pushed to your Google Drive via Composio.
 
 ---
 
+### Price Alerts
+Set a price target during HITL review → Kafka watches for it → WhatsApp/Gmail notification when it triggers.
+
 ---
 
-<div align="center">
-  
-## 🚀 Quick Start
+### Multi-Stock Comparison
+Ask: *"Compare Reliance vs TCS vs Infosys"* → 3 parallel pipelines → side-by-side memo ranked by fit to *your* portfolio.
+
+---
+
+### Privacy Mode
+Toggle on → all personal bank data and spending analysis routes through local **Ollama** inference. Nothing sensitive leaves your environment.
+
+---
+
+## Personal Finance Features (Finance Agent)
+
+- Spending anomaly detection — z-score vs 3-month rolling average, flags > 1.5σ
+- Goal tracker — back-calculates monthly savings needed per goal
+- Debt optimizer — avalanche vs snowball for active EMIs
+- Tax optimizer — unutilized 80C, 80D, HRA deductions
+- Subscription auditor — recurring charges with no recent usage
+- Insurance gap analyzer — coverage vs recommended multiple of income
+- Peer benchmarking — your spending vs anonymized income-bracket cohort
+- Receipt OCR — photograph a receipt → auto-categorized transaction
+- Bank statement parser — upload PDF → full transaction history extracted
+
+---
+
+## Tech Stack
+
+### Core Infrastructure
+| Layer | Technology |
+|---|---|
+| Orchestration | LangGraph v0.2 + Temporal |
+| LLM Gateway | LiteLLM (Groq / AWS Bedrock / DeepSeek R1 / o3-mini / Ollama) |
+| Agent Protocol | Google A2A |
+| Tool Protocol | MCP (11 custom servers) + Composio |
+| Frontend | CopilotKit + AG-UI |
+| Backend | FastAPI + JWT |
+| Database | PostgreSQL + pgvector |
+
+### AI & Agents
+| Component | Technology |
+|---|---|
+| Finance + Rebalancing Agent | Agno |
+| Data Agent | PydanticAI + AWS Bedrock |
+| Risk Agent | CrewAI + DeepSeek R1 |
+| Code Agent | Smolagents + E2B sandbox |
+| Vision / OCR (image + PDF) | Claude 3.5 Sonnet (multimodal) |
+| Voice Input | OpenAI Whisper |
+| Document RAG | LlamaIndex + Qdrant |
+| Web Navigation | Browser-Use |
+| Web Scraping | Firecrawl |
+| Prompt Optimization | DSPy |
+| Output Validation | Guardrails AI + PydanticAI |
+| Long-term Memory | Mem0 |
+| Reasoning | DeepSeek R1 / o3-mini |
+| Local Inference | Ollama |
+
+### Infrastructure
+| Component | Technology |
+|---|---|
+| Vector DB | Qdrant |
+| Caching | Redis |
+| Event Streaming | Kafka |
+| Self-hosted Embeddings | Modal (bge-large on A100) |
+| Fine-tuning | Modal H100 (QLoRA) |
+| Observability | LangSmith + AgentOps + W&B Weave |
+| Cloud | AWS Bedrock + S3 + App Runner + CloudWatch |
+| Deployment | Docker + GitHub Actions → ECR → App Runner |
+| Notifications | Composio (Gmail + WhatsApp + Google Drive) |
+
+---
+
+## 11 Custom MCP Servers
+
+| Server | Tools |
+|---|---|
+| `yfinance-mcp` | get_price, get_financials, get_history, get_info |
+| `sec-edgar-mcp` | get_10k, get_10q, get_filings_list |
+| `news-mcp` | search_news, get_sentiment, get_headlines |
+| `finance-mcp` | parse_transactions, detect_anomalies, calc_surplus, audit_subscriptions |
+| `calculator-mcp` | calc_cagr, calc_wacc, calc_dcf_inputs, calc_intrinsic_value |
+| `tax-mcp` | calc_80c_remaining, calc_hra, estimate_tax, get_optimal_regime |
+| `portfolio-mcp` | get_holdings, get_correlation, get_exposure, get_sector_weight |
+| `macro-mcp` | get_interest_rates, get_inflation, get_sector_performance |
+| `alert-mcp` | set_price_alert, cancel_alert, list_alerts |
+| `competitor-mcp` | get_peers, compare_metrics, get_market_share |
+| `qdrant-mcp` | embed_and_store, similarity_search, find_related |
+
+---
+
+## Setup
+
+### Prerequisites
+- Docker + Docker Compose
+- Python 3.11+
+- Node.js 18+
+
+### Quick Start
 
 ```bash
-git clone https://github.com/AmanDataGuy/WealthOS
-cd WealthOS
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+git clone https://github.com/yourusername/wealthOS
+cd wealthOS
 cp .env.example .env
+# Fill in your API keys
+docker-compose up --build
+```
 
-# Start services (WSL)
-sudo service postgresql start
-redis-server --daemonize yes
-ollama serve &
-ollama pull qwen2.5:7b
-ollama pull mxbai-embed-large
+Visit `http://localhost:3000`
 
-# Run
-uvicorn api.main:app --reload --port 8000
-streamlit run wealthos_app.py --server.port 8501
+### Environment Variables
+
+```env
+# LLM Providers
+OPENAI_API_KEY=
+GROQ_API_KEY=
+ANTHROPIC_API_KEY=
+DEEPSEEK_API_KEY=
+
+# Observability
+LANGCHAIN_API_KEY=
+AGENTOPS_API_KEY=
+WANDB_API_KEY=
+
+# Tools
+MEM0_API_KEY=
+FIRECRAWL_API_KEY=
+COMPOSIO_API_KEY=
+E2B_API_KEY=
+
+# Infrastructure
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/wealthOS
+QDRANT_URL=http://localhost:6333
+REDIS_URL=redis://localhost:6379
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+
+# AWS
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=us-east-1
+
+# Auth + Modal + Other
+JWT_SECRET_KEY=
+MODAL_TOKEN_ID=
+MODAL_TOKEN_SECRET=
+NEWSAPI_KEY=
+FRED_API_KEY=
+TEMPORAL_HOST=localhost:7233
+```
+
+### Services
+
+| Service | Port | Purpose |
+|---|---|---|
+| `wealthOS-api` | 8000 | FastAPI + LangGraph backend |
+| `wealthOS-frontend` | 3000 | Next.js + CopilotKit |
+| `wealthOS-mcp` | 8001 | All 11 MCP servers |
+| `wealthOS-db` | 5432 | PostgreSQL 16 + pgvector |
+| `wealthOS-qdrant` | 6333 | Qdrant vector database |
+| `wealthOS-redis` | 6379 | Redis 7 |
+| `wealthOS-kafka` | 9092 | Kafka + Zookeeper |
+| `wealthOS-ollama` | 11434 | Ollama (privacy mode) |
+| `wealthOS-temporal` | 7233 | Temporal workflow engine |
+
+---
+
+## API
+
+```
+POST /analyze              — main analysis (streaming)
+POST /analyze/compare      — multi-stock comparison
+POST /approve              — HITL approval
+POST /transcribe           — Whisper STT
+POST /export/pdf           — export memo as PDF
+
+POST /finance/snapshot     — upload bank statement / receipt (image or PDF)
+POST /finance/goals        — set financial goals
+GET  /finance/{user_id}    — PersonalFinanceSnapshot
+GET  /finance/health/{user_id} — Financial Health Score
+
+GET  /memory/{user_id}     — memory history
+GET  /alerts/{user_id}     — active price alerts
+POST /alerts               — set alert
+DELETE /alerts/{id}        — cancel alert
+
+POST /briefing/enable      — enable morning briefing
+PUT  /briefing/time        — set briefing time
+
+GET  /portfolio/{user_id}  — holdings + rebalance suggestion
+POST /portfolio/holdings   — update holdings
+
+GET  /health               — service health
+```
+
+---
+
+## Evaluation
+
+> *Results updated as each phase completes*
+
+| Metric | Target | Result |
+|---|---|---|
+| Data Agent accuracy (price, P/E, EPS) | 99%+ | — |
+| Finance anomaly detection F1 | > 0.85 | — |
+| DCF vs analyst consensus | within 15% | — |
+| Rebalancing drift calculation | 100% accurate | — |
+| Health Score computation | 100% accurate | — |
+| Research quality (LLM-as-Judge, 1-5) | > 4.0 | — |
+| Writer quality — baseline | — | — |
+| Writer quality — DSPy compiled | +0.3–0.5 over baseline | — |
+| Writer quality — fine-tuned | best | — |
+| p95 latency (10 concurrent users) | < 90s | — |
+| Error rate under load | 0% 5xx | — |
+| Kafka alert lag | < 5s | — |
+| Morning briefing delivery | < 30s after 8 AM | — |
+
+---
+
+## Build Phases
+
+- [ ] **Phase 0** — Foundation: Docker stack, LiteLLM gateway, Input Router (all 4 input types)
+- [ ] **Phase 1** — 11 MCP servers with pytest coverage
+- [ ] **Phase 2** — LlamaIndex + Qdrant RAG pipeline over 10-K/10-Q filings
+- [ ] **Phase 3** — All 7 agents built and tested standalone ← *apply to jobs here*
+- [ ] **Phase 4** — LangGraph orchestrator + Temporal + Morning Briefing + Multi-stock mode
+- [ ] **Phase 5** — DSPy prompt optimization
+- [ ] **Phase 6** — Mem0 + Redis + Kafka + WhatsApp/Gmail alerts + PDF export
+- [ ] **Phase 7** — Observability (LangSmith + AgentOps + W&B Weave)
+- [ ] **Phase 8** — Frontend (CopilotKit, 4 input modes, Finance dashboard, Rebalancing panel)
+- [ ] **Phase 9** — FastAPI + Docker + CI/CD → AWS App Runner (live URL)
+- [ ] **Phase 10** — Evaluation suite (all metrics in table above)
+- [ ] **Phase 11** — Modal fine-tuning + inference endpoint
+
+---
+
+## Project Structure
+
+```
+wealthOS/
+├── agents/
+│   ├── finance_agent.py
+│   ├── research_agent.py
+│   ├── data_agent.py
+│   ├── risk_agent.py
+│   ├── code_agent.py
+│   ├── rebalancing_agent.py
+│   └── writer_agent.py
+├── mcp_servers/          # 11 MCP servers
+├── graph/
+│   ├── state.py
+│   └── nodes.py
+├── rag/
+│   ├── indexer.py
+│   └── query_engine.py
+├── input/
+│   ├── router.py         # InputRouter — normalizes all 4 input types
+│   ├── whisper_handler.py
+│   ├── vision_handler.py
+│   └── pdf_processor.py
+├── memory/
+│   └── mem0_client.py
+├── gateway/
+│   └── litellm_config.yaml
+├── workflows/
+│   ├── temporal_workflows.py
+│   └── morning_briefing.py
+├── api/
+│   ├── main.py
+│   └── export.py         # PDF export
+├── health/
+│   └── score.py          # HealthScore computation
+├── frontend/
+├── eval/
+│   ├── writer_golden_dataset.json
+│   └── compiled_writer.json
+├── modal_apps/
+│   ├── embedder.py
+│   ├── finetune_writer.py
+│   └── writer_inference.py
+└── .github/workflows/
+    └── ci.yml
+```
+
+---
+
+## License
+
+MIT

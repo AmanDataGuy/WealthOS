@@ -9,14 +9,6 @@ Endpoints:
   GET  /state/{ticker}     → last known state for a ticker (from Redis)
   POST /briefing/send-now  → trigger morning briefing immediately (testing)
   GET  /briefing/history/{user_id} → last 7 briefings from Redis
-
-## Phase 7 addition
-Three observability tools are initialized at startup:
-  - LangSmith  → traces every LangGraph node automatically
-  - AgentOps   → tracks LLM calls and tool actions
-  - W&B Weave  → eval comparison logging for Writer Agent
-
-All three are no-ops if their API keys are missing in .env.
 """
 
 import os
@@ -35,9 +27,6 @@ load_dotenv()
 from graph.graph  import wealthos_graph
 from graph.state  import WealthOSState
 
-# Phase 7 — observability startup
-from observability import init_agentops, init_weave, verify_langsmith, start_session, end_session
-
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
 app = FastAPI(
@@ -48,18 +37,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8501"],
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ── Phase 7: Initialize all three observability tools at startup ───────────────
-# These run once when the server starts. Each prints a clear status line
-# so you can see in the logs whether they connected successfully.
-verify_langsmith()   # LangSmith — confirms API key and project name
-init_agentops()      # AgentOps  — monkey-patches LLM clients for auto-tracking
-init_weave()         # W&B Weave — connects to the WealthOS project
 
 
 # ── Request / Response schemas ─────────────────────────────────────────────────
@@ -96,9 +77,6 @@ async def health():
 async def analyze(req: AnalyzeRequest):
     ticker = req.ticker.upper().strip()
 
-    # Phase 7 — start an AgentOps session so all tool calls in this run are grouped
-    start_session(user_id=req.user_id, ticker=ticker)
-
     initial_state: WealthOSState = {
         "query":              req.query,
         "tickers":            [ticker],
@@ -117,9 +95,7 @@ async def analyze(req: AnalyzeRequest):
 
     try:
         result = await wealthos_graph.ainvoke(initial_state)
-        end_session(success=True)
     except Exception as e:
-        end_session(success=False)
         raise HTTPException(status_code=500, detail=str(e))
 
     risk    = result.get("risk_report") or {}
@@ -161,9 +137,6 @@ async def analyze(req: AnalyzeRequest):
 async def analyze_stream(req: AnalyzeRequest):
     ticker = req.ticker.upper().strip()
 
-    # Phase 7 — start session for streaming runs too
-    start_session(user_id=req.user_id, ticker=ticker)
-
     initial_state: WealthOSState = {
         "query":              req.query,
         "tickers":            [ticker],
@@ -184,7 +157,6 @@ async def analyze_stream(req: AnalyzeRequest):
         yield f"data: {json.dumps({'event': 'start', 'ticker': ticker})}\n\n"
         try:
             result = await wealthos_graph.ainvoke(initial_state)
-            end_session(success=True)
             memo   = result.get("final_memo", "")
             words  = memo.split(" ")
             for i, word in enumerate(words):
@@ -193,7 +165,6 @@ async def analyze_stream(req: AnalyzeRequest):
                 await asyncio.sleep(0.02)
             yield f"data: {json.dumps({'event': 'done', 'messages': result.get('messages', [])})}\n\n"
         except Exception as e:
-            end_session(success=False)
             yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

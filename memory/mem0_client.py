@@ -3,23 +3,16 @@
 Mem0 long-term memory for WealthOS.
 
 Two functions used by the graph:
-  read_memory(user_id)          → called at start of finance_node
+  read_memory(user_id)  → called at start of finance_node
   write_memory(user_id, result) → called at end of writer_node
 
 Mem0 handles vector storage, deduplication, and retrieval automatically.
 All we do is add and search.
-
-## Phase 7 addition
-Both functions are wrapped with @track_memory_op so AgentOps
-captures how many memories were found and how long each op took.
 """
 
 import os
 from mem0 import MemoryClient
 from dotenv import load_dotenv
-
-# Phase 7 — track memory ops in AgentOps
-from observability import track_memory_op
 
 load_dotenv()
 
@@ -32,7 +25,6 @@ def get_client() -> MemoryClient:
     return _client
 
 
-@track_memory_op("read")
 def read_memory(user_id: str) -> str:
     """
     Pull everything Mem0 knows about this user.
@@ -68,7 +60,6 @@ def read_memory(user_id: str) -> str:
         return ""
 
 
-@track_memory_op("write")
 def write_memory(user_id: str, state: dict) -> None:
     """
     Store the key outcomes of this analysis in Mem0.

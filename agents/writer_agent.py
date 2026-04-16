@@ -22,11 +22,6 @@ Synthesizes all agent outputs into a personalized investment memo.
 ## LLM
 Uses Groq llama-3.3-70b for speed and quality.
 Falls back to local Ollama if Groq fails.
-
-## Phase 7 addition
-run_writer_agent is decorated with @weave_op and @trace_agent so every
-call is logged — which prompt strategy was used, inputs, output quality.
-This is what powers the eval comparison table in W&B Weave.
 """
 
 import os
@@ -36,9 +31,6 @@ from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-
-# Phase 7 — log every writer call to Weave + LangSmith
-from observability import weave_op, trace_agent
 
 load_dotenv()
 
@@ -265,8 +257,6 @@ async def write_section(
     Falls back to Ollama if Groq fails.
     """
     system = f"""You are a senior financial analyst writing a professional investment memo.
-- Do NOT use LaTeX or markdown math. Write dollar amounts as plain text: $4.45 not $4.45$
-- Use % symbol directly, not LaTeX percent notation
 Write the **{section_name}** section based on the provided data.
 {instructions}
 
@@ -361,11 +351,7 @@ def _write_memo_with_dspy(
 
 
 # ── Main Orchestrator ─────────────────────────────────────────────────────────
-# Phase 7: @weave_op logs every call to Weave (inputs + output + latency)
-#          @trace_agent logs it to LangSmith as an agent-level span
 
-@weave_op
-@trace_agent("writer_agent", model="llama-3.3-70b-versatile")
 async def run_writer_agent(
     ticker:             str,
     financial_snapshot  = None,
@@ -374,7 +360,6 @@ async def run_writer_agent(
     rebalance_suggestion= None,
     personal_finance    = None,
     research_snapshot   = None,
-    query:              str = "",
 ) -> InvestmentMemo:
     """
     Main entry point. Called by LangGraph in Phase 4.
@@ -386,10 +371,6 @@ async def run_writer_agent(
     print(f"\n{'='*50}")
     print(f"  Writer Agent — {ticker}")
     print(f"{'='*50}")
-
-    # Figure out which path we're on so logs are clear
-    prompt_strategy = "dspy_compiled" if _COMPILED_PROGRAM else "baseline"
-    print(f"  [writer] Prompt strategy: {prompt_strategy}")
 
     # Format all context upfront (same for both paths)
     fin_context   = format_financial_snapshot(financial_snapshot)
@@ -416,6 +397,7 @@ async def run_writer_agent(
     dspy_memo = _write_memo_with_dspy(ticker, fin_context, risk_context, code_context, rebal_context, personal_ctx)
 
     if dspy_memo:
+        # DSPy returned the full memo — wrap it and return
         memo = InvestmentMemo(
             ticker=ticker,
             company_name=company_name,
@@ -439,9 +421,8 @@ async def run_writer_agent(
         sections["executive_summary"] = await write_section(
             section_name="Executive Summary",
             instructions="Summarize the investment case in 3-4 sentences. "
-                        "Lead with the verdict (Buy/Hold/Avoid) and the single strongest reason. "
-                        f"IMPORTANT: The user specifically asked: '{query}' — address this directly.",
-            context=f"USER QUESTION: {query}\n\n{fin_context}\n\nRisk Assessment:\n{risk_context}\n\nValuation:\n{code_context}",
+                         "Lead with the verdict (Buy/Hold/Avoid) and the single strongest reason.",
+            context=f"{fin_context}\n\nRisk Assessment:\n{risk_context}\n\nValuation:\n{code_context}",
             client=client,
         )
 
@@ -500,9 +481,8 @@ async def run_writer_agent(
         sections["final_verdict"] = await write_section(
             section_name="Final Verdict",
             instructions=f"Give a clear {verdict} recommendation with 2-3 specific reasons. "
-                        f"The user asked: '{query}' — answer it specifically. "
-                        "End with one actionable next step for the investor.",
-            context=f"USER QUESTION: {query}\n\nVerdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}",
+                          "End with one actionable next step for the investor.",
+            context=f"Verdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}",
             client=client,
         )
 
