@@ -203,73 +203,37 @@ def extract_inputs(snapshot) -> dict:
     """
     Pull the numbers the Code Agent needs from FinancialSnapshot.
     Falls back to safe defaults if data is missing.
-
-    FIX: yfinance returns values in actual dollars (e.g. 30_000_000_000).
-    The DCF template expects values in MILLIONS. So we normalize anything
-    above 1e6 by dividing by 1e6.
     """
+    # Handle both object and dict
     if hasattr(snapshot, "model_dump"):
         data = snapshot.model_dump()
     elif isinstance(snapshot, dict):
-        data = snapshot
+        data = data = snapshot
     else:
         data = {}
 
-    cf  = data.get("cash_flow", {}) or {}
-    inc = data.get("income_statement", {}) or {}
-    val = data.get("valuation", {}) or {}
-    gr  = data.get("growth", {}) or {}
+    cf  = data.get("cash_flow", {})
+    inc = data.get("income_statement", {})
+    val = data.get("valuation", {})
+    gr  = data.get("growth", {})
 
-    # ── Normalize to millions ──────────────────────────────────────────────
-    # yfinance returns raw dollar amounts. DCF code expects millions.
-    # If a value looks like it's in actual dollars (> 1e6), divide by 1e6.
+    fcf           = cf.get("free_cash_flow")   or (inc.get("net_income", 1000) * 0.7)
+    current_price = val.get("current_price")   or 100.0
+    shares        = (val.get("market_cap") or 100e9) / (current_price * 1e6)
+    growth_cagr   = (gr.get("revenue_cagr_3y") or 10.0) / 100
+    pe            = val.get("pe_ratio") or 25.0
 
-    def to_millions(v):
-        """Convert raw dollar value to millions. No-op if already in millions."""
-        if v is None:
-            return None
-        v = float(v)
-        if abs(v) > 1e6:          # looks like actual dollars → convert
-            return v / 1e6
-        return v                  # already in millions
-
-    raw_fcf       = to_millions(cf.get("free_cash_flow"))
-    raw_net_income = to_millions(inc.get("net_income"))
-    raw_market_cap = to_millions(val.get("market_cap"))
-
-    # FCF: prefer actual FCF, fallback to 70% of net income, fallback to 1000M
-    fcf = raw_fcf or (raw_net_income * 0.7 if raw_net_income else None) or 1000.0
-
-    # Current price stays in dollars (not millions)
-    current_price = float(val.get("current_price") or 100.0)
-
-    # Shares in millions = market_cap_millions / price_per_share
-    market_cap_m = raw_market_cap or 100_000.0   # default 100B → 100,000M
-    shares       = market_cap_m / current_price
-    shares       = max(shares, 0.1)
-
-    # Growth rate — cap between 3% and 35%
-    growth_cagr = float(gr.get("revenue_cagr_3y") or 10.0) / 100
-    growth_cagr = min(max(growth_cagr, 0.03), 0.35)
-
-    # WACC proxy based on P/E
-    pe   = float(val.get("pe_ratio") or 25.0)
+    # WACC estimate — simple proxy based on P/E
+    # High P/E → market expects high growth → use higher discount rate
     wacc = 0.08 if pe < 20 else 0.10 if pe < 40 else 0.12
 
-    print(f"  [code_agent] Normalized inputs:")
-    print(f"    FCF          = ${fcf:,.0f}M")
-    print(f"    Current Price= ${current_price:.2f}")
-    print(f"    Shares       = {shares:,.0f}M")
-    print(f"    Growth       = {growth_cagr*100:.1f}%")
-    print(f"    WACC         = {wacc*100:.1f}%")
-
     return {
-        "fcf":           abs(fcf),
+        "fcf":           abs(fcf) if fcf else 1000.0,
         "current_price": current_price,
-        "shares":        shares,
-        "growth_rate":   growth_cagr,
+        "shares":        max(shares, 0.1),
+        "growth_rate":   min(max(growth_cagr, 0.03), 0.35),   # cap 3-35%
         "wacc":          wacc,
-        "growth_std":    0.25,
+        "growth_std":    0.25,   # 25% annual volatility assumption
     }
 
 
