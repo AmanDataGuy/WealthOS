@@ -10,10 +10,6 @@ Errors are caught per-node so one failure doesn't kill the whole pipeline.
 ## Phase 6 addition
 `finance_node` now reads Mem0 memory at the start.
 `writer_node` now writes results to Mem0 at the end.
-
-## Phase 7 addition
-Every node is wrapped with @trace_node so it shows up in LangSmith.
-The decorator is a no-op if LANGCHAIN_API_KEY is not set.
 """
 
 import time
@@ -25,9 +21,6 @@ from agents.writer_agent      import run_writer_agent
 from graph.state              import WealthOSState
 from guardrails.validators    import validate_all, validate_memo
 
-# Phase 7 — observability
-from observability import trace_node
-
 
 def log(state: WealthOSState, msg: str) -> list[str]:
     messages = state.get("messages", [])
@@ -36,11 +29,13 @@ def log(state: WealthOSState, msg: str) -> list[str]:
 
 
 # ── Finance Node ───────────────────────────────────────────────────────────────
+# Phase 6: reads Mem0 memory before doing anything else.
+# The user_memory string flows into every downstream agent via state.
 
-@trace_node("finance_node")
 async def finance_node(state: WealthOSState) -> dict:
     print("\n[Graph] Finance Node running...")
     try:
+        # Phase 6 — pull long-term memory for this user
         user_id = state.get("user_id", "test-user")
         user_memory = ""
         try:
@@ -63,7 +58,7 @@ async def finance_node(state: WealthOSState) -> dict:
         }
         return {
             **state,
-            "user_memory":      user_memory,
+            "user_memory":    user_memory,
             "personal_finance": personal_finance,
             "messages": log(state, f"Finance Node ✅ (test context, memory={'yes' if user_memory else 'none'})"),
         }
@@ -77,7 +72,6 @@ async def finance_node(state: WealthOSState) -> dict:
 
 # ── Data Node ──────────────────────────────────────────────────────────────────
 
-@trace_node("data_node")
 async def data_node(state: WealthOSState) -> dict:
     print("\n[Graph] Data Node running...")
     ticker = state["tickers"][0] if state.get("tickers") else None
@@ -99,21 +93,13 @@ async def data_node(state: WealthOSState) -> dict:
 
 
 # ── Research Node ──────────────────────────────────────────────────────────────
-# FIX: now passes query from state as custom_query so the agent
-# researches what the user actually asked (e.g. "ongoing wars impact on MSFT")
 
-@trace_node("research_node")
 async def research_node(state: WealthOSState) -> dict:
     print("\n[Graph] Research Node running...")
     ticker = state["tickers"][0] if state.get("tickers") else "Unknown"
-    query  = state.get("query", "")          # ← read user's actual question
     try:
         from agents.research_agent import run_research_agent
-        snapshot = await run_research_agent(
-            user_id        = state.get("user_id", "test-user"),
-            custom_symbols = [ticker],
-            custom_query   = query or None,  # ← pass it so news/RAG is relevant
-        )
+        snapshot = await run_research_agent("test-user", [ticker])
         return {
             **state,
             "research_output": snapshot.model_dump() if hasattr(snapshot, "model_dump") else {"summary": str(snapshot)},
@@ -129,7 +115,6 @@ async def research_node(state: WealthOSState) -> dict:
 
 # ── Risk Node ──────────────────────────────────────────────────────────────────
 
-@trace_node("risk_node")
 async def risk_node(state: WealthOSState) -> dict:
     print("\n[Graph] Risk Node running...")
     ticker   = state["tickers"][0] if state.get("tickers") else None
@@ -158,7 +143,6 @@ async def risk_node(state: WealthOSState) -> dict:
 
 # ── Code Node ──────────────────────────────────────────────────────────────────
 
-@trace_node("code_node")
 async def code_node(state: WealthOSState) -> dict:
     print("\n[Graph] Code Node running...")
     ticker   = state["tickers"][0] if state.get("tickers") else None
@@ -182,7 +166,6 @@ async def code_node(state: WealthOSState) -> dict:
 
 # ── Validation Node ────────────────────────────────────────────────────────────
 
-@trace_node("validation_node")
 async def validation_node(state: WealthOSState) -> dict:
     print("\n[Graph] Validation Node running...")
     valid, error = validate_all(state)
@@ -201,7 +184,6 @@ async def validation_node(state: WealthOSState) -> dict:
 
 # ── Rebalancing Node ───────────────────────────────────────────────────────────
 
-@trace_node("rebalancing_node")
 async def rebalancing_node(state: WealthOSState) -> dict:
     print("\n[Graph] Rebalancing Node running...")
     user_id = state.get("user_id", "test-user")
@@ -233,23 +215,19 @@ async def rebalancing_node(state: WealthOSState) -> dict:
 
 # ── Writer Node ────────────────────────────────────────────────────────────────
 # Phase 6: writes results to Mem0 after memo is complete.
-# FIX: now passes query so writer addresses user's actual question.
 
-@trace_node("writer_node")
 async def writer_node(state: WealthOSState) -> dict:
     print("\n[Graph] Writer Node running...")
     ticker = state["tickers"][0] if state.get("tickers") else "Unknown"
-    query  = state.get("query", "")          # ← read user's actual question
     try:
         memo = await run_writer_agent(
-            ticker               = ticker,
-            financial_snapshot   = state.get("financial_snapshot"),
-            risk_report          = state.get("risk_report"),
-            code_output          = state.get("code_output"),
-            rebalance_suggestion = state.get("rebalance_suggestion"),
-            personal_finance     = state.get("personal_finance"),
-            research_snapshot    = state.get("research_output"),
-            query                = query,    # ← pass it so memo answers the question
+            ticker=ticker,
+            financial_snapshot=state.get("financial_snapshot"),
+            risk_report=state.get("risk_report"),
+            code_output=state.get("code_output"),
+            rebalance_suggestion=state.get("rebalance_suggestion"),
+            personal_finance=state.get("personal_finance"),
+            research_snapshot=state.get("research_output"),
         )
 
         valid, error = validate_memo(memo.full_memo)
