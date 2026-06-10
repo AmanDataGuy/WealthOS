@@ -14,6 +14,7 @@ Endpoints:
 import os
 import json
 import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,13 +27,24 @@ load_dotenv()
 
 from graph.graph  import wealthos_graph
 from graph.state  import WealthOSState
+from observability.langsmith_config import verify_langsmith
+from observability.weave_config     import init_weave
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    verify_langsmith()
+    init_weave()
+    yield
+
 
 app = FastAPI(
     title="WealthOS API",
     description="7-agent personal financial intelligence platform",
     version="2.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
