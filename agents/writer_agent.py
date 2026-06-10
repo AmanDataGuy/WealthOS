@@ -20,8 +20,8 @@ Synthesizes all agent outputs into a personalized investment memo.
 7. Final Verdict
 
 ## LLM
-Uses Groq llama-3.3-70b for speed and quality.
-Falls back to local Ollama if Groq fails.
+# Uses Groq llama-3.3-70b for speed and quality.
+# Falls back to local Ollama if Groq fails.
 """
 
 import os
@@ -31,6 +31,8 @@ from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+
+from services.llm_client import call_llm
 
 load_dotenv()
 
@@ -273,46 +275,13 @@ Write the **{section_name}** section based on the provided data.
 
 Write the {section_name} section now."""
 
-    # Try Groq
-    if GROQ_API_KEY:
-        try:
-            resp = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": GROQ_MODEL,
-                    "messages": [
-                        {"role": "system", "content": system},
-                        {"role": "user",   "content": user},
-                    ],
-                    "max_tokens": 400,
-                    "temperature": 0.3,
-                },
-                timeout=30.0,
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"].strip()
-        except Exception as e:
-            print(f"  [writer] Groq failed for {section_name}, using Ollama: {e}")
-
-    # Ollama fallback
-    resp = await client.post(
-        f"{OLLAMA_URL}/api/chat",
-        json={
-            "model": OLLAMA_MODEL,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user",   "content": user},
-            ],
-            "stream": False,
-        },
-        timeout=120.0,
+    return await call_llm(
+        system=system,
+        user=user,
+        max_tokens=400,
+        temperature=0.3,
+        client=client
     )
-    resp.raise_for_status()
-    return resp.json()["message"]["content"].strip()
 
 
 # ── DSPy path ─────────────────────────────────────────────────────────────────

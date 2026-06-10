@@ -71,8 +71,17 @@ def send_notification(user_id: str, subject: str, message: str) -> dict:
     Reads NOTIFY_EMAIL and NOTIFY_PHONE from .env per user.
     For Phase 6 dev, uses single global env vars.
     """
-    email = os.getenv("NOTIFY_EMAIL", "")
-    phone = os.getenv("NOTIFY_PHONE", "")
+    # TODO: Fetch these from a User database table
+    # For now, we mock a DB lookup and fallback to env
+    mock_db = {
+        "test-user": {
+            "email": os.getenv("NOTIFY_EMAIL", ""),
+            "phone": os.getenv("NOTIFY_PHONE", "")
+        }
+    }
+    user_info = mock_db.get(user_id, {})
+    email = user_info.get("email") or os.getenv("NOTIFY_EMAIL", "")
+    phone = user_info.get("phone") or os.getenv("NOTIFY_PHONE", "")
 
     results = {}
     if email:

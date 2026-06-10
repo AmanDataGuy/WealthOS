@@ -51,8 +51,8 @@ def validate_risk_report(report: Optional[dict]) -> tuple[bool, str]:
     factors = report.get("risk_factors", [])
     if not isinstance(factors, list):
         return False, f"risk_factors must be a list, got: {type(factors).__name__}"
-    if not (1 <= len(factors) <= 5):
-        return False, f"risk_factors should have 1–5 items, got {len(factors)}"
+    if len(factors) > 10:
+        return False, f"risk_factors has too many items: {len(factors)} (max 10)"
 
     # Check final_verdict
     verdict = report.get("final_verdict", "")

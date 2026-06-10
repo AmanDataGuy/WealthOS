@@ -37,7 +37,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8501").split(","),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -106,17 +107,19 @@ async def analyze(req: AnalyzeRequest):
 
     try:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-        await redis.setex(
-            f"analysis:{ticker}",
-            3600,
-            json.dumps({
-                "memo":       result.get("final_memo"),
-                "risk_score": risk.get("risk_score"),
-                "verdict":    risk.get("recommendation"),
-                "messages":   result.get("messages", []),
-            })
-        )
-        await redis.aclose()
+        try:
+            await redis.setex(
+                f"analysis:{ticker}",
+                3600,
+                json.dumps({
+                    "memo":       result.get("final_memo"),
+                    "risk_score": risk.get("risk_score"),
+                    "verdict":    risk.get("recommendation"),
+                    "messages":   result.get("messages", []),
+                })
+            )
+        finally:
+            await redis.aclose()
     except Exception:
         pass
 
@@ -176,8 +179,10 @@ async def analyze_stream(req: AnalyzeRequest):
 async def get_state(ticker: str):
     try:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-        raw   = await redis.get(f"analysis:{ticker.upper()}")
-        await redis.aclose()
+        try:
+            raw   = await redis.get(f"analysis:{ticker.upper()}")
+        finally:
+            await redis.aclose()
         if not raw:
             raise HTTPException(status_code=404, detail=f"No cached analysis for {ticker}")
         return json.loads(raw)
@@ -211,10 +216,12 @@ async def send_briefing_now(req: BriefingRequest):
         # Cache in Redis for history
         try:
             redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-            history_key = f"briefing:history:{req.user_id}"
-            await redis.lpush(history_key, json.dumps({"date": str(__import__('datetime').date.today()), "text": result}))
-            await redis.ltrim(history_key, 0, 6)   # keep last 7
-            await redis.aclose()
+            try:
+                history_key = f"briefing:history:{req.user_id}"
+                await redis.lpush(history_key, json.dumps({"date": str(__import__('datetime').date.today()), "text": result}))
+                await redis.ltrim(history_key, 0, 6)   # keep last 7
+            finally:
+                await redis.aclose()
         except Exception:
             pass
 
@@ -229,8 +236,10 @@ async def briefing_history(user_id: str):
     """Return last 7 morning briefings for a user."""
     try:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-        items = await redis.lrange(f"briefing:history:{user_id}", 0, 6)
-        await redis.aclose()
+        try:
+            items = await redis.lrange(f"briefing:history:{user_id}", 0, 6)
+        finally:
+            await redis.aclose()
         return {"user_id": user_id, "history": [json.loads(i) for i in items]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

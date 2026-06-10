@@ -87,7 +87,7 @@ pv_fcfs = sum(f / (1 + wacc) ** i for i, f in enumerate(projected_fcf, 1))
 pv_terminal = terminal_value / (1 + wacc) ** 5
 
 total_value = pv_fcfs + pv_terminal
-intrinsic_per_share = (total_value / shares_out) * 1_000_000 / 1_000_000
+intrinsic_per_share = total_value / shares_out
 
 upside = ((intrinsic_per_share - current_price) / current_price) * 100
 
@@ -165,7 +165,7 @@ for g in growth_rates:
         tv  = projected[-1] * (1 + terminal_growth) / (w - terminal_growth)
         pv  = sum(f / (1 + w) ** i for i, f in enumerate(projected, 1))
         pv += tv / (1 + w) ** 5
-        per_share = (pv / shares_out) * 1_000_000 / 1_000_000
+        per_share = (pv / shares_out)
         key = f"g{{int(g*100)}}_w{{int(w*100)}}"
         table[key] = round(per_share, 2)
 
@@ -177,24 +177,30 @@ print(json.dumps({{"table": table}}))
 
 async def run_in_sandbox(code: str) -> tuple[Optional[str], Optional[str]]:
     """
-    Executes Python code locally via subprocess.
-    E2B sandbox used in production — local execution for dev/demo.
+    Executes Python code securely in the E2B Code Interpreter sandbox.
     """
-    import subprocess, sys
+    import os
+    import asyncio
+    
+    e2b_api_key = os.getenv("E2B_API_KEY")
+    if not e2b_api_key or e2b_api_key == "your_e2b_key_here":
+        return None, "E2B_API_KEY is missing or invalid. Cannot run sandbox securely."
+        
+    def _run():
+        from e2b_code_interpreter import Sandbox
+        try:
+            with Sandbox(api_key=e2b_api_key) as sandbox:
+                execution = sandbox.run_code(code, timeout=30)
+                if execution.error:
+                    return None, execution.error.value
+                return execution.text, None
+        except Exception as e:
+            return None, str(e)
+            
     try:
-        result = subprocess.run(
-            [sys.executable, "-c", code],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if result.returncode != 0:
-            return None, result.stderr.strip()
-        return result.stdout.strip(), None
-    except subprocess.TimeoutExpired:
-        return None, "Execution timed out after 30s"
+        return await asyncio.to_thread(_run)
     except Exception as e:
-        return None, str(e)
+        return None, f"Sandbox failed: {e}"
 
 
 # ── Input Extractor ───────────────────────────────────────────────────────────
@@ -208,7 +214,7 @@ def extract_inputs(snapshot) -> dict:
     if hasattr(snapshot, "model_dump"):
         data = snapshot.model_dump()
     elif isinstance(snapshot, dict):
-        data = data = snapshot
+        data = snapshot
     else:
         data = {}
 

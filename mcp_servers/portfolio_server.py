@@ -12,7 +12,7 @@
 import os
 import logging
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 import asyncpg
 import yfinance as yf
@@ -144,7 +144,7 @@ async def get_portfolio_value(user_id: str) -> dict:
         "total_invested": round(total_invested, 2),
         "total_current_value": round(total_value, 2),
         "holdings": enriched,
-        "fetched_at": datetime.utcnow().isoformat(),
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -206,7 +206,7 @@ async def get_pnl(user_id: str) -> dict:
         "top_gainer": pnl_breakdown[0] if pnl_breakdown else None,
         "top_loser": pnl_breakdown[-1] if pnl_breakdown else None,
         "holdings": pnl_breakdown,
-        "fetched_at": datetime.utcnow().isoformat(),
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

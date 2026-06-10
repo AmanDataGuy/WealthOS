@@ -19,7 +19,7 @@ Flow:
 import os
 import asyncio
 import asyncpg
-import yfinance as yf
+
 from datetime import datetime, timezone
 from typing import Optional, Literal
 from pydantic import BaseModel, Field
@@ -118,24 +118,24 @@ async def fetch_holdings(user_id: str, conn: asyncpg.Connection) -> list[Holding
 # ── Price Fetcher ──────────────────────────────────────────────────────────────
 
 async def fetch_live_prices(holdings: list[Holding]) -> list[Holding]:
-    """Fetch live prices for all holdings via yfinance."""
+    """Fetch live prices for all holdings via market_server MCP tools."""
+    from mcp_servers.market_server import get_price
     tickers = [h.ticker for h in holdings]
 
     def fetch_prices():
         prices = {}
         for ticker in tickers:
             try:
-                info = yf.Ticker(ticker).info
-                price = info.get("currentPrice") or info.get("regularMarketPrice")
+                data = get_price(ticker)
+                price = data.get("current_price")
                 if price:
                     prices[ticker] = float(price)
             except Exception as e:
                 print(f"  [rebalancing] Price fetch failed for {ticker}: {e}")
         return prices
 
-    # Run in executor — yfinance is sync
-    loop = asyncio.get_event_loop()
-    prices = await loop.run_in_executor(None, fetch_prices)
+    # Run in thread since MCP tool cache fallback could be sync blocking
+    prices = await asyncio.to_thread(fetch_prices)
 
     updated = []
     for h in holdings:

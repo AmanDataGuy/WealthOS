@@ -62,55 +62,7 @@ class RiskReport(BaseModel):
 
 # ── LLM Calls ─────────────────────────────────────────────────────────────────
 
-async def call_groq(
-    system: str,
-    user: str,
-    model: str = FAST_MODEL,
-    max_tokens: int = 800,
-) -> str:
-    """Call Groq. Falls back to Ollama on failure."""
-    if GROQ_API_KEY:
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {GROQ_API_KEY}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": system},
-                            {"role": "user",   "content": user},
-                        ],
-                        "max_tokens": max_tokens,
-                        "temperature": 0.2,
-                    },
-                    timeout=60.0,
-                )
-                resp.raise_for_status()
-                return resp.json()["choices"][0]["message"]["content"].strip()
-        except Exception as e:
-            print(f"[risk_agent] Groq failed ({model}), falling back to Ollama: {e}")
-
-    # Ollama fallback
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json={
-                "model": OLLAMA_MODEL,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user",   "content": user},
-                ],
-                "stream": False,
-            },
-            timeout=120.0,
-        )
-        resp.raise_for_status()
-        return resp.json()["message"]["content"].strip()
-
+from services.llm_client import call_llm
 
 # ── Node 1 — MacroAnalyst ─────────────────────────────────────────────────────
 
@@ -136,7 +88,7 @@ Financial context: {snapshot_context}
 
 Provide your macro and sector risk analysis."""
 
-    return await call_groq(system, user, model=FAST_MODEL)
+    return await call_llm(system, user, model=FAST_MODEL)
 
 
 # ── Node 2 — StockAnalyst ─────────────────────────────────────────────────────
@@ -165,7 +117,7 @@ Financial Data:
 
 Provide your stock-specific risk analysis."""
 
-    return await call_groq(system, user, model=REASONING_MODEL, max_tokens=1000)
+    return await call_llm(system, user, model=REASONING_MODEL, max_tokens=1000)
 
 
 # ── Node 3 — RiskScorer ───────────────────────────────────────────────────────
@@ -226,7 +178,7 @@ StockAnalyst Report:
 
 Produce the final risk assessment JSON."""
 
-    response = await call_groq(system, user, model=REASONING_MODEL, max_tokens=1000)
+    response = await call_llm(system, user, model=REASONING_MODEL, max_tokens=1000)
 
     # Parse JSON response
     try:

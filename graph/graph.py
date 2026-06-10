@@ -53,8 +53,9 @@ async def data_and_research_node(state: WealthOSState) -> dict:
         data_node(state),
         research_node(state),
     )
+    # Collect errors from both branches — don't swallow any
+    errors = [e for e in [data_result.get("error"), research_result.get("error")] if e]
     return {
-        **state,
         "financial_snapshot": data_result.get("financial_snapshot"),
         "research_output":    research_result.get("research_output"),
         "messages": (
@@ -62,7 +63,7 @@ async def data_and_research_node(state: WealthOSState) -> dict:
             + [m for m in data_result.get("messages", [])     if m not in state.get("messages", [])]
             + [m for m in research_result.get("messages", []) if m not in state.get("messages", [])]
         ),
-        "error": data_result.get("error") or research_result.get("error"),
+        "error": " | ".join(errors) if errors else None,
     }
 
 
@@ -73,8 +74,9 @@ async def risk_and_code_node(state: WealthOSState) -> dict:
         risk_node(state),
         code_node(state),
     )
+    # Collect errors from both branches — don't swallow any
+    errors = [e for e in [risk_result.get("error"), code_result.get("error")] if e]
     return {
-        **state,
         "risk_report": risk_result.get("risk_report"),
         "code_output": code_result.get("code_output"),
         "messages": (
@@ -82,7 +84,7 @@ async def risk_and_code_node(state: WealthOSState) -> dict:
             + [m for m in risk_result.get("messages", []) if m not in state.get("messages", [])]
             + [m for m in code_result.get("messages", []) if m not in state.get("messages", [])]
         ),
-        "error": risk_result.get("error") or code_result.get("error"),
+        "error": " | ".join(errors) if errors else None,
     }
 
 
