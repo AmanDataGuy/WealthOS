@@ -20,6 +20,7 @@ from agents.rebalancing_agent import run_rebalancing_agent, NewInvestment
 from agents.writer_agent      import run_writer_agent
 from graph.state              import WealthOSState
 from guardrails.validators    import validate_all, validate_memo
+from observability.langsmith_config import trace_node
 
 
 def log(state: WealthOSState, msg: str) -> list[str]:
@@ -32,6 +33,7 @@ def log(state: WealthOSState, msg: str) -> list[str]:
 # Phase 6: reads Mem0 memory before doing anything else.
 # The user_memory string flows into every downstream agent via state.
 
+@trace_node("finance_node")
 async def finance_node(state: WealthOSState) -> dict:
     print("\n[Graph] Finance Node running...")
     try:
@@ -123,6 +125,7 @@ async def research_node(state: WealthOSState) -> dict:
 
 # ── Risk Node ──────────────────────────────────────────────────────────────────
 
+@trace_node("risk_node")
 async def risk_node(state: WealthOSState) -> dict:
     print("\n[Graph] Risk Node running...")
     ticker   = state["tickers"][0] if state.get("tickers") else None
@@ -216,6 +219,7 @@ async def rebalancing_node(state: WealthOSState) -> dict:
 # ── Writer Node ────────────────────────────────────────────────────────────────
 # Phase 6: writes results to Mem0 after memo is complete.
 
+@trace_node("writer_node")
 async def writer_node(state: WealthOSState) -> dict:
     print("\n[Graph] Writer Node running...")
     ticker = state["tickers"][0] if state.get("tickers") else "Unknown"
