@@ -156,22 +156,26 @@ async def fetch_from_db(ticker: str, conn: asyncpg.Connection) -> dict:
 # ── Market Data Fetcher ────────────────────────────────────────────────────────
 
 async def fetch_market_data(ticker: str, client: httpx.AsyncClient) -> dict:
-    """Fetch live market data from market_server MCP via yfinance."""
+    """Fetch live market data from market_server MCP tools."""
     try:
-        import yfinance as yf
-        t = yf.Ticker(ticker)
-        info = t.info
+        from mcp_servers.market_server import get_price, get_financials, get_info
+        
+        # We can call these directly since they are in the same repo
+        price_data = get_price(ticker)
+        fin_data   = get_financials(ticker)
+        info_data  = get_info(ticker)
+        
         return {
-            "current_price":  info.get("currentPrice") or info.get("regularMarketPrice"),
-            "pe_ratio":       info.get("trailingPE"),
-            "eps_diluted":    info.get("trailingEps"),
-            "market_cap":     info.get("marketCap"),
-            "week_52_high":   info.get("fiftyTwoWeekHigh"),
-            "week_52_low":    info.get("fiftyTwoWeekLow"),
-            "price_to_book":  info.get("priceToBook"),
-            "dividend_yield": info.get("dividendYield"),
-            "company_name":   info.get("longName") or info.get("shortName"),
-            "sector":         info.get("sector"),
+            "current_price":  price_data.get("current_price"),
+            "pe_ratio":       fin_data.get("pe_ratio"),
+            "eps_diluted":    fin_data.get("eps_trailing"),
+            "market_cap":     price_data.get("market_cap"),
+            "week_52_high":   price_data.get("week_52_high"),
+            "week_52_low":    price_data.get("week_52_low"),
+            "price_to_book":  None, # not currently in market_server
+            "dividend_yield": fin_data.get("dividend_yield"),
+            "company_name":   info_data.get("name"),
+            "sector":         info_data.get("sector"),
         }
     except Exception as e:
         print(f"[data_agent] Market data fetch failed: {e}")
@@ -223,10 +227,11 @@ async def fetch_from_rag(ticker: str, conn: asyncpg.Connection, client: httpx.As
 
             context = "\n\n".join(r["chunk_text"] for r in rows)
 
-            # Use Groq to extract answer from chunks
-            answer = await call_groq(
+            from services.llm_client import call_llm
+            answer = await call_llm(
                 system="You are a financial analyst. Answer concisely based only on the provided context. Max 150 words.",
-                user=f"Context:\n{context}\n\nQuestion: {question}"
+                user=f"Context:\n{context}\n\nQuestion: {question}",
+                max_tokens=150
             )
             return answer
         except Exception as e:
@@ -238,54 +243,6 @@ async def fetch_from_rag(ticker: str, conn: asyncpg.Connection, client: httpx.As
     results["management_outlook"] = await query_rag(f"What did management say about future outlook and growth?", "md_and_a")
 
     return results
-
-
-# ── Groq LLM Call ─────────────────────────────────────────────────────────────
-
-async def call_groq(system: str, user: str) -> str:
-    """Call Groq API. Falls back to local Ollama if Groq fails."""
-    # Try Groq first
-    if GROQ_API_KEY:
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {GROQ_API_KEY}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": GEN_MODEL,
-                        "messages": [
-                            {"role": "system", "content": system},
-                            {"role": "user",   "content": user},
-                        ],
-                        "max_tokens": 500,
-                        "temperature": 0.1,
-                    },
-                    timeout=30.0,
-                )
-                resp.raise_for_status()
-                return resp.json()["choices"][0]["message"]["content"].strip()
-        except Exception as e:
-            print(f"[data_agent] Groq failed, falling back to Ollama: {e}")
-
-    # Ollama fallback
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json={
-                "model": OLLAMA_MODEL,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user",   "content": user},
-                ],
-                "stream": False,
-            },
-            timeout=120.0,
-        )
-        resp.raise_for_status()
-        return resp.json()["message"]["content"].strip()
 
 
 # ── Growth Calculator ──────────────────────────────────────────────────────────
@@ -362,140 +319,141 @@ async def run_data_agent(ticker: str, use_rag: bool = True) -> FinancialSnapshot
 
     # ── Step 1: Check Redis cache ─────────────────────────────────────────────
     redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-    cached = await cache_get(redis, ticker)
-    if cached:
-        print(f"  ✅ Cache hit — returning cached snapshot ({CACHE_TTL//60}min TTL)")
-        await redis.aclose()
-        return cached
-
-    print(f"  Cache miss — fetching fresh data...")
-
-    # ── Step 2: Connect to DB and fetch ───────────────────────────────────────
-    conn = await asyncpg.connect(clean_db_url(DATABASE_URL))
-    data_sources = []
-    missing_fields = []
-
     try:
-        async with httpx.AsyncClient() as client:
+        cached = await cache_get(redis, ticker)
+        if cached:
+            print(f"  ✅ Cache hit — returning cached snapshot ({CACHE_TTL//60}min TTL)")
+            return cached
 
-            # Fetch from DB
-            db_data = await fetch_from_db(ticker, conn)
-            if db_data:
-                data_sources.append("financial_facts_db")
-                print(f"  ✅ DB: {len(db_data)} metrics found")
-            else:
-                print(f"  ⚠️  DB: No data — run populate_facts.py first")
-
-            # Fetch live market data
-            market_data = await fetch_market_data(ticker, client)
-            if market_data.get("current_price"):
-                data_sources.append("yfinance_live")
-                print(f"  ✅ Market: ${market_data.get('current_price'):.2f}")
-            else:
-                print(f"  ⚠️  Market: No live price")
-
-            # Fetch RAG context
-            rag_data = {}
-            if use_rag:
-                rag_data = await fetch_from_rag(ticker, conn, client)
-                if any(rag_data.values()):
-                    data_sources.append("rag_pipeline")
-                    print(f"  ✅ RAG: qualitative context retrieved")
+        print(f"  Cache miss — fetching fresh data...")
+    
+        # ── Step 2: Connect to DB and fetch ───────────────────────────────────────
+        conn = await asyncpg.connect(clean_db_url(DATABASE_URL))
+        data_sources = []
+        missing_fields = []
+    
+        try:
+            async with httpx.AsyncClient() as client:
+    
+                # Fetch from DB
+                db_data = await fetch_from_db(ticker, conn)
+                if db_data:
+                    data_sources.append("financial_facts_db")
+                    print(f"  ✅ DB: {len(db_data)} metrics found")
                 else:
-                    print(f"  ⚠️  RAG: No chunks found (run pipeline.py first)")
-
-            # Compute growth metrics
-            growth = await compute_growth_metrics(ticker, conn)
-            if growth.revenue_cagr_3y:
-                print(f"  ✅ Growth: Revenue CAGR 3Y = {growth.revenue_cagr_3y:.1f}%")
-
+                    print(f"  ⚠️  DB: No data — run populate_facts.py first")
+    
+                # Fetch live market data
+                market_data = await fetch_market_data(ticker, client)
+                if market_data.get("current_price"):
+                    data_sources.append("yfinance_live")
+                    print(f"  ✅ Market: ${market_data.get('current_price'):.2f}")
+                else:
+                    print(f"  ⚠️  Market: No live price")
+    
+                # Fetch RAG context
+                rag_data = {}
+                if use_rag:
+                    rag_data = await fetch_from_rag(ticker, conn, client)
+                    if any(rag_data.values()):
+                        data_sources.append("rag_pipeline")
+                        print(f"  ✅ RAG: qualitative context retrieved")
+                    else:
+                        print(f"  ⚠️  RAG: No chunks found (run pipeline.py first)")
+    
+                # Compute growth metrics
+                growth = await compute_growth_metrics(ticker, conn)
+                if growth.revenue_cagr_3y:
+                    print(f"  ✅ Growth: Revenue CAGR 3Y = {growth.revenue_cagr_3y:.1f}%")
+    
+        finally:
+            await conn.close()
+    
+        # ── Step 3: Build FinancialSnapshot ───────────────────────────────────────
+    
+        def get_metric(metric: str) -> Optional[float]:
+            return db_data.get(metric, {}).get("value")
+    
+        def get_year(metric: str) -> Optional[int]:
+            return db_data.get(metric, {}).get("year")
+    
+        income = IncomeStatement(
+            total_revenue=get_metric("total_revenue"),
+            gross_profit=get_metric("gross_profit"),
+            operating_income=get_metric("operating_income"),
+            net_income=get_metric("net_income"),
+            ebitda=get_metric("ebitda"),
+            fiscal_year=get_year("total_revenue"),
+        )
+    
+        balance = BalanceSheet(
+            total_assets=get_metric("total_assets"),
+            total_debt=get_metric("total_debt"),
+            cash_equivalents=get_metric("cash_and_equivalents"),
+            fiscal_year=get_year("total_assets"),
+        )
+    
+        cashflow = CashFlow(
+            free_cash_flow=get_metric("free_cash_flow"),
+            operating_cash_flow=get_metric("operating_cash_flow"),
+            fiscal_year=get_year("free_cash_flow"),
+        )
+    
+        valuation = ValuationMetrics(
+            current_price=market_data.get("current_price"),
+            pe_ratio=market_data.get("pe_ratio"),
+            eps_diluted=market_data.get("eps_diluted") or get_metric("eps_diluted"),
+            market_cap=market_data.get("market_cap"),
+            week_52_high=market_data.get("week_52_high"),
+            week_52_low=market_data.get("week_52_low"),
+            price_to_book=market_data.get("price_to_book"),
+            dividend_yield=market_data.get("dividend_yield"),
+        )
+    
+        # Track missing fields
+        all_fields = {
+            "total_revenue": income.total_revenue,
+            "net_income": income.net_income,
+            "current_price": valuation.current_price,
+            "total_debt": balance.total_debt,
+            "free_cash_flow": cashflow.free_cash_flow,
+            "pe_ratio": valuation.pe_ratio,
+        }
+        missing_fields = [k for k, v in all_fields.items() if v is None]
+    
+        confidence = "high" if len(missing_fields) == 0 else \
+                     "medium" if len(missing_fields) <= 2 else "low"
+    
+        snapshot = FinancialSnapshot(
+            ticker=ticker,
+            company_name=market_data.get("company_name"),
+            sector=market_data.get("sector"),
+            income_statement=income,
+            balance_sheet=balance,
+            cash_flow=cashflow,
+            valuation=valuation,
+            growth=growth,
+            business_summary=rag_data.get("business_summary"),
+            key_risks=rag_data.get("key_risks"),
+            management_outlook=rag_data.get("management_outlook"),
+            data_sources=data_sources,
+            missing_fields=missing_fields,
+            confidence=confidence,
+        )
+    
+        # ── Step 4: Cache and return ──────────────────────────────────────────────
+        await cache_set(redis, ticker, snapshot)
+    
+        elapsed = round(time.time() - start, 1)
+        print(f"\n  Confidence  : {confidence.upper()}")
+        print(f"  Missing     : {missing_fields or 'none'}")
+        print(f"  Sources     : {data_sources}")
+        print(f"  Time        : {elapsed}s")
+        print(f"{'='*50}\n")
+    
+        return snapshot
     finally:
-        await conn.close()
-
-    # ── Step 3: Build FinancialSnapshot ───────────────────────────────────────
-
-    def get_metric(metric: str) -> Optional[float]:
-        return db_data.get(metric, {}).get("value")
-
-    def get_year(metric: str) -> Optional[int]:
-        return db_data.get(metric, {}).get("year")
-
-    income = IncomeStatement(
-        total_revenue=get_metric("total_revenue"),
-        gross_profit=get_metric("gross_profit"),
-        operating_income=get_metric("operating_income"),
-        net_income=get_metric("net_income"),
-        ebitda=get_metric("ebitda"),
-        fiscal_year=get_year("total_revenue"),
-    )
-
-    balance = BalanceSheet(
-        total_assets=get_metric("total_assets"),
-        total_debt=get_metric("total_debt"),
-        cash_equivalents=get_metric("cash_and_equivalents"),
-        fiscal_year=get_year("total_assets"),
-    )
-
-    cashflow = CashFlow(
-        free_cash_flow=get_metric("free_cash_flow"),
-        operating_cash_flow=get_metric("operating_cash_flow"),
-        fiscal_year=get_year("free_cash_flow"),
-    )
-
-    valuation = ValuationMetrics(
-        current_price=market_data.get("current_price"),
-        pe_ratio=market_data.get("pe_ratio"),
-        eps_diluted=market_data.get("eps_diluted") or get_metric("eps_diluted"),
-        market_cap=market_data.get("market_cap"),
-        week_52_high=market_data.get("week_52_high"),
-        week_52_low=market_data.get("week_52_low"),
-        price_to_book=market_data.get("price_to_book"),
-        dividend_yield=market_data.get("dividend_yield"),
-    )
-
-    # Track missing fields
-    all_fields = {
-        "total_revenue": income.total_revenue,
-        "net_income": income.net_income,
-        "current_price": valuation.current_price,
-        "total_debt": balance.total_debt,
-        "free_cash_flow": cashflow.free_cash_flow,
-        "pe_ratio": valuation.pe_ratio,
-    }
-    missing_fields = [k for k, v in all_fields.items() if v is None]
-
-    confidence = "high" if len(missing_fields) == 0 else \
-                 "medium" if len(missing_fields) <= 2 else "low"
-
-    snapshot = FinancialSnapshot(
-        ticker=ticker,
-        company_name=market_data.get("company_name"),
-        sector=market_data.get("sector"),
-        income_statement=income,
-        balance_sheet=balance,
-        cash_flow=cashflow,
-        valuation=valuation,
-        growth=growth,
-        business_summary=rag_data.get("business_summary"),
-        key_risks=rag_data.get("key_risks"),
-        management_outlook=rag_data.get("management_outlook"),
-        data_sources=data_sources,
-        missing_fields=missing_fields,
-        confidence=confidence,
-    )
-
-    # ── Step 4: Cache and return ──────────────────────────────────────────────
-    await cache_set(redis, ticker, snapshot)
-    await redis.aclose()
-
-    elapsed = round(time.time() - start, 1)
-    print(f"\n  Confidence  : {confidence.upper()}")
-    print(f"  Missing     : {missing_fields or 'none'}")
-    print(f"  Sources     : {data_sources}")
-    print(f"  Time        : {elapsed}s")
-    print(f"{'='*50}\n")
-
-    return snapshot
+        await redis.aclose()
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ with st.sidebar:
         label_visibility="collapsed",
     )
     st.divider()
-    st.success("🟢 8 Agents Active")
+    st.success("🟢 7 Agents Active")
 
 # ── Mock Data ─────────────────────────────────────────────────────────────────
 MOCK_ANALYSES = [
@@ -230,9 +230,9 @@ elif page == "🔍 Analyze":
             if dcf:
                 st.subheader("DCF vs Market Price")
                 st.bar_chart(pd.DataFrame({"Value ($)": [dcf]}, index=["DCF Value"]))
-            if risk_score:
+            if risk_score and risk_score > 0:
                 st.subheader("Risk Level")
-                st.progress(int(risk_score) / 10)
+                st.progress(min(int(risk_score), 10) / 10)
                 label = "🟢 Low" if risk_score <= 3 else "🟡 Medium" if risk_score <= 6 else "🔴 High"
                 st.caption(f"{risk_score}/10 — {label} Risk")
 
@@ -296,7 +296,7 @@ elif page == "📋 Reports":
                 st.markdown(data.get("memo", ""))
             else:
                 st.warning(f"No cached analysis found for {fetch_ticker.upper()}")
-        except:
+        except Exception:
             st.error("Cannot connect to backend")
 
     st.divider()
@@ -325,7 +325,7 @@ elif page == "⚙️ Settings":
                 st.success(f"✅ Connected! Version: {data.get('version')} | Agents: {data.get('agents')}")
             else:
                 st.error(f"Backend returned {r.status_code}")
-        except:
+        except Exception:
             st.error("❌ Cannot reach backend at localhost:8000")
 
     st.divider()

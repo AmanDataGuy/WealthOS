@@ -12,7 +12,7 @@ import os
 import re
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import redis
@@ -65,7 +65,7 @@ def fetch_articles(query: str, days: int = 7, count: int = 10) -> list[dict]:
     if not NEWSAPI_KEY:
         return []
 
-    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    from_date = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
 
     try:
         resp = httpx.get(

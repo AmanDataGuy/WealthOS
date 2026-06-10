@@ -46,25 +46,36 @@ async def finance_node(state: WealthOSState) -> dict:
         except Exception as e:
             print(f"  [mem0] ⚠️  Could not load memory: {e}")
 
-        personal_finance = {
-            "monthly_income":    150000,
-            "monthly_surplus":   30000,
-            "debt_burden_ratio": 0.25,
-            "health_score":      {"total": 72, "grade": "Good"},
-            "risk_capacity":     "medium",
-            "investable_monthly": 20000,
-            "goals": [],
-            "anomalies": [],
-        }
+        # Actually run the Finance Agent instead of returning hardcoded data
+        try:
+            from agents.finance_agent import run_finance_agent
+            import asyncio
+            snapshot = await asyncio.to_thread(run_finance_agent, user_id)
+            personal_finance = snapshot.model_dump()
+            print(f"  [finance] Agent returned: status={snapshot.status}, confidence={snapshot.data_confidence}")
+        except Exception as e:
+            print(f"  [finance] ⚠️  Agent failed ({e}), using minimal defaults")
+            personal_finance = {
+                "monthly_income":    0,
+                "monthly_surplus":   0,
+                "debt_burden_ratio": 0,
+                "health_score":      {"overall": 50, "grade": "C"},
+                "risk_capacity":     "unknown",
+                "investable_monthly": 0,
+                "goals": [],
+                "anomalies": [],
+                "data_confidence":   "none",
+                "status":            "error",
+                "message":           f"Finance Agent failed: {e}",
+            }
+
         return {
-            **state,
-            "user_memory":    user_memory,
+            "user_memory":      user_memory,
             "personal_finance": personal_finance,
-            "messages": log(state, f"Finance Node ✅ (test context, memory={'yes' if user_memory else 'none'})"),
+            "messages": log(state, f"Finance Node ✅ (confidence={personal_finance.get('data_confidence', 'unknown')}, memory={'yes' if user_memory else 'none'})"),
         }
     except Exception as e:
         return {
-            **state,
             "error": f"Finance Node failed: {e}",
             "messages": log(state, f"Finance Node ❌ {e}"),
         }
@@ -76,17 +87,15 @@ async def data_node(state: WealthOSState) -> dict:
     print("\n[Graph] Data Node running...")
     ticker = state["tickers"][0] if state.get("tickers") else None
     if not ticker:
-        return {**state, "error": "No ticker provided", "messages": log(state, "Data Node ❌ no ticker")}
+        return {"error": "No ticker provided", "messages": log(state, "Data Node ❌ no ticker")}
     try:
         snapshot = await run_data_agent(ticker, use_rag=True)
         return {
-            **state,
             "financial_snapshot": snapshot.model_dump(),
             "messages": log(state, f"Data Node ✅ {ticker} — confidence {snapshot.confidence}"),
         }
     except Exception as e:
         return {
-            **state,
             "error": f"Data Node failed: {e}",
             "messages": log(state, f"Data Node ❌ {e}"),
         }
@@ -99,15 +108,14 @@ async def research_node(state: WealthOSState) -> dict:
     ticker = state["tickers"][0] if state.get("tickers") else "Unknown"
     try:
         from agents.research_agent import run_research_agent
-        snapshot = await run_research_agent("test-user", [ticker])
+        user_id = state.get("user_id", "test-user")
+        snapshot = await run_research_agent(user_id, [ticker])
         return {
-            **state,
             "research_output": snapshot.model_dump() if hasattr(snapshot, "model_dump") else {"summary": str(snapshot)},
             "messages": log(state, f"Research Node ✅ {ticker}"),
         }
     except Exception as e:
         return {
-            **state,
             "research_output": {"summary": f"Research unavailable: {e}"},
             "messages": log(state, f"Research Node ⚠️ {e} (continuing)"),
         }
@@ -121,7 +129,7 @@ async def risk_node(state: WealthOSState) -> dict:
     snapshot = state.get("financial_snapshot")
     personal = state.get("personal_finance")
     if not ticker:
-        return {**state, "messages": log(state, "Risk Node ❌ no ticker")}
+        return {"messages": log(state, "Risk Node ❌ no ticker")}
     try:
         report = await run_risk_agent(
             ticker=ticker,
@@ -129,13 +137,11 @@ async def risk_node(state: WealthOSState) -> dict:
             personal_finance=personal,
         )
         return {
-            **state,
             "risk_report": report.model_dump(),
             "messages": log(state, f"Risk Node ✅ score={report.risk_score}/10 {report.recommendation}"),
         }
     except Exception as e:
         return {
-            **state,
             "error": f"Risk Node failed: {e}",
             "messages": log(state, f"Risk Node ❌ {e}"),
         }
@@ -148,17 +154,15 @@ async def code_node(state: WealthOSState) -> dict:
     ticker   = state["tickers"][0] if state.get("tickers") else None
     snapshot = state.get("financial_snapshot")
     if not ticker:
-        return {**state, "messages": log(state, "Code Node ❌ no ticker")}
+        return {"messages": log(state, "Code Node ❌ no ticker")}
     try:
         result = await run_code_agent(ticker=ticker, financial_snapshot=snapshot)
         return {
-            **state,
             "code_output": result.model_dump(),
             "messages": log(state, f"Code Node ✅ DCF=${result.dcf.intrinsic_value:.2f}" if result.dcf else "Code Node ✅"),
         }
     except Exception as e:
         return {
-            **state,
             "error": f"Code Node failed: {e}",
             "messages": log(state, f"Code Node ❌ {e}"),
         }
@@ -171,13 +175,11 @@ async def validation_node(state: WealthOSState) -> dict:
     valid, error = validate_all(state)
     if valid:
         return {
-            **state,
             "messages": log(state, "Validation Node ✅ all agent outputs passed checks"),
         }
     else:
         print(f"  [validation] ⚠️  {error}")
         return {
-            **state,
             "messages": log(state, f"Validation Node ⚠️ {error} (continuing)"),
         }
 
@@ -201,13 +203,11 @@ async def rebalancing_node(state: WealthOSState) -> dict:
             new_investment=new_inv,
         )
         return {
-            **state,
             "rebalance_suggestion": suggestion.model_dump(),
             "messages": log(state, f"Rebalancing Node ✅ {len(suggestion.actions)} actions"),
         }
     except Exception as e:
         return {
-            **state,
             "rebalance_suggestion": None,
             "messages": log(state, f"Rebalancing Node ⚠️ {e} (continuing)"),
         }
@@ -245,13 +245,11 @@ async def writer_node(state: WealthOSState) -> dict:
             print(f"  [mem0] ⚠️  write failed: {e}")
 
         return {
-            **state,
             "final_memo": memo.full_memo,
             "messages": log(state, f"Writer Node ✅ {len(memo.full_memo)} chars — verdict: {memo.verdict}"),
         }
     except Exception as e:
         return {
-            **state,
             "error": f"Writer Node failed: {e}",
             "messages": log(state, f"Writer Node ❌ {e}"),
         }
@@ -262,7 +260,6 @@ async def writer_node(state: WealthOSState) -> dict:
 async def error_node(state: WealthOSState) -> dict:
     print(f"\n[Graph] Error Node — {state.get('error')}")
     return {
-        **state,
         "final_memo": f"Analysis failed: {state.get('error', 'Unknown error')}. Please try again.",
         "messages": log(state, "Error Node — pipeline terminated"),
     }
