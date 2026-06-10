@@ -56,6 +56,7 @@ Thumbs.db
 
 # Planning / audit docs — local only
 plan_ahead.md
+project_status.md
 
 # Docker volumes (if you add later)
 postgres_data/
