@@ -1,37 +1,32 @@
 # rag/indexer.py
-# Ingestion engine — reads a PDF or HTML filing, chunks it, embeds via Ollama mxbai-embed-large,
-# stores chunks + vectors into pgvector (document_embeddings table).
+# Ingestion engine — PDF/HTML → hierarchical chunks → Voyage dense + BM25 sparse → Qdrant
 #
-# What changed from v1:
-#   - Added SECTION_HEADERS dict — maps keywords to section names
-#   - Added detect_section() — figures out which section a chunk belongs to
-#   - INSERT now stores section in both the metadata JSON and the section column
+# Two chunk levels per filing:
+#   level=1  section parent  (~1500 words, one per detected section)
+#   level=2  child prose/table  (~150 words each, embedded + searched)
+# Retrieval fetches level-2 by similarity, then returns level-1 parent for LLM context.
 
 import os
+import re
 import uuid
+import json
 import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
-import asyncpg
-import httpx
-from pypdf import PdfReader
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Config ────────────────────────────────────────────────────────────────────
-DATABASE_URL = os.getenv("WEALTHOS_DB_URL", "postgresql://postgres:postgres@localhost:5432/wealthos")
-OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
-EMBED_MODEL  = "mxbai-embed-large"
+QDRANT_URL     = os.getenv("QDRANT_URL",     "http://localhost:6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
+VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
 
-CHUNK_SIZE    = 512   # words
-CHUNK_OVERLAP = 50
-
-
-# ── Section Detection ─────────────────────────────────────────────────────────
-# Maps keywords found in 10-K headers to clean section names.
-# Order matters — more specific phrases should come before generic ones.
+COLLECTION_NAME  = "wealthos_docs"
+VOYAGE_MODEL     = "voyage-finance-2"
+VOYAGE_DIMS      = 1024
+CHILD_MAX_WORDS  = 150
 
 SECTION_HEADERS = {
     "consolidated statements of operations":  "income_statement",
@@ -41,269 +36,375 @@ SECTION_HEADERS = {
     "consolidated statements of financial":   "balance_sheet",
     "consolidated statements of cash flow":   "cash_flow",
     "cash flows from operating":              "cash_flow",
-    "management":                             "md_and_a",         # catches MD&A header
+    "management's discussion":                "md_and_a",
+    "management discussion":                  "md_and_a",
     "risk factors":                           "risk_factors",
     "quantitative and qualitative":           "market_risk",
     "legal proceedings":                      "legal",
     "controls and procedures":                "controls",
     "business overview":                      "business",
-    "item 1.":                                "business",         # Item 1 = Business section
+    "item 1.":                                "business",
     "properties":                             "properties",
     "selected financial data":                "financial_summary",
+    "notes to":                               "notes",
 }
 
 
-def detect_section(chunk_text: str) -> str:
-    """
-    Scan the chunk for known 10-K section headers.
-    Returns a clean section name or 'unknown' if no match found.
-
-    Examples:
-        "CONSOLIDATED STATEMENTS OF OPERATIONS..."  → 'income_statement'
-        "RISK FACTORS We face risks related to..."  → 'risk_factors'
-        "some random paragraph..."                  → 'unknown'
-    """
-    text_lower = chunk_text.lower()
-    for keyword, section_name in SECTION_HEADERS.items():
-        if keyword in text_lower:
-            return section_name
-    return "unknown"
+def detect_section(text: str) -> Optional[str]:
+    t = text.lower()
+    for keyword, section in SECTION_HEADERS.items():
+        if keyword in t:
+            return section
+    return None
 
 
-# ── Text extraction ───────────────────────────────────────────────────────────
+# ── Qdrant setup ──────────────────────────────────────────────────────────────
 
-def extract_text_from_pdf(file_path: str) -> str:
-    """Extract all text from a PDF file."""
-    reader = PdfReader(file_path)
-    pages  = []
-    for page in reader.pages:
-        text = page.extract_text()
-        if text:
-            pages.append(text)
-    return "\n".join(pages)
+def get_qdrant_client():
+    from qdrant_client import QdrantClient
+    if QDRANT_API_KEY:
+        return QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+    return QdrantClient(url=QDRANT_URL)
 
 
-def extract_text_from_html(file_path: str) -> str:
-    """
-    Extract readable text from an SEC EDGAR HTML filing.
-    Strips all tags, scripts, and styles — leaves only the text content.
-    """
+def ensure_collection():
+    from qdrant_client.models import VectorParams, Distance, SparseVectorParams, SparseIndexParams
+    client = get_qdrant_client()
+    existing = [c.name for c in client.get_collections().collections]
+    if COLLECTION_NAME not in existing:
+        client.create_collection(
+            collection_name=COLLECTION_NAME,
+            vectors_config={
+                "dense": VectorParams(size=VOYAGE_DIMS, distance=Distance.COSINE),
+            },
+            sparse_vectors_config={
+                "sparse": SparseVectorParams(index=SparseIndexParams(on_disk=False)),
+            },
+        )
+        print(f"[qdrant] Created collection '{COLLECTION_NAME}'")
+    return client
+
+
+# ── Embeddings ────────────────────────────────────────────────────────────────
+
+def embed_dense_batch(texts: list[str]) -> list[list[float]]:
+    """Voyage AI finance-2. Falls back to zero vectors if key absent."""
+    if not VOYAGE_API_KEY:
+        print("[indexer] VOYAGE_API_KEY not set — using zero vectors (search quality degraded)")
+        return [[0.0] * VOYAGE_DIMS for _ in texts]
+    import voyageai
+    vc = voyageai.Client(api_key=VOYAGE_API_KEY)
+    result = vc.embed(texts, model=VOYAGE_MODEL, input_type="document")
+    return result.embeddings
+
+
+def embed_sparse_batch(texts: list[str]) -> list:
+    """BM25 sparse vectors via fastembed."""
+    from fastembed import SparseTextEmbedding
+    model = SparseTextEmbedding(model_name="Qdrant/bm25")
+    return list(model.embed(texts))
+
+
+# ── Extraction ────────────────────────────────────────────────────────────────
+
+def extract_from_pdf(file_path: str) -> list[dict]:
+    """Extract prose pages + tables. pdfplumber for tables, pypdf for prose."""
+    elements = []
+
+    # Tables via pdfplumber
     try:
-        from bs4 import BeautifulSoup
+        import pdfplumber
+        with pdfplumber.open(file_path) as pdf:
+            for page_num, page in enumerate(pdf.pages, 1):
+                for tbl in page.extract_tables():
+                    if not tbl or len(tbl) < 2:
+                        continue
+                    headers = [str(h or "").strip() for h in tbl[0]]
+                    if not any(headers):
+                        continue
+                    data_rows = []
+                    for row in tbl[1:21]:
+                        data_rows.append({
+                            headers[i] if i < len(headers) else f"col{i}": str(cell or "").strip()
+                            for i, cell in enumerate(row)
+                        })
+                    md = ["| " + " | ".join(headers) + " |",
+                          "| " + " | ".join(["---"] * len(headers)) + " |"]
+                    for row in data_rows:
+                        md.append("| " + " | ".join(row.values()) + " |")
+                    md_table = "\n".join(md)
+                    if len(md_table.strip()) > 50:
+                        elements.append({"type": "table", "content": md_table,
+                                         "page_number": page_num, "table_json": json.dumps(data_rows)})
     except ImportError:
-        raise ImportError("Run: pip install beautifulsoup4")
+        print("[indexer] pdfplumber not installed — table extraction skipped")
+    except Exception as e:
+        print(f"[indexer] Table extraction error: {e}")
 
+    # Prose via pypdf
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(file_path)
+        for page_num, page in enumerate(reader.pages, 1):
+            text = page.extract_text() or ""
+            if text.strip():
+                elements.append({"type": "prose", "content": text,
+                                  "page_number": page_num, "table_json": None})
+    except Exception as e:
+        print(f"[indexer] PDF prose extraction error: {e}")
+
+    return elements
+
+
+def extract_from_html(file_path: str) -> list[dict]:
+    """Extract prose + tables from SEC EDGAR HTML filings."""
+    from bs4 import BeautifulSoup
     raw = Path(file_path).read_bytes()
-
-    # Try UTF-8 first, fall back to latin-1 (SEC filings are sometimes latin-1)
     try:
         html = raw.decode("utf-8")
     except UnicodeDecodeError:
         html = raw.decode("latin-1")
 
     soup = BeautifulSoup(html, "html.parser")
-
-    # Remove noise elements
     for tag in soup.find_all(True):
         if tag.name and (tag.name.startswith("ix:") or tag.name.startswith("xbrl")):
             tag.decompose()
 
+    elements = []
+
+    for tbl in soup.find_all("table"):
+        rows = [[td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
+                for tr in tbl.find_all("tr")]
+        rows = [r for r in rows if any(r)]
+        if len(rows) < 2:
+            tbl.decompose()
+            continue
+        headers = rows[0]
+        data_rows = [{headers[i] if i < len(headers) else f"col{i}": v
+                      for i, v in enumerate(row)} for row in rows[1:21]]
+        md = ["| " + " | ".join(headers) + " |",
+              "| " + " | ".join(["---"] * len(headers)) + " |"]
+        for row in data_rows:
+            md.append("| " + " | ".join(row.values()) + " |")
+        md_table = "\n".join(md)
+        if len(md_table.strip()) > 50:
+            elements.append({"type": "table", "content": md_table,
+                              "page_number": 0, "table_json": json.dumps(data_rows)})
+        tbl.decompose()
+
     text = soup.get_text(separator="\n")
-
-    # Collapse excessive blank lines
-    lines   = [line.strip() for line in text.splitlines()]
-    cleaned = "\n".join(line for line in lines if line)
-
-    return cleaned
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    elements.append({"type": "prose", "content": "\n".join(lines),
+                     "page_number": 0, "table_json": None})
+    return elements
 
 
-def extract_text(file_path: str) -> str:
-    """Route to the correct extractor based on file extension."""
+def extract_elements(file_path: str) -> list[dict]:
     ext = Path(file_path).suffix.lower()
-    if ext == ".pdf":
-        return extract_text_from_pdf(file_path)
-    elif ext in (".htm", ".html"):
-        return extract_text_from_html(file_path)
-    else:
-        # Try HTML as fallback for unknown extensions
-        print(f"[indexer] Unknown extension '{ext}', trying HTML parser...")
-        return extract_text_from_html(file_path)
+    return extract_from_pdf(file_path) if ext == ".pdf" else extract_from_html(file_path)
 
 
-# ── Chunking ──────────────────────────────────────────────────────────────────
+# ── Sentence-based prose chunking ─────────────────────────────────────────────
 
-def chunk_text(text: str, chunk_size: int = 100, overlap: int = 20) -> list[str]:
-    words = text.split()
-    chunks = []
-    start = 0
-    while start < len(words):
-        end   = start + chunk_size
-        chunk = " ".join(words[start:end])
+def chunk_prose(text: str, max_words: int = CHILD_MAX_WORDS) -> list[str]:
+    """Split text into sentence-boundary-respecting chunks of ~max_words words."""
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', text)
+    chunks, buf = [], []
+    for sent in sentences:
+        words = sent.split()
+        if len(buf) + len(words) > max_words and buf:
+            chunks.append(" ".join(buf))
+            buf = words
+        else:
+            buf.extend(words)
+    if buf:
+        chunks.append(" ".join(buf))
+    return [c for c in chunks
+            if len(c.split()) >= 20
+            and sum(1 for w in c.split() if len(w) > 30) <= 5]
 
-        # Skip chunks that are mostly XBRL/metadata (no spaces in long tokens)
-        long_tokens = [w for w in chunk.split() if len(w) > 30]
-        if len(long_tokens) > 10:
-            start = end - overlap
+
+# ── Hierarchical chunk builder ────────────────────────────────────────────────
+
+def _year(date_str: str) -> int:
+    try:
+        return int(date_str[:4])
+    except (ValueError, TypeError):
+        return datetime.now().year
+
+
+def build_hierarchical_chunks(
+    elements: list[dict],
+    ticker: str,
+    filing_type: str,
+    filing_date: str = "",
+    source_file: str = "",
+) -> list[dict]:
+    all_chunks: list[dict] = []
+    current_section = "unknown"
+    section_buffer: list[dict] = []
+
+    def flush_parent():
+        if not section_buffer:
+            return
+        prose_words = " ".join(c["content"] for c in section_buffer if c["chunk_type"] == "prose")
+        if len(prose_words.split()) < 50:
+            return
+        parent_id = str(uuid.uuid4())
+        parent = {
+            "id": parent_id, "chunk_level": 1, "chunk_type": "prose",
+            "section": section_buffer[0]["section"],
+            "content": prose_words[:3000],
+            "ticker": ticker, "form_type": filing_type,
+            "filing_date": filing_date, "fiscal_year": _year(filing_date),
+            "page_number": section_buffer[0].get("page_number", 0),
+            "source_file": source_file, "parent_id": None, "table_json": None,
+        }
+        for child in section_buffer:
+            child["parent_id"] = parent_id
+        all_chunks.append(parent)
+
+    for elem in elements:
+        content = elem["content"]
+        page    = elem.get("page_number", 0)
+
+        if elem["type"] == "table":
+            child = {
+                "id": str(uuid.uuid4()), "chunk_level": 2, "chunk_type": "table",
+                "section": current_section, "content": content,
+                "ticker": ticker, "form_type": filing_type,
+                "filing_date": filing_date, "fiscal_year": _year(filing_date),
+                "page_number": page, "source_file": source_file,
+                "parent_id": None, "table_json": elem.get("table_json"),
+            }
+            section_buffer.append(child)
+            all_chunks.append(child)
             continue
 
-        if chunk.strip():
-            chunks.append(chunk)
+        detected = detect_section(content)
+        if detected and detected != current_section:
+            flush_parent()
+            section_buffer = []
+            current_section = detected
 
-        start = end - overlap
-    return chunks
+        for prose_chunk in chunk_prose(content):
+            child = {
+                "id": str(uuid.uuid4()), "chunk_level": 2, "chunk_type": "prose",
+                "section": current_section, "content": prose_chunk,
+                "ticker": ticker, "form_type": filing_type,
+                "filing_date": filing_date, "fiscal_year": _year(filing_date),
+                "page_number": page, "source_file": source_file,
+                "parent_id": None, "table_json": None,
+            }
+            section_buffer.append(child)
+            all_chunks.append(child)
 
-
-# ── Embedding ─────────────────────────────────────────────────────────────────
-
-async def get_embedding(text: str, client: httpx.AsyncClient) -> list[float]:
-    """Call Ollama /api/embeddings and return the vector."""
-    resp = await client.post(
-        f"{OLLAMA_URL}/api/embeddings",
-        json={"model": EMBED_MODEL, "prompt": text},
-        timeout=60.0,
-    )
-    resp.raise_for_status()
-    return resp.json()["embedding"]
-
-
-# ── DB helper ─────────────────────────────────────────────────────────────────
-
-def _strip_asyncpg_prefix(url: str) -> str:
-    return url.replace("postgresql+asyncpg://", "postgresql://")
+    flush_parent()
+    return all_chunks
 
 
-# ── Main Class ────────────────────────────────────────────────────────────────
+# ── Main indexer class ────────────────────────────────────────────────────────
 
 class FilingIndexer:
+
     def __init__(self):
-        self.db_url = _strip_asyncpg_prefix(DATABASE_URL)
+        self.qdrant = ensure_collection()
 
-    async def index_filing(self, file_path: str, ticker: str, filing_type: str) -> dict:
-        """
-        Full pipeline:
-          1. Extract text from PDF or HTML
-          2. Chunk into ~512-word segments with overlap
-          3. Detect which section each chunk belongs to
-          4. Embed each chunk via Ollama mxbai-embed-large
-          5. Store in document_embeddings (pgvector) with section tag
-        """
-        file_path = str(file_path)
+    async def index_filing(
+        self,
+        file_path: str,
+        ticker: str,
+        filing_type: str,
+        filing_date: str = "",
+    ) -> dict:
+        print(f"[indexer] {ticker} {filing_type} — extracting {file_path}")
 
-        # 1. Extract text
-        print(f"[indexer] Extracting text from {file_path}...")
         try:
-            full_text = extract_text(file_path)
+            elements = await asyncio.to_thread(extract_elements, file_path)
         except Exception as e:
-            return {"error": f"Text extraction failed: {e}", "ticker": ticker}
+            return {"error": f"Extraction failed: {e}", "ticker": ticker}
 
-        if not full_text.strip():
-            return {"error": "No text extracted from file", "ticker": ticker}
+        tables = sum(1 for e in elements if e["type"] == "table")
+        print(f"[indexer] {len(elements)} elements ({tables} tables, {len(elements)-tables} prose pages)")
 
-        print(f"[indexer] Extracted {len(full_text):,} characters")
+        chunks = await asyncio.to_thread(
+            build_hierarchical_chunks, elements, ticker, filing_type,
+            filing_date, Path(file_path).name,
+        )
+        parents  = [c for c in chunks if c["chunk_level"] == 1]
+        children = [c for c in chunks if c["chunk_level"] == 2]
+        print(f"[indexer] {len(parents)} section chunks + {len(children)} child chunks")
 
-        # 2. Chunk
-        chunks = chunk_text(full_text)
-        print(f"[indexer] {len(chunks)} chunks created for {ticker} {filing_type}")
-
-        # 3. Embed + store
-        conn = await asyncpg.connect(self.db_url)
+        # Clear previous version of this filing
         try:
-            async with httpx.AsyncClient() as client:
+            from qdrant_client.models import Filter, FieldCondition, MatchValue
+            self.qdrant.delete(
+                collection_name=COLLECTION_NAME,
+                points_selector=Filter(must=[
+                    FieldCondition(key="ticker",    match=MatchValue(value=ticker)),
+                    FieldCondition(key="form_type", match=MatchValue(value=filing_type)),
+                ]),
+            )
+        except Exception as e:
+            print(f"[indexer] Could not clear existing chunks: {e}")
 
-                # Warm up — wait for model to load before processing chunks
-                print("[indexer] Warming up embedding model...")
-                for attempt in range(10):
-                    try:
-                        await get_embedding("warmup", client)
-                        print("[indexer] Model ready.")
-                        break
-                    except Exception:
-                        print(f"[indexer] Model not ready, waiting... ({attempt+1}/10)")
-                        await asyncio.sleep(3)
+        # Embed in batches
+        texts    = [c["content"] for c in chunks]
+        BATCH    = 64
+        all_dense, all_sparse = [], []
 
-                inserted        = 0
-                section_counts  = {}   # track how many chunks per section (useful for debugging)
+        for i in range(0, len(texts), BATCH):
+            batch = texts[i:i + BATCH]
+            n = i // BATCH + 1
+            total = (len(texts) - 1) // BATCH + 1
+            print(f"[indexer] Embedding batch {n}/{total}...")
+            d = await asyncio.to_thread(embed_dense_batch,  batch)
+            s = await asyncio.to_thread(embed_sparse_batch, batch)
+            all_dense.extend(d)
+            all_sparse.extend(s)
 
-                current_section = "unknown"   # carries forward between chunks
-                for i, chunk in enumerate(chunks):
+        # Build Qdrant points
+        from qdrant_client.models import PointStruct, SparseVector
+        points = [
+            PointStruct(
+                id=c["id"],
+                vector={
+                    "dense":  dv,
+                    "sparse": SparseVector(
+                        indices=sv.indices.tolist(),
+                        values=sv.values.tolist(),
+                    ),
+                },
+                payload={k: v for k, v in c.items() if k != "id"},
+            )
+            for c, dv, sv in zip(chunks, all_dense, all_sparse)
+        ]
 
-                    # ── Section detection (carry-forward) ─────────────────
-                    detected = detect_section(chunk)
-                    if detected != "unknown":
-                        current_section = detected   # new header found — update
-                    section = current_section
-                    section_counts[section] = section_counts.get(section, 0) + 1
+        # Upsert in batches
+        UPSERT = 100
+        for i in range(0, len(points), UPSERT):
+            await asyncio.to_thread(
+                self.qdrant.upsert,
+                collection_name=COLLECTION_NAME,
+                points=points[i:i + UPSERT],
+            )
+            print(f"[indexer] Upserted {min(i+UPSERT, len(points))}/{len(points)}")
 
-                    # ── Embedding ──────────────────────────────────────────
-                    vector = None
-                    for attempt in range(5):
-                        try:
-                            vector = await get_embedding(chunk, client)
-                            if vector is not None:
-                                await asyncio.sleep(0.5)
-                                break
-                        except Exception as e:
-                            print(f"[indexer] Chunk {i} retry {attempt+1}/5: {e}")
-                            await asyncio.sleep(2)
-
-                    if vector is None:
-                        print(f"[indexer] Chunk {i} failed after retries, skipping")
-                        continue
-
-                    vector_str = "[" + ",".join(str(v) for v in vector) + "]"
-
-                    # ── Store (section column + metadata) ──────────────────
-                    import json
-                    metadata = json.dumps({
-                        "ticker":       ticker,
-                        "filing_type":  filing_type,
-                        "chunk_index":  i,
-                        "section":      section,   # also inside JSON for easy inspection
-                    })
-
-                    await conn.execute(
-                        """
-                        INSERT INTO document_embeddings
-                            (id, ticker, doc_type, chunk_text, embedding, metadata, section, created_at)
-                        VALUES ($1, $2, $3, $4, $5::text::vector, $6::jsonb, $7, $8)
-                        """,
-                        uuid.uuid4(),
-                        ticker,
-                        filing_type,
-                        chunk,
-                        vector_str,
-                        metadata,
-                        section,                   # dedicated column for fast WHERE filtering
-                        datetime.now(timezone.utc),
-                    )
-                    inserted += 1
-
-                    if (i + 1) % 20 == 0:
-                        print(f"[indexer] {i+1}/{len(chunks)} chunks indexed...")
-
-        finally:
-            await conn.close()
-
-        result = {
-            "ticker":          ticker,
-            "filing_type":     filing_type,
-            "total_chunks":    len(chunks),
-            "chunks_indexed":  inserted,
-            "sections_found":  section_counts,   # shows breakdown per section
-            "status":          "success",
+        return {
+            "ticker": ticker, "filing_type": filing_type,
+            "parent_chunks": len(parents), "child_chunks": len(children),
+            "total_points": len(points), "status": "success",
         }
-        print(f"[indexer] Done: {result}")
-        return result
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 4:
-        print("Usage: python indexer.py <file_path> <ticker> <filing_type>")
-        print("Example: python indexer.py data/filings/AAPL_10-K.htm AAPL 10-K")
+        print("Usage: python rag/indexer.py <file_path> <ticker> <filing_type> [filing_date]")
         sys.exit(1)
-
     indexer = FilingIndexer()
-    result  = asyncio.run(indexer.index_filing(sys.argv[1], sys.argv[2], sys.argv[3]))
+    result  = asyncio.run(indexer.index_filing(sys.argv[1], sys.argv[2], sys.argv[3],
+                                                sys.argv[4] if len(sys.argv) > 4 else ""))
     print(result)

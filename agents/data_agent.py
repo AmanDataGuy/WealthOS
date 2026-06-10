@@ -185,62 +185,23 @@ async def fetch_market_data(ticker: str, client: httpx.AsyncClient) -> dict:
 # ── RAG Fetcher ───────────────────────────────────────────────────────────────
 
 async def fetch_from_rag(ticker: str, conn: asyncpg.Connection, client: httpx.AsyncClient) -> dict:
-    """Query the RAG pipeline for qualitative context."""
+    """Query the RAG pipeline for qualitative context via Qdrant hybrid search."""
+    from rag.query_engine import FilingQueryEngine
+    engine = FilingQueryEngine()
     results = {}
 
-    async def query_rag(question: str, section: str) -> Optional[str]:
+    queries = [
+        ("business_summary",   f"What does {ticker} do? Describe the business.", "business"),
+        ("key_risks",          f"What are {ticker}'s main risk factors?",         "risk_factors"),
+        ("management_outlook", f"What did management say about future outlook?",  "md_and_a"),
+    ]
+
+    for key, question, section in queries:
         try:
-            vector_resp = await client.post(
-                f"{OLLAMA_URL}/api/embeddings",
-                json={"model": "mxbai-embed-large", "prompt": question},
-                timeout=30.0,
-            )
-            vector = vector_resp.json()["embedding"]
-            vector_str = "[" + ",".join(str(v) for v in vector) + "]"
-
-            rows = await conn.fetch(
-                """
-                SELECT chunk_text
-                FROM document_embeddings
-                WHERE ticker = $1 AND section = $2
-                ORDER BY embedding <=> $3::text::vector
-                LIMIT 4
-                """,
-                ticker.upper(), section, vector_str
-            )
-
-            if not rows:
-                # fallback — no section filter
-                rows = await conn.fetch(
-                    """
-                    SELECT chunk_text
-                    FROM document_embeddings
-                    WHERE ticker = $1
-                    ORDER BY embedding <=> $2::text::vector
-                    LIMIT 3
-                    """,
-                    ticker.upper(), vector_str
-                )
-
-            if not rows:
-                return None
-
-            context = "\n\n".join(r["chunk_text"] for r in rows)
-
-            from services.llm_client import call_llm
-            answer = await call_llm(
-                system="You are a financial analyst. Answer concisely based only on the provided context. Max 150 words.",
-                user=f"Context:\n{context}\n\nQuestion: {question}",
-                max_tokens=150
-            )
-            return answer
+            results[key] = await engine.search(question, ticker.upper(), section_filter=section)
         except Exception as e:
-            print(f"[data_agent] RAG query failed: {e}")
-            return None
-
-    results["business_summary"]   = await query_rag(f"What does {ticker} do? Describe the business.", "business")
-    results["key_risks"]          = await query_rag(f"What are {ticker}'s main risk factors?", "risk_factors")
-    results["management_outlook"] = await query_rag(f"What did management say about future outlook and growth?", "md_and_a")
+            print(f"[data_agent] RAG query failed ({key}): {e}")
+            results[key] = None
 
     return results
 
