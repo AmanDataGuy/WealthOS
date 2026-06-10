@@ -46,7 +46,7 @@ jsonref==1.1.0
 jsonschema==4.26.0
 jsonschema-path==0.4.5
 jsonschema-specifications==2025.9.1
-kafka-python==2.3.0
+# kafka-python==2.3.0  # removed — Kafka not implemented; use Redis pub/sub if alerts are needed
 keyring==25.7.0
 markdown-it-py==4.0.0
 mcp==1.27.0
@@ -82,7 +82,7 @@ python-dotenv==1.2.2
 python-multipart==0.0.24
 pytz==2026.1.post1
 PyYAML==6.0.3
-qdrant-client==1.17.1
+# qdrant-client==1.17.1  # not used — codebase uses pgvector exclusively; remove if Qdrant is not planned
 redis==7.4.0
 referencing==0.37.0
 requests==2.33.1
@@ -106,3 +106,27 @@ websockets==16.0
 yarl==1.23.0
 yfinance==1.2.0
 zipp==3.23.0
+
+langgraph
+fastapi
+temporalio
+firecrawl-py
+
+e2b-code-interpreter
+
+pymupdf
+streamlit
+dspy-ai
+# smolagents  # listed but not imported anywhere in the codebase — keeping for future use
+composio-core
+mem0ai
+# agentops  # removed — replaced by LangSmith for tracing
+wandb
+weave
+
+# Observability
+langsmith           # used in observability/langsmith_config.py (from langsmith import traceable, Client)
+
+# Input handlers
+anthropic           # used in input/pdf_processor.py and input/vision_handler.py
+openai              # used in input/whisper_handler.py (Whisper transcription)

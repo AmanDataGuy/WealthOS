@@ -161,7 +161,8 @@ class MorningBriefingWorkflow:
         )
 
         await workflow.execute_activity(
-            send_briefing, user_id, briefing,
+            send_briefing,
+            args=[user_id, briefing],
             start_to_close_timeout=timedelta(seconds=30),
             retry_policy=RETRY_ONCE,
         )

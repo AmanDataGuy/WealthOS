@@ -32,7 +32,7 @@ from datetime import datetime, timezone, timedelta
 
 import httpx
 import asyncpg
-import yfinance as yf
+
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -153,27 +153,29 @@ async def get_tracked_symbols(user_id: str) -> list[str]:
 
 def fetch_market_data(symbols: list[str]) -> list[MarketSignal]:
     """
-    Fetch 30-day price history for each symbol using yfinance.
+    Fetch 30-day price history for each symbol using market_server MCP tools.
     Computes trend (up / down / sideways) and % change.
-    Skips any symbol yfinance can't find — won't crash the whole run.
-
-    Works for US tickers (AAPL) and Indian tickers (RELIANCE.NS).
     """
+    from mcp_servers.market_server import get_history
     signals = []
 
     for symbol in symbols:
         try:
-            ticker = yf.Ticker(symbol)
-            hist   = ticker.history(period="30d")
-
-            if hist.empty or len(hist) < 2:
+            # We want 30 days of daily data
+            data = get_history(symbol, period="1mo", interval="1d")
+            
+            if "error" in data or not data.get("bars"):
                 logger.warning("No price data for %s — skipping", symbol)
                 continue
+                
+            bars = data["bars"]
+            if len(bars) < 2:
+                continue
 
-            open_price    = round(float(hist["Close"].iloc[0]),  2)
-            current_price = round(float(hist["Close"].iloc[-1]), 2)
-            high_30d      = round(float(hist["High"].max()),      2)
-            low_30d       = round(float(hist["Low"].min()),       2)
+            open_price    = bars[0]["close"]
+            current_price = bars[-1]["close"]
+            high_30d      = max((b.get("high") or b["close"]) for b in bars)
+            low_30d       = min((b.get("low") or b["close"]) for b in bars)
             change_pct    = round(((current_price - open_price) / open_price) * 100, 2)
 
             # Simple trend classification
@@ -202,50 +204,31 @@ def fetch_market_data(symbols: list[str]) -> list[MarketSignal]:
     return signals
 
 
+
 # ── Tool 3 ────────────────────────────────────────────────────────────────────
 
 async def fetch_news(symbols: list[str], days: int = 7) -> list[NewsItem]:
     """
-    Fetch recent news articles for all tracked symbols via NewsAPI.
-    Combines all symbols into one query to save API calls.
-    Returns up to 10 articles. Falls back gracefully if key is missing.
+    Fetch recent news articles for all tracked symbols using news_server MCP tools.
     """
-    if not NEWSAPI_KEY:
-        logger.warning("NEWSAPI_KEY not set — skipping news fetch")
-        return []
-
+    from mcp_servers.news_server import search_news
+    
     # Build a combined query — e.g. "AAPL OR TSLA OR Reliance"
-    query     = " OR ".join(symbols[:5])  # NewsAPI handles up to 5 well
-    from_date = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+    query = " OR ".join(symbols[:5])  # NewsAPI handles up to 5 well
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                "https://newsapi.org/v2/everything",
-                params={
-                    "q":        query,
-                    "from":     from_date,
-                    "sortBy":   "publishedAt",
-                    "pageSize": 10,
-                    "language": "en",
-                    "apiKey":   NEWSAPI_KEY,
-                }
-            )
-            resp.raise_for_status()
-            data = resp.json()
-
+        data = search_news(query, days=days, count=10)
         articles = []
         for a in data.get("articles", []):
             articles.append(NewsItem(
                 headline  = a.get("title", ""),
-                source    = a.get("source", {}).get("name", "Unknown"),
-                published = (a.get("publishedAt") or "")[:10],
+                source    = a.get("source", "Unknown"),
+                published = a.get("published", ""),
                 url       = a.get("url", ""),
             ))
 
         logger.info("Fetched %d news articles for: %s", len(articles), query)
         return articles
-
     except Exception as e:
         logger.error("fetch_news failed: %s", e)
         return []
@@ -500,7 +483,7 @@ async def run_research_agent(
     logger.info("Fetching market data, news, and SEC filings...")
 
     market_signals, news_items, sec_insights = await asyncio.gather(
-        asyncio.to_thread(fetch_market_data, symbols),  # yfinance is sync
+        asyncio.to_thread(fetch_market_data, symbols),
         fetch_news(symbols),
         fetch_sec_insights(symbols),
     )

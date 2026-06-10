@@ -54,6 +54,9 @@ Thumbs.db
 .vscode/
 *.code-workspace
 
+# Planning / audit docs — local only
+plan_ahead.md
+
 # Docker volumes (if you add later)
 postgres_data/
 redis_data/

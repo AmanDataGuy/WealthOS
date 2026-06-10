@@ -210,7 +210,7 @@ def scan_receipt(image_path: str) -> Transaction:
     return Transaction(
         merchant = data.get("merchant", "Unknown"),
         amount   = float(data.get("amount", 0)),
-        date     = data.get("date", datetime.utcnow().date().isoformat()),
+        date     = data.get("date", datetime.now(timezone.utc).date().isoformat()),
         category = data.get("category", "other"),
         source   = "receipt"
     )
@@ -279,7 +279,7 @@ def parse_bank_statement(pdf_path: str) -> list[Transaction]:
             transactions.append(Transaction(
                 merchant = row.get("merchant", "Unknown"),
                 amount   = float(row.get("amount", 0)),
-                date     = row.get("date", datetime.utcnow().date().isoformat()),
+                date     = row.get("date", datetime.now(timezone.utc).date().isoformat()),
                 category = row.get("category", "other"),
                 source   = "bank_statement"
             ))

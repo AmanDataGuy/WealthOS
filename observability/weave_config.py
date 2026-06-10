@@ -1,41 +1,31 @@
 # observability/weave_config.py
 """
-W&B Weave for WealthOS.
+W&B Weave for WealthOS — eval quality tracking only.
 
-Weave answers the question LangSmith and AgentOps can't:
-"Are the outputs actually *good*?"
+Answers: "Are the Writer Agent outputs actually good?"
+Compares baseline prompts vs DSPy-compiled prompts using LLM-as-Judge.
 
-We use it for one main job — comparing Writer Agent quality across
-three versions:
-  1. Hand-written prompts (baseline, Phase 3)
-  2. DSPy-compiled prompts (Phase 5)
-  3. Fine-tuned model (Phase 11, future)
-
-Every call to run_writer_agent gets logged. The eval runner
-(eval_runner.py) then scores those outputs with an LLM-as-Judge
-and produces the comparison table for the README.
+Pipeline tracing is handled by LangSmith. This file owns eval scoring only.
 
 ## Setup
-Add to .env:
-    WANDB_API_KEY=...
+    WANDB_API_KEY=...   (in .env)
 
-## Usage
-    # In api/main.py:
-    from observability.weave_config import init_weave
+## Usage (in eval_runner.py)
+    from observability.weave_config import init_weave, score_memo, log_eval_result
     init_weave()
-
-    # On any function you want to track:
-    from observability.weave_config import weave_op
-
-    @weave_op
-    async def run_writer_agent(...) -> InvestmentMemo:
-        ...
+    scores = await score_memo(memo, "AAPL", personal_finance)
+    log_eval_result("dspy_compiled", "AAPL", scores, len(memo))
 """
 
 import os
 import functools
 from dotenv import load_dotenv
-import wandb
+
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
 
 load_dotenv()
 
@@ -62,33 +52,6 @@ def init_weave():
         print("[weave] not installed — pip install weave")
     except Exception as e:
         print(f"[weave] ❌ Init failed: {e}")
-
-
-# ── Op decorator ──────────────────────────────────────────────────────────────
-
-def weave_op(fn):
-    """
-    Decorator that tells Weave to log every call to this function.
-
-    Logs: inputs, output, latency, any exceptions.
-    Works on both sync and async functions.
-
-    Usage:
-        @weave_op
-        async def run_writer_agent(...):
-            ...
-    """
-    if not WEAVE_ENABLED:
-        return fn
-
-    try:
-        import weave
-        # weave.op() is their decorator — we just wrap it
-        return weave.op()(fn)
-    except ImportError:
-        return fn
-    except Exception:
-        return fn
 
 
 # ── LLM-as-Judge scorer ───────────────────────────────────────────────────────
@@ -202,16 +165,17 @@ def log_eval_result(
         import weave
 
         # Log as a Weave call so it shows up in the eval comparison UI
-        wandb.log({
-            "prompt_strategy": prompt_strategy,
-            "ticker":          ticker,
-            "score_structure":        scores.get("structure", 0),
-            "score_accuracy":         scores.get("accuracy", 0),
-            "score_personalization":  scores.get("personalization", 0),
-            "score_actionability":    scores.get("actionability", 0),
-            "score_total":            scores.get("total", 0),
-            "memo_length_chars":      memo_length,
-        })
+        if WANDB_AVAILABLE:
+            wandb.log({
+                "prompt_strategy": prompt_strategy,
+                "ticker":          ticker,
+                "score_structure":        scores.get("structure", 0),
+                "score_accuracy":         scores.get("accuracy", 0),
+                "score_personalization":  scores.get("personalization", 0),
+                "score_actionability":    scores.get("actionability", 0),
+                "score_total":            scores.get("total", 0),
+                "memo_length_chars":      memo_length,
+            })
         print(f"[weave] 📊 Logged — {prompt_strategy} / {ticker} — total: {scores.get('total', 0)}/20")
     except Exception as e:
         print(f"[weave] ⚠️  Could not log result: {e}")
