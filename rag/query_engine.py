@@ -1,333 +1,335 @@
 # rag/query_engine.py
-"""
-Custom Agentic RAG — no LlamaIndex dependency.
-Uses a ReAct (Reason + Act) loop driven by qwen2.5:7b via Ollama.
-
-Tools available to the agent:
-  1. financial_facts_sql  — exact numbers from financial_facts table
-  2. vector_search        — semantic search over document_embeddings
-  3. section_search       — vector search filtered by section name
-"""
+# Agentic retrieval engine — hybrid Qdrant search + Cohere rerank + parent context
+#
+# Two public methods:
+#   search(question, ticker, section_filter)  — lightweight, used by data_agent
+#   query(question, ticker)                   — full ReAct agentic loop (up to 4 steps)
 
 import os
 import json
 import asyncio
-import time
-import asyncpg
-import httpx
+from typing import Optional
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Config ────────────────────────────────────────────────────────────────────
-DATABASE_URL = os.getenv("WEALTHOS_DB_URL", "postgresql://postgres:postgres@localhost:5432/wealthos")
-OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
-EMBED_MODEL  = "mxbai-embed-large"
-GEN_MODEL    = "qwen2.5:7b"
+QDRANT_URL      = os.getenv("QDRANT_URL",      "http://localhost:6333")
+QDRANT_API_KEY  = os.getenv("QDRANT_API_KEY",  "")
+VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY",  "")
+COHERE_API_KEY  = os.getenv("COHERE_API_KEY",  "")
+WEALTHOS_DB_URL = os.getenv("WEALTHOS_DB_URL", "")
 
-
-def clean_url(url: str) -> str:
-    return url.replace("postgresql+asyncpg://", "postgresql://")
+COLLECTION_NAME = "wealthos_docs"
+VOYAGE_MODEL    = "voyage-finance-2"
 
 
 # ── Embedding ─────────────────────────────────────────────────────────────────
 
-async def embed(text: str, client: httpx.AsyncClient) -> list[float]:
-    resp = await client.post(
-        f"{OLLAMA_URL}/api/embeddings",
-        json={"model": EMBED_MODEL, "prompt": text},
-        timeout=60.0,
-    )
-    resp.raise_for_status()
-    return resp.json()["embedding"]
+def embed_query_dense(text: str) -> list[float]:
+    if not VOYAGE_API_KEY:
+        return [0.0] * 1024
+    import voyageai
+    vc = voyageai.Client(api_key=VOYAGE_API_KEY)
+    result = vc.embed([text], model=VOYAGE_MODEL, input_type="query")
+    return result.embeddings[0]
+
+
+def embed_query_sparse(text: str):
+    from fastembed import SparseTextEmbedding
+    model = SparseTextEmbedding(model_name="Qdrant/bm25")
+    return list(model.embed([text]))[0]
+
+
+# ── Qdrant client ─────────────────────────────────────────────────────────────
+
+def get_qdrant_client():
+    from qdrant_client import QdrantClient
+    if QDRANT_API_KEY:
+        return QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+    return QdrantClient(url=QDRANT_URL)
+
+
+# ── Hybrid search (dense + sparse + RRF + Cohere rerank) ─────────────────────
+
+def _hybrid_search_sync(
+    question: str,
+    ticker: str,
+    section_filter: Optional[str] = None,
+    top_candidates: int = 20,
+    top_k: int = 5,
+) -> list[dict]:
+    try:
+        from qdrant_client.models import (
+            Filter, FieldCondition, MatchValue,
+            Prefetch, FusionQuery, Fusion, SparseVector,
+        )
+        client = get_qdrant_client()
+
+        dense_vec  = embed_query_dense(question)
+        sparse_vec = embed_query_sparse(question)
+
+        must_filters = [
+            FieldCondition(key="ticker",      match=MatchValue(value=ticker)),
+            FieldCondition(key="chunk_level", match=MatchValue(value=2)),
+        ]
+        if section_filter:
+            must_filters.append(FieldCondition(key="section", match=MatchValue(value=section_filter)))
+
+        q_filter = Filter(must=must_filters)
+
+        results = client.query_points(
+            collection_name=COLLECTION_NAME,
+            prefetch=[
+                Prefetch(query=dense_vec, using="dense", limit=top_candidates * 2),
+                Prefetch(
+                    query=SparseVector(
+                        indices=sparse_vec.indices.tolist(),
+                        values=sparse_vec.values.tolist(),
+                    ),
+                    using="sparse",
+                    limit=top_candidates * 2,
+                ),
+            ],
+            query=FusionQuery(fusion=Fusion.RRF),
+            query_filter=q_filter,
+            limit=top_candidates,
+            with_payload=True,
+        )
+        hits = [{"id": p.id, **p.payload} for p in results.points]
+    except Exception as e:
+        print(f"[query_engine] Qdrant hybrid search error: {e}")
+        return []
+
+    if not hits:
+        return []
+
+    # Cohere rerank
+    if COHERE_API_KEY and len(hits) > 1:
+        try:
+            import cohere
+            co = cohere.Client(api_key=COHERE_API_KEY)
+            docs = [h["content"] for h in hits]
+            reranked = co.rerank(
+                query=question,
+                documents=docs,
+                model="rerank-english-v3.0",
+                top_n=top_k,
+            )
+            hits = [hits[r.index] for r in reranked.results]
+        except Exception as e:
+            print(f"[query_engine] Cohere rerank error (using raw order): {e}")
+            hits = hits[:top_k]
+    else:
+        hits = hits[:top_k]
+
+    return hits
+
+
+def _fetch_parents_sync(parent_ids: list[str]) -> list[dict]:
+    """Fetch level-1 section parents to give LLM richer context."""
+    if not parent_ids:
+        return []
+    try:
+        from qdrant_client.models import Filter, HasIdCondition
+        client = get_qdrant_client()
+        results = client.scroll(
+            collection_name=COLLECTION_NAME,
+            scroll_filter=Filter(must=[HasIdCondition(has_id=parent_ids)]),
+            limit=len(parent_ids),
+            with_payload=True,
+            with_vectors=False,
+        )
+        return [{"id": p.id, **p.payload} for p in results[0]]
+    except Exception as e:
+        print(f"[query_engine] Parent fetch error: {e}")
+        return []
+
+
+# ── SQL tool (unchanged — still hits Postgres financial_facts) ────────────────
+
+async def _tool_sql(ticker: str, question: str) -> str:
+    if not WEALTHOS_DB_URL:
+        return "Database not configured."
+    try:
+        import asyncpg
+        conn = await asyncpg.connect(WEALTHOS_DB_URL)
+        try:
+            rows = await conn.fetch(
+                """
+                SELECT metric, value, period, unit
+                FROM   financial_facts
+                WHERE  ticker = $1
+                ORDER BY period DESC
+                LIMIT  30
+                """,
+                ticker,
+            )
+            if not rows:
+                return f"No financial facts found for {ticker}."
+            return "\n".join(f"{r['metric']}: {r['value']} {r['unit']} ({r['period']})" for r in rows)
+        finally:
+            await conn.close()
+    except Exception as e:
+        return f"SQL error: {e}"
+
+
+# ── Vector search tool (hybrid, wraps _hybrid_search_sync) ───────────────────
+
+async def _tool_hybrid_search(
+    question: str,
+    ticker: str,
+    section: Optional[str] = None,
+) -> str:
+    hits = await asyncio.to_thread(_hybrid_search_sync, question, ticker, section)
+    if not hits:
+        return "No relevant filing chunks found."
+
+    parent_ids = list({h.get("parent_id") for h in hits if h.get("parent_id")})
+    parents    = await asyncio.to_thread(_fetch_parents_sync, parent_ids)
+    parents_by_id = {p["id"]: p for p in parents}
+
+    parts = []
+    for h in hits:
+        sec = h.get("section", "unknown")
+        parent_content = ""
+        if h.get("parent_id") and h["parent_id"] in parents_by_id:
+            parent_content = f"\n[Section context]: {parents_by_id[h['parent_id']]['content'][:500]}"
+        parts.append(f"[{sec}] {h['content']}{parent_content}")
+
+    return "\n\n---\n\n".join(parts)
 
 
 # ── LLM call ──────────────────────────────────────────────────────────────────
 
-async def llm(prompt: str, client: httpx.AsyncClient, system: str = "") -> str:
-    messages = []
-    if system:
-        messages.append({"role": "system", "content": system})
-    messages.append({"role": "user", "content": prompt})
-
-    resp = await client.post(
-        f"{OLLAMA_URL}/api/chat",
-        json={"model": GEN_MODEL, "messages": messages, "stream": False},
-        timeout=120.0,
-    )
-    resp.raise_for_status()
-    return resp.json()["message"]["content"].strip()
+async def _call_llm(messages: list[dict]) -> str:
+    from services.llm_client import call_llm
+    return await call_llm(messages)
 
 
-# ── Tool implementations ───────────────────────────────────────────────────────
-
-async def tool_sql(ticker: str, metric: str, conn: asyncpg.Connection) -> str:
-    """Query financial_facts for an exact number."""
-    # normalize metric name
-    metric_map = {
-        "revenue": "total_revenue", "total revenue": "total_revenue",
-        "net income": "net_income", "earnings": "net_income",
-        "gross profit": "gross_profit", "operating income": "operating_income",
-        "ebitda": "ebitda", "free cash flow": "free_cash_flow",
-        "total assets": "total_assets", "total debt": "total_debt",
-        "cash": "cash_and_equivalents", "eps": "eps_diluted",
-        "eps basic": "eps_basic", "eps diluted": "eps_diluted",
-    }
-    metric_key = metric_map.get(metric.lower().strip(), metric.lower().strip().replace(" ", "_"))
-
-    rows = await conn.fetch(
-        """
-        SELECT metric, value, fiscal_year, unit
-        FROM financial_facts
-        WHERE ticker = $1 AND metric = $2
-        ORDER BY fiscal_year DESC
-        LIMIT 5
-        """,
-        ticker.upper(), metric_key
-    )
-
-    if not rows:
-        # try partial match
-        rows = await conn.fetch(
-            """
-            SELECT metric, value, fiscal_year, unit
-            FROM financial_facts
-            WHERE ticker = $1 AND metric ILIKE $2
-            ORDER BY fiscal_year DESC
-            LIMIT 5
-            """,
-            ticker.upper(), f"%{metric_key}%"
-        )
-
-    if not rows:
-        return f"No data found for {ticker} metric '{metric}' in financial_facts table."
-
-    lines = [f"{ticker} {r['metric']} FY{r['fiscal_year']}: ${r['value']:,.0f}M" for r in rows]
-    return "\n".join(lines)
-
-
-async def tool_vector_search(
-    question: str,
-    ticker: str,
-    conn: asyncpg.Connection,
-    client: httpx.AsyncClient,
-    section: str | None = None,
-    top_k: int = 6,
-) -> str:
-    """Semantic search over document_embeddings, optionally filtered by section."""
-    vector = await embed(question, client)
-    vector_str = "[" + ",".join(str(v) for v in vector) + "]"
-
-    if section:
-        rows = await conn.fetch(
-            """
-            SELECT chunk_text, section,
-                   1 - (embedding <=> $1::text::vector) AS score
-            FROM document_embeddings
-            WHERE ticker = $2 AND section = $3
-            ORDER BY embedding <=> $1::text::vector
-            LIMIT $4
-            """,
-            vector_str, ticker.upper(), section, top_k
-        )
-        # fallback to full vector if section has no chunks
-        if not rows:
-            section = None
-
-    if not section:
-        rows = await conn.fetch(
-            """
-            SELECT chunk_text, section,
-                   1 - (embedding <=> $1::text::vector) AS score
-            FROM document_embeddings
-            WHERE ticker = $2
-            ORDER BY embedding <=> $1::text::vector
-            LIMIT $3
-            """,
-            vector_str, ticker.upper(), top_k
-        )
-
-    if not rows:
-        return f"No filing chunks found for {ticker}. Has this ticker been indexed?"
-
-    chunks = "\n\n---\n\n".join(
-        f"[Section: {r['section']} | Score: {float(r['score']):.3f}]\n{r['chunk_text']}"
-        for r in rows
-    )
-    return chunks
-
-
-# ── ReAct Agent Loop ──────────────────────────────────────────────────────────
-
-SYSTEM_PROMPT = """You are a financial research assistant with access to tools.
-Use the ReAct format — reason step by step, then call ONE tool at a time.
-
-Available tools:
-1. financial_facts_sql(metric) — get exact financial numbers (revenue, net income, EPS, debt, cash flow, assets)
-2. vector_search(query) — semantic search over SEC filing text (strategy, products, general info)
-3. section_search(query, section) — search a specific filing section. Sections: md_and_a, risk_factors, income_statement, balance_sheet, cash_flow
-
-Format your response EXACTLY like this:
-Thought: [your reasoning about what to do next]
-Action: tool_name
-Input: {"key": "value"}
-
-When you have enough information to answer, respond EXACTLY like this:
-Thought: I now have enough information to answer.
-Final Answer: [your complete answer]
-
-Rules:
-- ALWAYS use financial_facts_sql for specific numbers (revenue, income, EPS, debt)
-- Use section_search with section=md_and_a for management commentary and outlook
-- Use section_search with section=risk_factors for risks and threats
-- Use vector_search for general qualitative questions
-- You may call multiple tools before giving Final Answer
-- Never hallucinate numbers — only state figures returned by financial_facts_sql
-"""
-
-
-async def react_agent(
-    question: str,
-    ticker: str,
-    conn: asyncpg.Connection,
-    client: httpx.AsyncClient,
-    max_iterations: int = 6,
-) -> str:
-    """Run the ReAct loop until Final Answer or max iterations."""
-
-    conversation = f"Company: {ticker}\nQuestion: {question}"
-    tool_results = []
-    seen_calls = set()          
-
-    for i in range(max_iterations):
-        # Build prompt with all tool results so far
-        full_prompt = conversation
-        if tool_results:
-            full_prompt += "\n\n" + "\n\n".join(tool_results)
-        full_prompt += "\n\nWhat do you do next?"
-
-        response = await llm(full_prompt, client, system=SYSTEM_PROMPT)
-
-        print(f"\n[agent] Iteration {i+1}:")
-        print(response[:300])
-
-        # Check for Final Answer
-        if "Final Answer:" in response:
-            final = response.split("Final Answer:")[-1].strip()
-            return final
-
-        # Parse tool call
-        try:
-            action_line = [l for l in response.splitlines() if l.startswith("Action:")][0]
-            input_line  = [l for l in response.splitlines() if l.startswith("Input:")][0]
-
-            tool_name = action_line.replace("Action:", "").strip()
-            tool_input = json.loads(input_line.replace("Input:", "").strip())
-        except (IndexError, json.JSONDecodeError):
-            # LLM didn't follow format — ask it to try again
-            tool_results.append("System: Your last response didn't follow the required format. Please use Thought/Action/Input format or give a Final Answer.")
-            continue
-
-        # Dedup — skip if same tool+input already called
-        call_sig = f"{tool_name}:{json.dumps(tool_input, sort_keys=True)}"
-        if call_sig in seen_calls:
-            tool_results.append(
-                f"System: You already called {tool_name} with that exact input. "
-                f"Use the results you already have, or give a Final Answer."
-            )
-            continue
-        seen_calls.add(call_sig)
-
-        # Execute tool
-        print(f"[agent] Calling tool: {tool_name} with {tool_input}")
-
-        if tool_name == "financial_facts_sql":
-            metric = tool_input.get("metric", "total_revenue")
-            result = await tool_sql(ticker, metric, conn)
-
-        elif tool_name == "vector_search":
-            query = tool_input.get("query", question)
-            result = await tool_vector_search(question=query, ticker=ticker, conn=conn, client=client)
-
-        elif tool_name == "section_search":
-            query   = tool_input.get("query", question)
-            section = tool_input.get("section", "md_and_a")
-            result  = await tool_vector_search(question=query, ticker=ticker, conn=conn, client=client, section=section)
-
-        else:
-            result = f"Unknown tool: {tool_name}. Available tools: financial_facts_sql, vector_search, section_search"
-
-        tool_results.append(f"Tool: {tool_name}\nResult:\n{result}")
-
-    # Max iterations hit — ask LLM to summarize what it has
-    summary_prompt = (
-        f"Question: {question}\n\n"
-        f"Here is the information collected:\n\n"
-        + "\n\n".join(tool_results)
-        + "\n\nPlease give your best answer based on the above."
-    )
-    return await llm(summary_prompt, client)
-
-
-# ── Main engine ───────────────────────────────────────────────────────────────
+# ── FilingQueryEngine ─────────────────────────────────────────────────────────
 
 class FilingQueryEngine:
 
-    async def query(self, question: str, ticker: str | None = None) -> dict:
-        start = time.time()
-        db_url = clean_url(DATABASE_URL)
+    async def search(
+        self,
+        question: str,
+        ticker: str,
+        section_filter: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Lightweight single-shot retrieval for data_agent.
+        Returns synthesized answer string, or None on empty results.
+        """
+        hits = await asyncio.to_thread(_hybrid_search_sync, question, ticker, section_filter)
+        if not hits:
+            return None
 
-        conn = await asyncpg.connect(db_url)
+        parent_ids = list({h.get("parent_id") for h in hits if h.get("parent_id")})
+        parents    = await asyncio.to_thread(_fetch_parents_sync, parent_ids)
+        parents_by_id = {p["id"]: p for p in parents}
+
+        context_parts = []
+        for h in hits:
+            sec = h.get("section", "unknown")
+            parent_content = ""
+            if h.get("parent_id") and h["parent_id"] in parents_by_id:
+                parent_content = f"\n{parents_by_id[h['parent_id']]['content'][:400]}"
+            context_parts.append(f"[{sec}] {h['content']}{parent_content}")
+
+        context = "\n\n".join(context_parts)
+        prompt = [
+            {"role": "system", "content": "You are a financial analyst. Answer strictly from the provided context. Be factual and concise."},
+            {"role": "user",   "content": f"Context from {ticker} SEC filings:\n\n{context}\n\nQuestion: {question}"},
+        ]
         try:
-            async with httpx.AsyncClient() as client:
-                if ticker:
-                    answer = await react_agent(question, ticker, conn, client)
-                else:
-                    # No ticker — pure vector search
-                    answer = await tool_vector_search(question, "", conn, client)
-        finally:
-            await conn.close()
+            return await _call_llm(prompt)
+        except Exception as e:
+            return f"Synthesis error: {e}"
 
-        latency_ms = int((time.time() - start) * 1000)
+    async def query(self, question: str, ticker: str) -> str:
+        """
+        Full ReAct agentic loop. Runs up to 4 reasoning steps.
+        Returns final answer string.
+        """
+        MAX_STEPS = 4
+        TOOL_DEFINITIONS = [
+            {
+                "name": "financial_facts_sql",
+                "description": "Query structured financial metrics (revenue, earnings, ratios) from the financial_facts table.",
+                "parameters": {"query_type": "string (e.g. 'revenue growth', 'profit margins')"},
+            },
+            {
+                "name": "hybrid_search",
+                "description": "Semantic + keyword hybrid search over SEC filing chunks. Returns relevant prose and table excerpts.",
+                "parameters": {"search_query": "string", "section": "optional string (e.g. risk_factors, md_and_a, income_statement)"},
+            },
+        ]
 
-        # Log to query_logs
+        system_prompt = f"""You are a financial analyst with access to SEC filing data for {ticker}.
+
+Available tools:
+{json.dumps(TOOL_DEFINITIONS, indent=2)}
+
+To use a tool respond with:
+ACTION: <tool_name>
+INPUT: <json input>
+
+When you have enough information respond with:
+FINAL ANSWER: <your answer>
+
+Be methodical. Use tools to gather evidence before concluding."""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": question},
+        ]
+
+        for _ in range(MAX_STEPS):
+            response = await _call_llm(messages)
+            messages.append({"role": "assistant", "content": response})
+
+            if "FINAL ANSWER:" in response:
+                return response.split("FINAL ANSWER:", 1)[1].strip()
+
+            if "ACTION:" not in response:
+                return response
+
+            tool_result = await self._dispatch_tool(response, ticker)
+            messages.append({"role": "user", "content": f"Tool result:\n{tool_result}"})
+
+        # Fallback — ask for synthesis from accumulated context
+        messages.append({"role": "user", "content": "Based on all information gathered, provide your final answer now."})
+        return await _call_llm(messages)
+
+    async def _dispatch_tool(self, llm_response: str, ticker: str) -> str:
         try:
-            conn2 = await asyncpg.connect(db_url)
-            await conn2.execute(
-                "INSERT INTO query_logs (question, ticker, route_used, answer, latency_ms) VALUES ($1,$2,$3,$4,$5)",
-                question, ticker, "agentic", answer[:500], latency_ms
-            )
-            await conn2.close()
+            action_line = [l for l in llm_response.splitlines() if l.strip().startswith("ACTION:")][0]
+            tool_name   = action_line.split("ACTION:", 1)[1].strip()
+            input_line  = [l for l in llm_response.splitlines() if l.strip().startswith("INPUT:")][0]
+            tool_input  = json.loads(input_line.split("INPUT:", 1)[1].strip())
         except Exception:
-            pass
+            return "Could not parse tool call. Respond with FINAL ANSWER or try again."
 
-        return {
-            "question":   question,
-            "ticker":     ticker,
-            "answer":     answer,
-            "route":      "agentic",
-            "latency_ms": latency_ms,
-        }
+        if tool_name == "financial_facts_sql":
+            return await _tool_sql(ticker, tool_input.get("query_type", ""))
+        elif tool_name == "hybrid_search":
+            return await _tool_hybrid_search(
+                tool_input.get("search_query", ""),
+                ticker,
+                tool_input.get("section"),
+            )
+        else:
+            return f"Unknown tool: {tool_name}"
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import sys
-
-    question = sys.argv[1] if len(sys.argv) > 1 else "What is the company's total revenue?"
-    ticker   = sys.argv[2] if len(sys.argv) > 2 else None
-
-    async def main():
-        engine = FilingQueryEngine()
-        result = await engine.query(question, ticker=ticker)
-
-        print(f"\n{'═' * 60}")
-        print(f"  Q        : {result['question']}")
-        print(f"  Ticker   : {result['ticker']}")
-        print(f"  Latency  : {result['latency_ms']}ms")
-        print(f"{'─' * 60}")
-        print(f"  A : {result['answer']}")
-        print(f"{'═' * 60}\n")
-
-    asyncio.run(main())
+    if len(sys.argv) < 3:
+        print("Usage: python rag/query_engine.py <ticker> <question>")
+        sys.exit(1)
+    engine = FilingQueryEngine()
+    answer = asyncio.run(engine.query(sys.argv[2], sys.argv[1]))
+    print(answer)
