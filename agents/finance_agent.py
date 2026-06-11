@@ -45,21 +45,16 @@
 # ── Standard Library ──────────────────────────────────────────────────────────
 import os
 import json
-import base64
 import statistics
 from datetime import datetime, timezone
 from typing import Optional
 
 # ── Third-Party ───────────────────────────────────────────────────────────────
-import fitz                              # pymupdf — PDF → image conversion
-import httpx                             # HTTP calls to Ollama + finance MCP
+import httpx                             # HTTP calls to finance MCP
 from pydantic import BaseModel, Field   # typed data models
 
 # ── Config ────────────────────────────────────────────────────────────────────
 FINANCE_MCP_URL = os.getenv("FINANCE_MCP_URL", "http://localhost:8001")
-OLLAMA_URL      = os.getenv("OLLAMA_URL",       "http://localhost:11434")
-VISION_MODEL    = "llama3.2-vision"      # for OCR — receipts + bank statements
-THINK_MODEL     = "llama3.2"             # for reasoning tasks if needed later
 
 
 # ==============================================================================
@@ -169,49 +164,15 @@ def scan_receipt(image_path: str) -> Transaction:
     """
     ## Scan Receipt
 
-    Reads a receipt image using llama3.2-vision and extracts:
-    merchant name, total amount, date, and spending category.
-
-    Works with JPG, PNG, or any image format Ollama accepts.
-    Returns a single Transaction — one receipt = one transaction.
+    Receipt OCR requires a vision model — currently not configured.
+    Returns a zero-value placeholder transaction.
     """
-
-    with open(image_path, "rb") as f:
-        image_b64 = base64.b64encode(f.read()).decode("utf-8")
-
-    # Ask for strict JSON — no markdown, no explanation, just data
-    prompt = """
-    Look at this receipt carefully. Extract the key details.
-    Reply ONLY with a JSON object — no explanation, no markdown fences.
-
-    {
-      "merchant":  "name of the shop or restaurant",
-      "amount":    total amount paid as a number  (e.g. 340.50),
-      "date":      "YYYY-MM-DD  —  best guess if not clearly visible",
-      "category":  "one of: food | transport | shopping | entertainment | health | emi | utilities | other"
-    }
-    """
-
-    response = httpx.post(
-        f"{OLLAMA_URL}/api/generate",
-        json={
-            "model":  VISION_MODEL,
-            "prompt": prompt,
-            "images": [image_b64],
-            "stream": False
-        },
-        timeout=60
-    )
-
-    raw  = response.json().get("response", "{}")
-    raw  = raw.replace("```json", "").replace("```", "").strip()
-    data = json.loads(raw)
-
+    print("[Finance Agent] Ollama not configured — skipping receipt OCR")
     return Transaction(
-        merchant = data.get("merchant", "Unknown"),
-        amount   = float(data.get("amount", 0)),
-        date     = data.get("date", datetime.now(timezone.utc).date().isoformat()),
-        category = data.get("category", "other"),
+        merchant = "Unknown",
+        amount   = 0.0,
+        date     = datetime.now(timezone.utc).date().isoformat(),
+        category = "other",
         source   = "receipt"
     )
 
@@ -222,70 +183,12 @@ def parse_bank_statement(pdf_path: str) -> list[Transaction]:
     """
     ## Parse Bank Statement
 
-    Converts each PDF page to an image, passes it to llama3.2-vision,
-    and extracts all transactions visible on that page.
-
-    Why images instead of reading PDF text directly?
-    Bank statement PDFs are often scanned or have complex layouts that
-    break text extractors. Vision models handle them more reliably.
-
-    Returns a flat list of all transactions across all pages.
+    Bank statement PDF parsing requires a vision model — currently not configured.
+    Returns an empty list.
     """
+    print("[Finance Agent] Ollama not configured — skipping bank statement parsing")
+    return []
 
-    transactions = []
-    doc = fitz.open(pdf_path)
-
-    for page_num in range(len(doc)):
-
-        page      = doc[page_num]
-        pix       = page.get_pixmap(dpi=300)                  # high-res render
-        image_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
-
-        prompt = f"""
-        This is page {page_num + 1} of a bank statement.
-        Extract every transaction row visible on this page.
-        Reply ONLY with a JSON array — no explanation, no markdown.
-
-        Each item must look exactly like this:
-        {{
-          "merchant":  "payee name or transaction description",
-          "amount":    amount as a positive number  (debits and credits both positive),
-          "date":      "YYYY-MM-DD",
-          "category":  "one of: food | transport | shopping | entertainment | health | emi | utilities | salary | other"
-        }}
-
-        Rules:
-        - Salary credits → category = "salary"
-        - EMI or loan repayments → category = "emi"
-        - If this page has no transactions, return an empty array: []
-        """
-
-        response = httpx.post(
-            f"{OLLAMA_URL}/api/generate",
-            json={
-                "model":  VISION_MODEL,
-                "prompt": prompt,
-                "images": [image_b64],
-                "stream": False
-            },
-            timeout=120    # bank statements can be dense — give it breathing room
-        )
-
-        raw  = response.json().get("response", "[]")
-        raw  = raw.replace("```json", "").replace("```", "").strip()
-        rows = json.loads(raw)
-
-        for row in rows:
-            transactions.append(Transaction(
-                merchant = row.get("merchant", "Unknown"),
-                amount   = float(row.get("amount", 0)),
-                date     = row.get("date", datetime.now(timezone.utc).date().isoformat()),
-                category = row.get("category", "other"),
-                source   = "bank_statement"
-            ))
-
-    doc.close()
-    return transactions
 
 
 # ── Step 1c — Fetch from Postgres via finance_server MCP ──────────────────────
