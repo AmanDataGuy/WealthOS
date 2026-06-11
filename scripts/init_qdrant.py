@@ -2,14 +2,14 @@
 WealthOS — Qdrant collection initialiser.
 
 Creates the `wealthos_docs` collection with:
-  - named dense vector  "dense"  (1024-dim cosine, Voyage AI voyage-finance-2)
+  - named dense vector  "dense"  (384-dim cosine, sentence-transformers/all-MiniLM-L6-v2)
   - named sparse vector "sparse" (BM25, fastembed Qdrant/bm25)
   - payload indexes on ticker, chunk_level, section  (used by query_engine filters)
 
 Run once before ingesting any documents:
     python scripts/init_qdrant.py
 
-Safe to re-run — exits without error if the collection already exists.
+If the collection already exists with different dimensions it is deleted and recreated.
 """
 
 import os
@@ -22,6 +22,7 @@ load_dotenv()
 QDRANT_URL      = os.getenv("QDRANT_URL",     "http://localhost:6333")
 QDRANT_API_KEY  = os.getenv("QDRANT_API_KEY", "")
 COLLECTION_NAME = "wealthos_docs"
+DENSE_DIMS      = 384
 
 
 def main():
@@ -53,22 +54,33 @@ def main():
         print("Start it first:  docker start wealthos-qdrant")
         sys.exit(1)
 
-    # Check if collection already exists
+    # Check if collection already exists — delete if dims don't match
     existing = [c.name for c in client.get_collections().collections]
     if COLLECTION_NAME in existing:
-        print(f"Collection '{COLLECTION_NAME}' already exists — nothing to do.")
         info = client.get_collection(COLLECTION_NAME)
-        print(f"  vectors_count : {info.vectors_count}")
-        print(f"  points_count  : {info.points_count}")
-        return
+        current_dims = info.config.params.vectors.get("dense", {})
+        # qdrant_client returns VectorParams object; .size holds dims
+        try:
+            current_size = current_dims.size
+        except AttributeError:
+            current_size = None
 
-    print(f"Creating collection '{COLLECTION_NAME}' ...")
+        if current_size == DENSE_DIMS:
+            print(f"Collection '{COLLECTION_NAME}' already exists with correct dims ({DENSE_DIMS}) — nothing to do.")
+            print(f"  points_count  : {info.points_count}")
+            return
+
+        print(f"Collection '{COLLECTION_NAME}' exists with dims={current_size}, expected {DENSE_DIMS} — deleting ...")
+        client.delete_collection(COLLECTION_NAME)
+        print(f"  Deleted.")
+
+    print(f"Creating collection '{COLLECTION_NAME}' (dense={DENSE_DIMS}-dim) ...")
 
     client.create_collection(
         collection_name=COLLECTION_NAME,
         vectors_config={
             "dense": VectorParams(
-                size=1024,
+                size=DENSE_DIMS,
                 distance=Distance.COSINE,
                 on_disk=False,
             ),
@@ -103,9 +115,9 @@ def main():
         field_schema=PayloadSchemaType.KEYWORD,
     )
 
-    print(f"\nDone. Collection '{COLLECTION_NAME}' created.")
+    print(f"\nDone. Collection '{COLLECTION_NAME}' created with {DENSE_DIMS}-dim dense vectors.")
     print("Next step: ingest documents with rag/indexer.py")
-    print("  python -m rag.indexer --ticker TCS.NS --file path/to/annual_report.pdf")
+    print("  python -m rag.indexer --file path/to/doc.pdf --user_id <uuid> --doc_type loan_statement")
 
 
 if __name__ == "__main__":
