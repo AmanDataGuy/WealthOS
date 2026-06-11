@@ -162,9 +162,8 @@ def log_eval_result(
         return
 
     try:
-        import weave
-
-        # Log as a Weave call so it shows up in the eval comparison UI
+        # wandb.log() sends metrics to the W&B dashboard.
+        # Weave traces are captured at the score_memo level via init_weave().
         if WANDB_AVAILABLE:
             wandb.log({
                 "prompt_strategy": prompt_strategy,
