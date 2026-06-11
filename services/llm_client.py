@@ -1,7 +1,7 @@
 # services/llm_client.py
 """
 Shared LLM client for WealthOS agents.
-Calls Groq API by default, falls back to local Ollama.
+Calls Groq API (llama-3.3-70b-versatile). Returns empty string if all keys fail.
 """
 
 import os
@@ -11,10 +11,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
-GROQ_MODEL   = "llama-3.3-70b-versatile"
-OLLAMA_MODEL = "qwen2.5:7b"
+# All configured Groq keys, in priority order, with empty values filtered out.
+_GROQ_KEYS = [
+    k for k in [
+        os.getenv("GROQ_API_KEY",   ""),
+        os.getenv("GROQ_API_KEY_2", ""),
+        os.getenv("GROQ_API_KEY_3", ""),
+    ] if k
+]
+
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 # Groq pricing for llama-3.3-70b-versatile (per 1M tokens)
 _COST_INPUT_PER_M  = 0.05
@@ -65,12 +71,11 @@ async def call_llm(
     temperature: float = 0.1,
     client: httpx.AsyncClient = None,
     model: str = None,
-    ollama_model: str = None,
 ) -> str:
     """
-    Call Groq API. Falls back to local Ollama if Groq fails.
+    Call Groq API. Returns empty string if no keys are configured or all keys fail.
     Reuses httpx.AsyncClient if provided, otherwise creates a temporary one.
-    Logs token usage and cost after every successful Groq call.
+    Logs token usage and cost after every successful call.
     """
     owns_client = False
     if client is None:
@@ -78,13 +83,17 @@ async def call_llm(
         owns_client = True
 
     try:
-        # Try Groq first
-        if GROQ_API_KEY:
+        if not _GROQ_KEYS:
+            logger.warning("[llm_client] No Groq keys configured")
+            return ""
+
+        for idx, key in enumerate(_GROQ_KEYS, 1):
+            logger.info("[llm] calling Groq with key %d/%d", idx, len(_GROQ_KEYS))
             try:
                 resp = await client.post(
                     "https://api.groq.com/openai/v1/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {GROQ_API_KEY}",
+                        "Authorization": f"Bearer {key}",
                         "Content-Type": "application/json",
                     },
                     json={
@@ -98,31 +107,24 @@ async def call_llm(
                     },
                     timeout=30.0,
                 )
+                if resp.status_code == 429:
+                    logger.warning("[llm] Groq key %d/%d rate-limited (429) — trying next key", idx, len(_GROQ_KEYS))
+                    continue
                 resp.raise_for_status()
                 data = resp.json()
-
                 if "usage" in data:
                     _track_usage(data["usage"], model or GROQ_MODEL)
-
                 return data["choices"][0]["message"]["content"].strip()
+            except httpx.HTTPStatusError as e:
+                logger.warning("[llm_client] Groq key %d HTTP %d — skipping", idx, e.response.status_code)
+                break
             except Exception as e:
-                print(f"  [llm_client] Groq failed, falling back to Ollama: {e}")
+                logger.warning("[llm_client] Groq key %d failed (%s) — skipping", idx, e)
+                break
+        else:
+            logger.warning("[llm_client] All %d Groq key(s) rate-limited — no fallback available", len(_GROQ_KEYS))
 
-        # Ollama fallback — no usage data available from Ollama's API
-        resp = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json={
-                "model": ollama_model or OLLAMA_MODEL,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user",   "content": user},
-                ],
-                "stream": False,
-            },
-            timeout=120.0,
-        )
-        resp.raise_for_status()
-        return resp.json()["message"]["content"].strip()
+        return ""
     finally:
         if owns_client:
             await client.aclose()
