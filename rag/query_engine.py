@@ -16,23 +16,30 @@ load_dotenv()
 
 QDRANT_URL      = os.getenv("QDRANT_URL",      "http://localhost:6333")
 QDRANT_API_KEY  = os.getenv("QDRANT_API_KEY",  "")
-VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY",  "")
 COHERE_API_KEY  = os.getenv("COHERE_API_KEY",  "")
 WEALTHOS_DB_URL = os.getenv("WEALTHOS_DB_URL", "")
 
-COLLECTION_NAME = "wealthos_docs"
-VOYAGE_MODEL    = "voyage-finance-2"
+COLLECTION_NAME  = "wealthos_docs"
+SENTENCE_MODEL   = "sentence-transformers/all-MiniLM-L6-v2"
+DENSE_DIMS       = 384
+
+# Module-level model cache — shared with indexer.py when running in-process
+_dense_model = None
+
+
+def _get_dense_model():
+    global _dense_model
+    if _dense_model is None:
+        from sentence_transformers import SentenceTransformer
+        _dense_model = SentenceTransformer(SENTENCE_MODEL)
+    return _dense_model
 
 
 # ── Embedding ─────────────────────────────────────────────────────────────────
 
 def embed_query_dense(text: str) -> list[float]:
-    if not VOYAGE_API_KEY:
-        return [0.0] * 1024
-    import voyageai
-    vc = voyageai.Client(api_key=VOYAGE_API_KEY)
-    result = vc.embed([text], model=VOYAGE_MODEL, input_type="query")
-    return result.embeddings[0]
+    model = _get_dense_model()
+    return model.encode([text], normalize_embeddings=True)[0].tolist()
 
 
 def embed_query_sparse(text: str):
