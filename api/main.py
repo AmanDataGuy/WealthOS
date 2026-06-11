@@ -163,15 +163,15 @@ async def analyze(req: AnalyzeRequest):
     try:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         try:
-            await redis.setex(
+            await redis.set(
                 f"analysis:{ticker}",
-                3600,
                 json.dumps({
                     "memo":       result.get("final_memo"),
                     "risk_score": risk.get("risk_score"),
                     "verdict":    risk.get("recommendation"),
                     "messages":   result.get("messages", []),
-                })
+                }),
+                ex=3600,
             )
         finally:
             await redis.aclose()
