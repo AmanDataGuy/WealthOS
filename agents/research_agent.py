@@ -8,16 +8,13 @@
 #   2. Fetches live market data via yfinance
 #   3. Fetches recent news via NewsAPI
 #   4. Fetches SEC filings for US tickers via EDGAR
-#   5. Summarizes everything using qwen2.5:7b (Ollama)
-#   6. Searches your RAG pipeline (pgvector) for relevant stored context
-#   7. Returns a clean ResearchSnapshot
+#   5. Searches your RAG pipeline for relevant stored context
+#   6. Returns a clean ResearchSnapshot
 #
 # No frameworks. No hidden deps. Pure Python — same philosophy as finance_agent.py.
 #
 # Dependencies:
 #   pip install yfinance asyncpg httpx pydantic python-dotenv
-#   ollama pull qwen2.5:7b
-#   ollama pull mxbai-embed-large
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -47,10 +44,7 @@ logger = logging.getLogger("research_agent")
 # ─────────────────────────────────────────────────────────────────────────────
 
 DB_URL       = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
-OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
 NEWSAPI_KEY  = os.getenv("NEWSAPI_KEY", "")
-TEXT_MODEL   = "qwen2.5:7b"        # reasoning + summarization
-EMBED_MODEL  = "mxbai-embed-large" # pgvector RAG embeddings
 RAG_TOP_K    = 5                   # how many RAG chunks to return
 
 
@@ -313,94 +307,14 @@ async def fetch_sec_insights(symbols: list[str]) -> list[SECInsight]:
 # ── Tool 5 ────────────────────────────────────────────────────────────────────
 
 async def summarize_with_llm(text: str, instruction: str) -> str:
-    """
-    Send any text to qwen2.5:7b (Ollama) for summarization or analysis.
-    This is the only place in this file where the LLM is called directly.
-    Returns a plain string. Falls back to empty string on failure.
-
-    Examples of instruction:
-        "Summarize this in 2 sentences for a retail investor"
-        "List 3 risk flags from this filing in bullet points"
-        "Write a 3-sentence macro market summary from these signals"
-    """
-    prompt = f"{instruction}\n\n{text}"
-
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{OLLAMA_URL}/api/generate",
-                json={
-                    "model":  TEXT_MODEL,
-                    "prompt": prompt,
-                    "stream": False,
-                }
-            )
-            resp.raise_for_status()
-            return resp.json().get("response", "").strip()
-
-    except Exception as e:
-        logger.error("summarize_with_llm failed: %s", e)
-        return ""
+    return ""
 
 
 # ── Tool 6 ────────────────────────────────────────────────────────────────────
 
 async def query_rag(question: str, user_id: str) -> str:
-    """
-    Search the pgvector RAG pipeline for context relevant to a question.
-    Embeds the question using mxbai-embed-large, then runs a cosine
-    similarity search against the research_documents table in Postgres.
-
-    Returns the top-k matching chunks joined as a single string.
-    Returns empty string if the table doesn't exist yet — won't crash.
-    """
-    if not DB_URL:
-        return ""
-
-    # Step 1 — embed the question
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                f"{OLLAMA_URL}/api/embeddings",
-                json={"model": EMBED_MODEL, "prompt": question}
-            )
-            resp.raise_for_status()
-            embedding = resp.json().get("embedding", [])
-    except Exception as e:
-        logger.error("Embedding failed: %s", e)
-        return ""
-
-    if not embedding:
-        return ""
-
-    # Step 2 — vector search in Postgres
-    try:
-        conn = await asyncpg.connect(DB_URL, timeout=10)
-        try:
-            rows = await conn.fetch(
-                """
-                SELECT content
-                FROM research_documents
-                WHERE user_id = $1
-                ORDER BY embedding <-> $2::vector
-                LIMIT $3
-                """,
-                user_id,
-                str(embedding),  # asyncpg passes as text, pgvector casts it
-                RAG_TOP_K
-            )
-            chunks = [r["content"] for r in rows]
-            return "\n\n".join(chunks)
-
-        finally:
-            await conn.close()
-
-    except asyncpg.exceptions.UndefinedTableError:
-        logger.info("research_documents table not found yet — RAG skipped")
-        return ""
-    except Exception as e:
-        logger.error("RAG query failed: %s", e)
-        return ""
+    logger.info("Ollama not configured, skipping")
+    return ""
 
 
 # ═════════════════════════════════════════════════════════════════════════════
