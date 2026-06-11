@@ -21,7 +21,6 @@ Synthesizes all agent outputs into a personalized investment memo.
 
 ## LLM
 # Uses Groq llama-3.3-70b for speed and quality.
-# Falls back to local Ollama if Groq fails.
 """
 
 import os
@@ -37,9 +36,7 @@ from services.llm_client import call_llm
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
 GROQ_MODEL   = "llama-3.3-70b-versatile"
-OLLAMA_MODEL = "qwen2.5:7b"
 COMPILED_PROMPT_PATH = "eval/compiled_writer.json"
 
 
@@ -256,7 +253,6 @@ async def write_section(
 ) -> str:
     """
     Writes one memo section using Groq.
-    Falls back to Ollama if Groq fails.
     """
     system = f"""You are a senior financial analyst writing a professional investment memo.
 Write the **{section_name}** section based on the provided data.

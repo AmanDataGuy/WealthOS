@@ -31,13 +31,11 @@ load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 DATABASE_URL = os.getenv("WEALTHOS_DB_URL", "postgresql://postgres:postgres@localhost:5432/wealthos")
-OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 REDIS_URL    = os.getenv("REDIS_URL", "redis://localhost:6379")
 CACHE_TTL    = 60 * 15   # 15 minutes
 
-GEN_MODEL    = "llama-3.3-70b-versatile"   # Groq model
-OLLAMA_MODEL = "qwen2.5:7b"                # fallback local
+GEN_MODEL    = "llama-3.3-70b-versatile"
 
 
 def clean_db_url(url: str) -> str:
@@ -127,10 +125,10 @@ async def cache_get(redis: aioredis.Redis, ticker: str) -> Optional[FinancialSna
 
 async def cache_set(redis: aioredis.Redis, ticker: str, snapshot: FinancialSnapshot):
     try:
-        await redis.setex(
+        await redis.set(
             f"snapshot:{ticker}",
-            CACHE_TTL,
-            snapshot.model_dump_json()
+            snapshot.model_dump_json(),
+            ex=CACHE_TTL,
         )
     except Exception:
         pass
