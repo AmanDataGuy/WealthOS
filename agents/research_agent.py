@@ -130,7 +130,7 @@ async def get_tracked_symbols(user_id: str) -> list[str]:
         return []
 
     try:
-        conn = await asyncpg.connect(DB_URL)
+        conn = await asyncpg.connect(DB_URL, timeout=10)
         try:
             rows = await conn.fetch(
                 "SELECT symbol FROM tracked_symbols WHERE user_id = $1",
@@ -375,7 +375,7 @@ async def query_rag(question: str, user_id: str) -> str:
 
     # Step 2 — vector search in Postgres
     try:
-        conn = await asyncpg.connect(DB_URL)
+        conn = await asyncpg.connect(DB_URL, timeout=10)
         try:
             rows = await conn.fetch(
                 """
@@ -482,11 +482,21 @@ async def run_research_agent(
     #
     logger.info("Fetching market data, news, and SEC filings...")
 
-    market_signals, news_items, sec_insights = await asyncio.gather(
-        asyncio.to_thread(fetch_market_data, symbols),
-        fetch_news(symbols),
-        fetch_sec_insights(symbols),
+    _results = await asyncio.gather(
+        asyncio.wait_for(asyncio.to_thread(fetch_market_data, symbols), timeout=30),
+        asyncio.wait_for(fetch_news(symbols),         timeout=20),
+        asyncio.wait_for(fetch_sec_insights(symbols), timeout=25),
+        return_exceptions=True,
     )
+
+    market_signals = _results[0] if not isinstance(_results[0], BaseException) else []
+    news_items     = _results[1] if not isinstance(_results[1], BaseException) else []
+    sec_insights   = _results[2] if not isinstance(_results[2], BaseException) else []
+
+    _failed = [("market", _results[0]), ("news", _results[1]), ("sec", _results[2])]
+    for _name, _r in _failed:
+        if isinstance(_r, BaseException):
+            logger.warning("Parallel fetch %s failed: %s: %s", _name, type(_r).__name__, _r)
 
     logger.info(
         "Fetched — signals: %d | news: %d | SEC: %d",

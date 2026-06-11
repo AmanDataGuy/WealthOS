@@ -155,31 +155,50 @@ async def fetch_from_db(ticker: str, conn: asyncpg.Connection) -> dict:
 
 # ── Market Data Fetcher ────────────────────────────────────────────────────────
 
+async def _fetch_via_mcp_client(ticker: str) -> tuple[dict, dict, dict]:
+    """Call market MCP tools through the subprocess protocol."""
+    from services.mcp_client import MCPClient
+    async with MCPClient("mcp_servers/market_server.py") as mcp:
+        price_data = await mcp.call_tool("get_price",      {"ticker": ticker}) or {}
+        fin_data   = await mcp.call_tool("get_financials",  {"ticker": ticker}) or {}
+        info_data  = await mcp.call_tool("get_info",        {"ticker": ticker}) or {}
+    return price_data, fin_data, info_data
+
+
 async def fetch_market_data(ticker: str, client: httpx.AsyncClient) -> dict:
-    """Fetch live market data from market_server MCP tools."""
+    """
+    Fetch live market data via MCP protocol (stdio) instead of direct import.
+    Falls back to direct module import if the subprocess doesn't respond within 10s.
+    """
+    price_data, fin_data, info_data = {}, {}, {}
     try:
-        from mcp_servers.market_server import get_price, get_financials, get_info
-        
-        # We can call these directly since they are in the same repo
-        price_data = get_price(ticker)
-        fin_data   = get_financials(ticker)
-        info_data  = get_info(ticker)
-        
-        return {
-            "current_price":  price_data.get("current_price"),
-            "pe_ratio":       fin_data.get("pe_ratio"),
-            "eps_diluted":    fin_data.get("eps_trailing"),
-            "market_cap":     price_data.get("market_cap"),
-            "week_52_high":   price_data.get("week_52_high"),
-            "week_52_low":    price_data.get("week_52_low"),
-            "price_to_book":  None, # not currently in market_server
-            "dividend_yield": fin_data.get("dividend_yield"),
-            "company_name":   info_data.get("name"),
-            "sector":         info_data.get("sector"),
-        }
+        price_data, fin_data, info_data = await asyncio.wait_for(
+            _fetch_via_mcp_client(ticker), timeout=10
+        )
+    except asyncio.TimeoutError:
+        print(f"[data_agent] MCPClient timed out after 10s for {ticker} — falling back to direct import")
+        try:
+            from mcp_servers.market_server import get_price, get_financials, get_info
+            price_data = await asyncio.wait_for(asyncio.to_thread(get_price,      ticker), timeout=15) or {}
+            fin_data   = await asyncio.wait_for(asyncio.to_thread(get_financials,  ticker), timeout=15) or {}
+            info_data  = await asyncio.wait_for(asyncio.to_thread(get_info,        ticker), timeout=15) or {}
+        except Exception as e2:
+            print(f"[data_agent] Direct import fallback also failed: {e2}")
     except Exception as e:
         print(f"[data_agent] Market data fetch failed: {e}")
-        return {}
+
+    return {
+        "current_price":  price_data.get("current_price"),
+        "pe_ratio":       fin_data.get("pe_ratio"),
+        "eps_diluted":    fin_data.get("eps_trailing"),
+        "market_cap":     price_data.get("market_cap"),
+        "week_52_high":   price_data.get("week_52_high"),
+        "week_52_low":    price_data.get("week_52_low"),
+        "price_to_book":  None,
+        "dividend_yield": fin_data.get("dividend_yield"),
+        "company_name":   info_data.get("name"),
+        "sector":         info_data.get("sector"),
+    }
 
 
 # ── RAG Fetcher ───────────────────────────────────────────────────────────────

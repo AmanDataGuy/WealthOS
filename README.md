@@ -11,7 +11,7 @@
 [![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
 
-*7 specialized agents × 7 MCP servers × 43 tools → one personalized investment memo in under 90 seconds.*
+*7 specialized agents × 7 MCP servers × 41 tools → one personalized investment memo in under 90 seconds.*
 
 </div>
 
@@ -53,9 +53,9 @@ flowchart LR
     %% Row 3: 7 Agents (Horizontal)
     M1 & M2 & M3 & M4 & M5 --> A1[Finance Agent<br>Health Score]:::agent
     M1 & M2 & M3 & M4 & M5 --> A2[Research Agent<br>Parallel Fetch]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A3[Data Agent<br>PydanticAI + Redis]:::agent
+    M1 & M2 & M3 & M4 & M5 --> A3[Data Agent<br>asyncpg + Redis]:::agent
     M1 & M2 & M3 & M4 & M5 --> A4[Risk Agent<br>Debate Pattern]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A5[Code Agent<br>Smolagents + E2B]:::agent
+    M1 & M2 & M3 & M4 & M5 --> A5[Code Agent<br>E2B Sandbox]:::agent
     M1 & M2 & M3 & M4 & M5 --> A6[Rebalancing Agent<br>Allocation Warnings]:::agent
     M1 & M2 & M3 & M4 & M5 --> A7[Writer Agent<br>DSPy + Guardrails]:::agent
 
@@ -63,12 +63,12 @@ flowchart LR
     A1 & A2 & A3 & A4 & A5 & A6 & A7 --> Orchestrator[LangGraph Orchestrator<br>8 Nodes · Parallel Execution]:::orch
 
     %% Row 5: Intelligence Layer (Horizontal)
-    Orchestrator --> RAG[RAG Pipeline<br>mxbai-embed · pgvector]:::intel
+    Orchestrator --> RAG[RAG Pipeline<br>Voyage AI · Qdrant]:::intel
     Orchestrator --> Mem0[Mem0 Memory<br>User Context]:::intel
     Orchestrator --> Temporal[Temporal<br>Scheduled Workflows]:::intel
 
     %% Row 6: Data Layer (Horizontal)
-    Orchestrator --> DB[(PostgreSQL<br>+ pgvector)]:::data
+    Orchestrator --> DB[(PostgreSQL<br>+ Qdrant Cloud)]:::data
     Orchestrator --> Cache[(Redis Cache)]:::data
     Orchestrator --> Sandbox[E2B Sandbox]:::data
     Orchestrator --> Ollama[Ollama Local<br>qwen2.5:7b]:::data
@@ -87,13 +87,13 @@ flowchart LR
 
 | Agent | Framework | Key Capability | Output |
 |:---:|:---:|:---:|:---:|
-| Finance Agent | Pure Python | z-score anomaly detection (σ = 1.5) | Health Score 0–100, surplus, subscriptions |
+| Finance Agent | Pure Python | z-score anomaly detection (σ = 2.0) | Health Score 0–100, surplus, subscriptions |
 | Research Agent | asyncio | parallel fetch — market + news + SEC | Sentiment, macro context |
-| Data Agent | PydanticAI | schema-validated numbers, Redis 15-min TTL | `FinancialSnapshot` with confidence flag |
+| Data Agent | asyncpg + httpx | schema-validated numbers, Redis 15-min TTL | `FinancialSnapshot` with confidence flag |
 | Risk Agent | LangGraph (3-node debate) | Macro, Stock, Scorer agents | Risk score 1–10 + recommendation |
-| Code Agent | Smolagents + E2B | sandbox-executed Python | DCF intrinsic value, Monte Carlo distribution |
+| Code Agent | E2B | sandbox-executed Python | DCF intrinsic value, Monte Carlo distribution |
 | Rebalancing Agent | Pure Python | >40% sector concentration warning | Rebalance recommendation |
-| Writer Agent | DSPy + LangGraph | compiled few-shot prompt, Guardrails AI validated | Final investment memo |
+| Writer Agent | DSPy + LangGraph | compiled few-shot prompt, custom Pydantic validators | Final investment memo |
 
 </div>
 
@@ -108,14 +108,14 @@ flowchart LR
 | Server | Tools | Data Source |
 |:---:|:---:|:---:|
 | `market_server` | 10 | yfinance — price, P/E, market cap, historical |
-| `sec_edgar_server` | 3 | SEC EDGAR — 10‑K / 10‑Q filing URLs |
-| `news_server` | 3 | NewsAPI — headlines + sentiment |
-| `finance_server` | 5 | PostgreSQL — transactions, anomalies, subscriptions |
-| `calculator_server` | 13 | DCF, WACC, CAGR, capital gains, tax math |
-| `tax_server` | 5 | 80C / HRA / slabs — old vs new regime |
-| `portfolio_server` | 4 | PostgreSQL + yfinance — holdings, P&L, allocation |
+| `sec_edgar_server` | 4 | SEC EDGAR — 10‑K / 10‑Q filing URLs + XBRL facts |
+| `news_server` | 4 | NewsAPI + Firecrawl — headlines, sentiment, Reddit |
+| `finance_server` | 6 | PostgreSQL — transactions, anomalies, subscriptions, EMIs |
+| `calculator_server` | 7 | XIRR, SIP, EMI, FIRE, goal savings, compound interest |
+| `tax_server` | 4 | 80C / HRA / slabs — old vs new regime (FY 2024-25) |
+| `portfolio_server` | 6 | PostgreSQL + yfinance — holdings, P&L, allocation, add/remove |
 
-**Total: 43 tools across 7 servers**
+**Total: 41 tools across 7 servers**
 
 </div>
 
@@ -129,17 +129,17 @@ flowchart LR
 
 | Category | Implementation | Why It Matters |
 |:---:|:---:|:---|
-| **Observability** | LangSmith · AgentOps · W&B Weave | 3‑layer tracing: pipeline latency, agent decisions, eval scores |
+| **Observability** | LangSmith · W&B Weave (eval scoring) | pipeline traces via LangSmith; eval quality tracking via Weave |
 | **Memory** | Mem0 vector memory | Cross‑session recall of past analyses and user context |
 | **Durability** | Temporal workflows | Crash‑safe execution with automatic retry & checkpointing |
 | **Code Sandbox** | E2B | Secure Python execution for DCF & Monte Carlo models |
-| **Retrieval** | Hybrid (vector + keyword injection) | Prevents hallucinated numbers from financial tables |
-| **LLM Stack** | `qwen2.5:7b` + `mxbai-embed-large` (Ollama) | 100% local · zero API cost · fits on RTX 3050 6GB |
+| **Retrieval** | Qdrant hybrid search (Voyage AI dense + BM25 sparse) + Cohere reranking | Prevents hallucinated numbers from financial tables |
+| **LLM Stack** | Groq `llama-3.3-70b-versatile` (primary) · Ollama `qwen2.5:7b` (fallback) | Groq for speed; local Ollama fallback when offline |
 | **Parallelism** | `asyncio.gather` in LangGraph | 2× speedup vs sequential agent execution |
-| **Validation** | Guardrails AI + Pydantic v2 | Blocks impossible outputs before they reach the user |
+| **Validation** | Custom Pydantic v2 validators | Blocks impossible outputs before they reach the user |
 | **Prompt Optimization** | DSPy BootstrapFewShot (15 golden examples) | Compiled prompt measurably outperforms hand‑written baseline |
 | **Notifications** | Composio | Gmail + WhatsApp alerts without OAuth boilerplate |
-| **Vector Store** | pgvector (PostgreSQL extension) | One database for everything—no separate Qdrant container |
+| **Vector Store** | Qdrant Cloud (hybrid dense+sparse) | Separate from Postgres; optimized for similarity search |
 
 </div>
 
@@ -154,17 +154,17 @@ flowchart LR
 | Layer | Technologies |
 |:---:|:---|
 | **Orchestration** | LangGraph (8‑node state machine) · Temporal (durable workflows) |
-| **Agents** | PydanticAI · Smolagents · Pure Python |
-| **LLM** | `qwen2.5:7b` (Ollama) · Groq (fallback) |
-| **RAG** | Custom indexer · pgvector · `mxbai-embed-large` (1,024‑dim · ~1,640 chunks) |
+| **Agents** | Pure Python · asyncio |
+| **LLM** | Groq `llama-3.3-70b-versatile` (primary) · Ollama `qwen2.5:7b` (fallback) |
+| **RAG** | Qdrant Cloud hybrid search · Voyage AI `voyage-finance-2` (1,024‑dim) · Cohere reranking |
 | **Memory** | Mem0 (cross‑session vector memory) |
 | **Prompt Optimization** | DSPy (BootstrapFewShot) |
 | **Validation** | Guardrails AI · Pydantic v2 |
 | **Code Execution** | E2B Sandbox |
-| **Database** | PostgreSQL 16 (9 tables, pgvector, pgcrypto) |
+| **Database** | PostgreSQL 16 + Qdrant Cloud (vector store) |
 | **Cache** | Redis (15‑min TTL, pub/sub) |
 | **Notifications** | Composio (Gmail + WhatsApp) |
-| **Observability** | LangSmith · AgentOps · W&B Weave |
+| **Observability** | LangSmith · W&B Weave |
 | **Backend** | FastAPI |
 | **Frontend** | Streamlit |
 

@@ -85,6 +85,7 @@ async def finance_node(state: WealthOSState) -> dict:
 
 # ── Data Node ──────────────────────────────────────────────────────────────────
 
+@trace_node("data_node")
 async def data_node(state: WealthOSState) -> dict:
     print("\n[Graph] Data Node running...")
     ticker = state["tickers"][0] if state.get("tickers") else None
@@ -105,6 +106,7 @@ async def data_node(state: WealthOSState) -> dict:
 
 # ── Research Node ──────────────────────────────────────────────────────────────
 
+@trace_node("research_node")
 async def research_node(state: WealthOSState) -> dict:
     print("\n[Graph] Research Node running...")
     ticker = state["tickers"][0] if state.get("tickers") else "Unknown"
@@ -152,6 +154,7 @@ async def risk_node(state: WealthOSState) -> dict:
 
 # ── Code Node ──────────────────────────────────────────────────────────────────
 
+@trace_node("code_node")
 async def code_node(state: WealthOSState) -> dict:
     print("\n[Graph] Code Node running...")
     ticker   = state["tickers"][0] if state.get("tickers") else None
@@ -173,6 +176,7 @@ async def code_node(state: WealthOSState) -> dict:
 
 # ── Validation Node ────────────────────────────────────────────────────────────
 
+@trace_node("validation_node")
 async def validation_node(state: WealthOSState) -> dict:
     print("\n[Graph] Validation Node running...")
     valid, error = validate_all(state)
@@ -189,6 +193,7 @@ async def validation_node(state: WealthOSState) -> dict:
 
 # ── Rebalancing Node ───────────────────────────────────────────────────────────
 
+@trace_node("rebalancing_node")
 async def rebalancing_node(state: WealthOSState) -> dict:
     print("\n[Graph] Rebalancing Node running...")
     user_id = state.get("user_id", "test-user")
@@ -261,6 +266,7 @@ async def writer_node(state: WealthOSState) -> dict:
 
 # ── Error Node ─────────────────────────────────────────────────────────────────
 
+@trace_node("error_node")
 async def error_node(state: WealthOSState) -> dict:
     print(f"\n[Graph] Error Node — {state.get('error')}")
     return {

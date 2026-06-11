@@ -13,6 +13,8 @@ Endpoints:
 
 import os
 import json
+import time
+import logging
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
@@ -23,12 +25,21 @@ from typing import Optional
 import redis.asyncio as aioredis
 from dotenv import load_dotenv
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
+os.makedirs(LOGS_DIR, exist_ok=True)
+QUERY_LOG_PATH = os.path.join(LOGS_DIR, "query_log.jsonl")
+
 load_dotenv()
 
 from graph.graph  import wealthos_graph
 from graph.state  import WealthOSState
 from observability.langsmith_config import verify_langsmith
 from observability.weave_config     import init_weave
+from services.llm_client            import get_session_cost
+from agents.agent_cards             import get_agent_card, list_all_agents
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
@@ -77,6 +88,18 @@ class BriefingRequest(BaseModel):
     user_id: str = "test-user"
 
 
+# ── Query logging ─────────────────────────────────────────────────────────────
+
+def _write_query_log(entry: dict):
+    """Append one JSON line to logs/query_log.jsonl. Swallows errors so a log
+    failure never breaks a real request."""
+    try:
+        with open(QUERY_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception as e:
+        logger.warning("[query_log] Failed to write log entry: %s", e)
+
+
 # ── Health check ───────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -106,10 +129,30 @@ async def analyze(req: AnalyzeRequest):
         "messages":           [],
     }
 
+    t0 = time.monotonic()
+    error_detail = None
+    result = {}
     try:
         result = await wealthos_graph.ainvoke(initial_state)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_detail = str(e)
+        raise HTTPException(status_code=500, detail=error_detail)
+    finally:
+        latency_ms = round((time.monotonic() - t0) * 1000)
+        cost_snap  = get_session_cost()
+        log_entry  = {
+            "query":              req.query[:100],
+            "tickers":            [ticker],
+            "user_id":            req.user_id,
+            "latency_ms":         latency_ms,
+            "total_tokens":       cost_snap["total_tokens"],
+            "estimated_cost_usd": round(cost_snap["estimated_cost_usd"], 6),
+            "agents_invoked":     [m.split("]")[0].lstrip("[") for m in result.get("messages", []) if "✅" in m or "❌" in m],
+            "success":            error_detail is None,
+            "error":              error_detail,
+        }
+        logger.info("[analyze] %s", json.dumps(log_entry))
+        _write_query_log(log_entry)
 
     risk    = result.get("risk_report") or {}
     code    = result.get("code_output") or {}
@@ -255,6 +298,23 @@ async def briefing_history(user_id: str):
         return {"user_id": user_id, "history": [json.loads(i) for i in items]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Agent cards (A2A foundation) ──────────────────────────────────────────────
+
+@app.get("/agents")
+async def agents_list():
+    """Return metadata cards for all 7 agents."""
+    return {"agents": list_all_agents()}
+
+
+@app.get("/agents/{agent_name}")
+async def agent_detail(agent_name: str):
+    """Return the metadata card for a specific agent."""
+    card = get_agent_card(agent_name)
+    if not card:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
+    return card
 
 
 # ── Run directly ───────────────────────────────────────────────────────────────

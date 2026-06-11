@@ -218,14 +218,22 @@ def extract_inputs(snapshot) -> dict:
     else:
         data = {}
 
-    cf  = data.get("cash_flow", {})
-    inc = data.get("income_statement", {})
-    val = data.get("valuation", {})
-    gr  = data.get("growth", {})
+    # Use `or {}` so a None sub-dict doesn't cause AttributeError on .get()
+    cf  = data.get("cash_flow")        or {}
+    inc = data.get("income_statement") or {}
+    val = data.get("valuation")        or {}
+    gr  = data.get("growth")           or {}
 
-    fcf           = cf.get("free_cash_flow")   or (inc.get("net_income", 1000) * 0.7)
-    current_price = val.get("current_price")   or 100.0
-    shares        = (val.get("market_cap") or 100e9) / (current_price * 1e6)
+    # dict.get(key, default) returns the default only when the KEY IS ABSENT.
+    # model_dump() always includes keys with value None, so use `(x or fallback)`
+    # instead of get(key, default) for fields that may be None in the dict.
+    raw_fcf = cf.get("free_cash_flow")
+    raw_ni  = inc.get("net_income")
+    fcf     = raw_fcf or ((raw_ni or 1000) * 0.7)
+
+    current_price = val.get("current_price") or 100.0
+    market_cap    = val.get("market_cap")    or 100e9
+    shares        = market_cap / (current_price * 1e6)
     growth_cagr   = (gr.get("revenue_cagr_3y") or 10.0) / 100
     pe            = val.get("pe_ratio") or 25.0
 
@@ -234,8 +242,8 @@ def extract_inputs(snapshot) -> dict:
     wacc = 0.08 if pe < 20 else 0.10 if pe < 40 else 0.12
 
     return {
-        "fcf":           abs(fcf) if fcf else 1000.0,
-        "current_price": current_price,
+        "fcf":           abs(fcf),
+        "current_price": float(current_price),
         "shares":        max(shares, 0.1),
         "growth_rate":   min(max(growth_cagr, 0.03), 0.35),   # cap 3-35%
         "wacc":          wacc,
@@ -259,10 +267,18 @@ async def run_code_agent(
     print(f"  Code Agent — {ticker}")
     print(f"{'='*50}")
 
-    inputs = extract_inputs(financial_snapshot) if financial_snapshot else {
+    _defaults = {
         "fcf": 1000.0, "current_price": 100.0, "shares": 10.0,
         "growth_rate": 0.10, "wacc": 0.10, "growth_std": 0.25,
     }
+    if financial_snapshot:
+        try:
+            inputs = extract_inputs(financial_snapshot)
+        except Exception as e:
+            print(f"  ⚠️  extract_inputs failed ({e}) — using default inputs")
+            inputs = _defaults
+    else:
+        inputs = _defaults
 
     print(f"  Inputs: FCF=${inputs['fcf']:,.0f}M | Price=${inputs['current_price']:.2f} | "
           f"Growth={inputs['growth_rate']*100:.1f}% | WACC={inputs['wacc']*100:.1f}%")
