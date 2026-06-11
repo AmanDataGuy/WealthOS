@@ -189,11 +189,14 @@ async def run_in_sandbox(code: str) -> tuple[Optional[str], Optional[str]]:
     def _run():
         from e2b_code_interpreter import Sandbox
         try:
-            with Sandbox(api_key=e2b_api_key) as sandbox:
+            with Sandbox.create(api_key=e2b_api_key) as sandbox:
                 execution = sandbox.run_code(code, timeout=30)
                 if execution.error:
                     return None, execution.error.value
-                return execution.text, None
+                # print() in sandbox code goes to logs.stdout (List[str]), not .text
+                # .text only returns the last REPL expression value
+                stdout = "\n".join(execution.logs.stdout)
+                return stdout if stdout else None, None
         except Exception as e:
             return None, str(e)
             
