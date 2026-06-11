@@ -26,12 +26,10 @@ load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "")
-OLLAMA_URL    = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
 # DeepSeek R1 on Groq for reasoning tasks
 REASONING_MODEL = "llama-3.3-70b-versatile"
 FAST_MODEL      = "llama-3.3-70b-versatile"
-OLLAMA_MODEL    = "qwen2.5:7b"
 
 
 # ── Pydantic Schemas ───────────────────────────────────────────────────────────
