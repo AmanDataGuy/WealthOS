@@ -1,5 +1,5 @@
 # rag/indexer.py
-# Ingestion engine — PDF/HTML → hierarchical chunks → Voyage dense + BM25 sparse → Qdrant
+# Ingestion engine — PDF/HTML → hierarchical chunks → MiniLM dense + BM25 sparse → Qdrant
 #
 # Two chunk levels per filing:
 #   level=1  section parent  (~1500 words, one per detected section)
@@ -21,12 +21,23 @@ load_dotenv()
 
 QDRANT_URL     = os.getenv("QDRANT_URL",     "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
-VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
 
 COLLECTION_NAME  = "wealthos_docs"
-VOYAGE_MODEL     = "voyage-finance-2"
-VOYAGE_DIMS      = 1024
+SENTENCE_MODEL   = "sentence-transformers/all-MiniLM-L6-v2"
+DENSE_DIMS       = 384
 CHILD_MAX_WORDS  = 150
+
+# Module-level model cache — loaded once, reused across all batches
+_dense_model = None
+
+
+def _get_dense_model():
+    global _dense_model
+    if _dense_model is None:
+        from sentence_transformers import SentenceTransformer
+        print(f"[indexer] Loading {SENTENCE_MODEL} ...")
+        _dense_model = SentenceTransformer(SENTENCE_MODEL)
+    return _dense_model
 
 SECTION_HEADERS = {
     "consolidated statements of operations":  "income_statement",
@@ -75,7 +86,7 @@ def ensure_collection():
         client.create_collection(
             collection_name=COLLECTION_NAME,
             vectors_config={
-                "dense": VectorParams(size=VOYAGE_DIMS, distance=Distance.COSINE),
+                "dense": VectorParams(size=DENSE_DIMS, distance=Distance.COSINE),
             },
             sparse_vectors_config={
                 "sparse": SparseVectorParams(index=SparseIndexParams(on_disk=False)),
@@ -88,14 +99,10 @@ def ensure_collection():
 # ── Embeddings ────────────────────────────────────────────────────────────────
 
 def embed_dense_batch(texts: list[str]) -> list[list[float]]:
-    """Voyage AI finance-2. Falls back to zero vectors if key absent."""
-    if not VOYAGE_API_KEY:
-        print("[indexer] VOYAGE_API_KEY not set — using zero vectors (search quality degraded)")
-        return [[0.0] * VOYAGE_DIMS for _ in texts]
-    import voyageai
-    vc = voyageai.Client(api_key=VOYAGE_API_KEY)
-    result = vc.embed(texts, model=VOYAGE_MODEL, input_type="document")
-    return result.embeddings
+    """sentence-transformers/all-MiniLM-L6-v2 — 384-dim, CPU, no API key needed."""
+    model = _get_dense_model()
+    embeddings = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+    return embeddings.tolist()
 
 
 def embed_sparse_batch(texts: list[str]) -> list:
@@ -316,6 +323,7 @@ class FilingIndexer:
         ticker: str,
         filing_type: str,
         filing_date: str = "",
+        user_id: str = "",
     ) -> dict:
         print(f"[indexer] {ticker} {filing_type} — extracting {file_path}")
 
@@ -325,7 +333,8 @@ class FilingIndexer:
             return {"error": f"Extraction failed: {e}", "ticker": ticker}
 
         tables = sum(1 for e in elements if e["type"] == "table")
-        print(f"[indexer] {len(elements)} elements ({tables} tables, {len(elements)-tables} prose pages)")
+        n_elements = len(elements)
+        print(f"[indexer] {n_elements} elements ({tables} tables, {n_elements - tables} prose pages)")
 
         chunks = await asyncio.to_thread(
             build_hierarchical_chunks, elements, ticker, filing_type,
@@ -365,6 +374,7 @@ class FilingIndexer:
 
         # Build Qdrant points
         from qdrant_client.models import PointStruct, SparseVector
+        extra = {"user_id": user_id} if user_id else {}
         points = [
             PointStruct(
                 id=c["id"],
@@ -375,7 +385,7 @@ class FilingIndexer:
                         values=sv.values.tolist(),
                     ),
                 },
-                payload={k: v for k, v in c.items() if k != "id"},
+                payload={k: v for k, v in c.items() if k != "id"} | extra,
             )
             for c, dv, sv in zip(chunks, all_dense, all_sparse)
         ]
@@ -392,6 +402,7 @@ class FilingIndexer:
 
         return {
             "ticker": ticker, "filing_type": filing_type,
+            "elements_extracted": n_elements,
             "parent_chunks": len(parents), "child_chunks": len(children),
             "total_points": len(points), "status": "success",
         }
@@ -401,10 +412,47 @@ class FilingIndexer:
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) < 4:
-        print("Usage: python rag/indexer.py <file_path> <ticker> <filing_type> [filing_date]")
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="python -m rag.indexer",
+        description="Index a PDF or HTML document into Qdrant for WealthOS RAG.",
+    )
+    parser.add_argument("--file",     required=True,
+                        help="Path to the PDF (or HTML) file to index")
+    parser.add_argument("--user_id",  required=True,
+                        help="User UUID (e.g. 00000000-0000-0000-0000-000000000001)")
+    parser.add_argument("--doc_type", default="personal_finance",
+                        help="Document type / filing type (default: personal_finance)")
+    parser.add_argument("--ticker",   default="PERSONAL",
+                        help="Ticker symbol associated with this document (default: PERSONAL)")
+    args = parser.parse_args()
+
+    file_path = Path(args.file)
+    if not file_path.exists():
+        print(f"Error: file not found: {file_path}", file=sys.stderr)
         sys.exit(1)
-    indexer = FilingIndexer()
-    result  = asyncio.run(indexer.index_filing(sys.argv[1], sys.argv[2], sys.argv[3],
-                                                sys.argv[4] if len(sys.argv) > 4 else ""))
-    print(result)
+
+    print(f"Indexing {file_path.name}...")
+
+    try:
+        indexer = FilingIndexer()
+        result = asyncio.run(
+            indexer.index_filing(
+                file_path=str(file_path),
+                ticker=args.ticker,
+                filing_type=args.doc_type,
+                user_id=args.user_id,
+            )
+        )
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if result.get("error"):
+        print(f"Error: {result['error']}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Extracted {result['elements_extracted']} chunks")
+    print(f"Indexed {result['total_points']} chunks into Qdrant")
+    print("Done.")
