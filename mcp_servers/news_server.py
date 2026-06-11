@@ -52,7 +52,7 @@ def from_cache(key: str):
 
 def to_cache(key: str, data: dict, ttl: int):
     try:
-        r.setex(key, ttl, json.dumps(data, default=str))
+        r.set(key, json.dumps(data, default=str), ex=ttl)
     except Exception:
         pass
 

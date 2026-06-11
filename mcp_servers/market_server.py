@@ -56,7 +56,7 @@ def from_cache(key):
 
 def to_cache(key, data, ttl):
     try:
-        r.setex(key, ttl, json.dumps(data, default=str))
+        r.set(key, json.dumps(data, default=str), ex=ttl)
     except Exception:
         pass
 
