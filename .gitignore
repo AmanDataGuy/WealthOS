@@ -58,6 +58,11 @@ Thumbs.db
 plan_ahead.md
 project_status.md
 
+# Session notes & local memory — never commit
+changes1.md
+notes.md
+.claude/
+
 # Docker volumes (if you add later)
 postgres_data/
 redis_data/
