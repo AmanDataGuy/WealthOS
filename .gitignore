@@ -63,6 +63,10 @@ changes1.md
 notes.md
 .claude/
 
+# Local startup scripts (machine-specific)
+start.ps1
+start.sh
+
 # Docker volumes (if you add later)
 postgres_data/
 redis_data/
