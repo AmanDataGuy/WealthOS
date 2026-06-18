@@ -290,35 +290,52 @@ async def run_code_agent(
     mc_result   = None
     sens_result = None
 
-    # ── DCF Model ─────────────────────────────────────────────────────────────
-    print(f"\n  [1/3] Running DCF model...")
-    dcf_code = build_dcf_code(
-        fcf=inputs["fcf"],
-        growth_rate=inputs["growth_rate"],
-        wacc=inputs["wacc"],
-        current_price=inputs["current_price"],
-        shares=inputs["shares"],
-    )
+    # Gate DCF on real FCF data — running on default fallback values produces
+    # meaningless output (e.g. $1.02 intrinsic value for a ₹1268 stock).
+    _raw_snapshot: dict = {}
+    if financial_snapshot:
+        _raw_snapshot = (
+            financial_snapshot.model_dump()
+            if hasattr(financial_snapshot, "model_dump")
+            else financial_snapshot
+            if isinstance(financial_snapshot, dict)
+            else {}
+        )
+    _raw_fcf = (_raw_snapshot.get("cash_flow") or {}).get("free_cash_flow")
+    _skip_dcf = not _raw_fcf or _raw_fcf <= 0
 
-    output, error = await run_in_sandbox(dcf_code)
-    if output and not error:
-        try:
-            import json
-            # grab last JSON line
-            for line in reversed(output.strip().split("\n")):
-                if line.strip().startswith("{"):
-                    dcf_data = json.loads(line.strip())
-                    dcf_result = DCFResult(**{
-                        k: v for k, v in dcf_data.items()
-                        if k in DCFResult.model_fields
-                    })
-                    print(f"  ✅ DCF: Intrinsic value = ${dcf_result.intrinsic_value:.2f} "
-                          f"({dcf_result.upside_downside:+.1f}% vs current)")
-                    break
-        except Exception as e:
-            print(f"  ⚠️  DCF parse error: {e}")
+    # ── DCF Model ─────────────────────────────────────────────────────────────
+    if _skip_dcf:
+        print(f"  ⚠️  [1/3] DCF skipped — no real FCF data available (raw_fcf={_raw_fcf})")
     else:
-        print(f"  ⚠️  DCF failed: {error}")
+        print(f"\n  [1/3] Running DCF model...")
+        dcf_code = build_dcf_code(
+            fcf=inputs["fcf"],
+            growth_rate=inputs["growth_rate"],
+            wacc=inputs["wacc"],
+            current_price=inputs["current_price"],
+            shares=inputs["shares"],
+        )
+
+        output, error = await run_in_sandbox(dcf_code)
+        if output and not error:
+            try:
+                import json
+                # grab last JSON line
+                for line in reversed(output.strip().split("\n")):
+                    if line.strip().startswith("{"):
+                        dcf_data = json.loads(line.strip())
+                        dcf_result = DCFResult(**{
+                            k: v for k, v in dcf_data.items()
+                            if k in DCFResult.model_fields
+                        })
+                        print(f"  ✅ DCF: Intrinsic value = ${dcf_result.intrinsic_value:.2f} "
+                              f"({dcf_result.upside_downside:+.1f}% vs current)")
+                        break
+            except Exception as e:
+                print(f"  ⚠️  DCF parse error: {e}")
+        else:
+            print(f"  ⚠️  DCF failed: {error}")
 
     # ── Monte Carlo ───────────────────────────────────────────────────────────
     print(f"\n  [2/3] Running Monte Carlo (1000 paths)...")
