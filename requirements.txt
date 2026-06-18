@@ -125,11 +125,11 @@ streamlit-cookies-controller
 dspy-ai
 # smolagents  # listed but not imported anywhere in the codebase — keeping for future use
 composio-core
-mem0ai
+mem0ai>=0.1.100
 # agentops  # removed — replaced by LangSmith for tracing
 graphql-core>=3.2.3
-wandb
-weave
+wandb>=0.17.0
+weave>=0.51.0
 
 # Observability
 langsmith           # used in observability/langsmith_config.py (from langsmith import traceable, Client)
