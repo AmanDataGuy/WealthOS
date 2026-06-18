@@ -127,6 +127,7 @@ dspy-ai
 composio-core
 mem0ai
 # agentops  # removed — replaced by LangSmith for tracing
+graphql-core>=3.2.3
 wandb
 weave
 
