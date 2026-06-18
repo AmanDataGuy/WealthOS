@@ -51,8 +51,7 @@ async def finance_node(state: WealthOSState) -> dict:
         # Actually run the Finance Agent instead of returning hardcoded data
         try:
             from agents.finance_agent import run_finance_agent
-            import asyncio
-            snapshot = await asyncio.to_thread(run_finance_agent, user_id)
+            snapshot = await run_finance_agent(user_id)
             personal_finance = snapshot.model_dump()
             print(f"  [finance] Agent returned: status={snapshot.status}, confidence={snapshot.data_confidence}")
         except Exception as e:

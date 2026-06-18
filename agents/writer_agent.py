@@ -57,10 +57,10 @@ def _load_compiled_program():
         program.load(COMPILED_PROMPT_PATH)
         lm = dspy.LM("groq/llama-3.3-70b-versatile", api_key=GROQ_API_KEY, max_tokens=1500, temperature=0.3)
         dspy.configure(lm=lm)
-        print(f"  [writer] ✅ DSPy compiled prompt loaded from {COMPILED_PROMPT_PATH}")
+        print(f"  [writer] DSPy compiled prompt loaded from {COMPILED_PROMPT_PATH}")
         return program
     except Exception as e:
-        print(f"  [writer] ⚠️  Could not load compiled prompt ({e}) — using hand-written fallback")
+        print(f"  [writer] Could not load compiled prompt ({e}) -- using hand-written fallback")
         return None
 
 _COMPILED_PROGRAM = _load_compiled_program()

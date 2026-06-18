@@ -50,11 +50,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 # ── Third-Party ───────────────────────────────────────────────────────────────
-import httpx                             # HTTP calls to finance MCP
 from pydantic import BaseModel, Field   # typed data models
-
-# ── Config ────────────────────────────────────────────────────────────────────
-FINANCE_MCP_URL = os.getenv("FINANCE_MCP_URL", "http://localhost:8001")
 
 
 # ==============================================================================
@@ -193,66 +189,46 @@ def parse_bank_statement(pdf_path: str) -> list[Transaction]:
 
 # ── Step 1c — Fetch from Postgres via finance_server MCP ──────────────────────
 
-def get_transactions_from_db(user_id: str) -> list[Transaction]:
+async def get_transactions_from_db(user_id: str) -> list[Transaction]:
     """
     ## Fetch Transactions from Database
 
-    Calls the finance_server MCP (built in Phase 1) to pull this user's
-    stored transaction history from Postgres.
+    Calls finance_server via MCPClient stdio to pull this user's stored
+    transaction history from Postgres.
 
     Returns an empty list for new users — cold start logic handles that.
     """
-
     try:
-        response = httpx.get(
-            f"{FINANCE_MCP_URL}/transactions/{user_id}",
-            timeout=10
-        )
-        if response.status_code != 200:
-            return []
-
-        rows = response.json().get("transactions", [])
-
+        from services.mcp_client import MCPClient
+        async with MCPClient("mcp_servers/finance_server.py") as client:
+            data = await client.call_tool("get_transactions", {"user_id": user_id, "months": 3})
+        rows = data.get("transactions", []) if isinstance(data, dict) else []
         return [
             Transaction(
-                merchant = row["merchant"],
-                amount   = float(row["amount"]),
-                date     = row["date"],
-                category = row["category"],
-                source   = "db"
+                merchant = row.get("description", "Unknown"),
+                amount   = float(row.get("amount", 0)),
+                date     = row.get("date", ""),
+                category = row.get("category", "other"),
+                source   = "db",
             )
             for row in rows
         ]
-
-    except httpx.RequestError:
-        # MCP server not reachable — fail gracefully, don't crash the pipeline
+    except Exception as e:
+        print(f"[Finance Agent] DB fetch failed: {e}")
         return []
 
 
 # ── Step 1d — Save new transactions back to DB ─────────────────────────────────
 
-def save_transactions_to_db(user_id: str, transactions: list[Transaction]) -> bool:
+async def save_transactions_to_db(user_id: str, transactions: list[Transaction]) -> bool:
     """
     ## Save Transactions to Database
 
-    After parsing an upload, write the new transactions back to Postgres
-    so the next session has DB data and gets a high-confidence snapshot.
+    No MCP save tool exists in finance_server yet — this is a planned
+    extension. Uploads are parsed but not persisted back to DB via this path.
     """
-
-    try:
-        payload = {
-            "user_id":      user_id,
-            "transactions": [t.model_dump() for t in transactions]
-        }
-        response = httpx.post(
-            f"{FINANCE_MCP_URL}/transactions",
-            json=payload,
-            timeout=10
-        )
-        return response.status_code == 200
-
-    except httpx.RequestError:
-        return False
+    print("[Finance Agent] save_transactions_to_db: no MCP save tool — skipping")
+    return False
 
 
 # ── Step 2 — Detect Anomalies ─────────────────────────────────────────────────
@@ -478,7 +454,7 @@ def _build_snapshot(
 #  In Phase 4, LangGraph calls run_finance_agent() as one node.
 # ==============================================================================
 
-def run_finance_agent(
+async def run_finance_agent(
     user_id          : str,
     uploads          : list[str] = [],    # file paths — receipts or PDFs
     manual_income    : float     = 0.0,   # fallback if no transaction data
@@ -520,7 +496,7 @@ def run_finance_agent(
     print(f"\n[Finance Agent] Starting for user: {user_id}")
 
     # ── Cold Start Check ──────────────────────────────────────────────────────
-    db_transactions = get_transactions_from_db(user_id)
+    db_transactions = await get_transactions_from_db(user_id)
 
     has_db_data = len(db_transactions) > 0
     has_uploads = len(uploads) > 0
@@ -598,7 +574,7 @@ def run_finance_agent(
 
         # Save to DB so next session is high-confidence
         if upload_transactions:
-            saved = save_transactions_to_db(user_id, upload_transactions)
+            saved = await save_transactions_to_db(user_id, upload_transactions)
             print(f"[Finance Agent] Saved {len(upload_transactions)} transactions to DB: {saved}")
 
     # Merge DB history + newly parsed uploads
@@ -627,19 +603,23 @@ def run_finance_agent(
 # ==============================================================================
 
 if __name__ == "__main__":
+    import asyncio as _asyncio
 
-    print("\n" + "=" * 62)
-    print("  WealthOS — Finance Agent  |  Startup Check")
-    print("=" * 62)
+    async def _main():
+        print("\n" + "=" * 62)
+        print("  WealthOS — Finance Agent  |  Startup Check")
+        print("=" * 62)
 
-    # Simulate a new user with no DB data — manual input path
-    snapshot = run_finance_agent(
-        user_id          = "test_user_001",
-        manual_income    = 85000,
-        manual_expenses  = 62000,
-        target_savings   = 15000,
-        emergency_months = 2.5
-    )
+        # Simulate a new user with no DB data — manual input path
+        return await run_finance_agent(
+            user_id          = "test_user_001",
+            manual_income    = 85000,
+            manual_expenses  = 62000,
+            target_savings   = 15000,
+            emergency_months = 2.5
+        )
+
+    snapshot = _asyncio.run(_main())
 
     print(f"\n  {'User':<20}: {snapshot.user_id}")
     print(f"  {'Income':<20}: Rs.{snapshot.monthly_income:>10,.0f}")

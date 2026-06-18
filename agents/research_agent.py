@@ -312,9 +312,21 @@ async def summarize_with_llm(text: str, instruction: str) -> str:
 
 # ── Tool 6 ────────────────────────────────────────────────────────────────────
 
-async def query_rag(question: str, user_id: str) -> str:
-    logger.info("Ollama not configured, skipping")
-    return ""
+async def query_rag(question: str, user_id: str, symbols: list[str] | None = None) -> str:
+    if not symbols:
+        return ""
+    try:
+        from rag.query_engine import FilingQueryEngine
+        engine = FilingQueryEngine()
+        parts = []
+        for ticker in symbols[:3]:
+            result = await engine.search(question=question, ticker=ticker)
+            if result:
+                parts.append(f"[{ticker}] {result}")
+        return "\n\n".join(parts)
+    except Exception as e:
+        logger.warning("RAG query failed: %s", e)
+        return ""
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -456,7 +468,7 @@ async def run_research_agent(
     # ── Step 4 — RAG context ──────────────────────────────────────────────────
 
     rag_query   = custom_query or f"financial news and analysis for {', '.join(symbols)}"
-    rag_context = await query_rag(rag_query, user_id)
+    rag_context = await query_rag(rag_query, user_id, symbols=symbols)
 
     # ── Step 5 — Assess confidence and return ─────────────────────────────────
 

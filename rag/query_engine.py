@@ -211,7 +211,15 @@ async def _tool_hybrid_search(
 
 async def _call_llm(messages: list[dict]) -> str:
     from services.llm_client import call_llm
-    return await call_llm(messages)
+    system = next(
+        (m["content"] for m in messages if m.get("role") == "system"),
+        "You are a financial research assistant.",
+    )
+    user = next(
+        (m["content"] for m in messages if m.get("role") == "user"),
+        "",
+    )
+    return await call_llm(system=system, user=user, max_tokens=800)
 
 
 # ── FilingQueryEngine ─────────────────────────────────────────────────────────

@@ -22,8 +22,10 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
+import asyncpg
 import redis.asyncio as aioredis
 from dotenv import load_dotenv
+import bcrypt as _bcrypt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -42,12 +44,50 @@ from services.llm_client            import get_session_cost
 from agents.agent_cards             import get_agent_card, list_all_agents
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+DB_URL    = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
+
+def _cap_password(password: str) -> bytes:
+    # bcrypt truncates at 72 bytes — do it explicitly so hash and verify always agree
+    return password.encode("utf-8")[:72]
+
+def _hash_password(plain: str) -> str:
+    return _bcrypt.hashpw(_cap_password(plain), _bcrypt.gensalt()).decode("utf-8")
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    return _bcrypt.checkpw(_cap_password(plain), hashed.encode("utf-8"))
+
+
+async def _ensure_users_table():
+    if not DB_URL:
+        return
+    try:
+        conn = await asyncpg.connect(DB_URL)
+        try:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    username      TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at    TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            # Seed default accounts if they don't exist
+            for uname, passwd in [("admin", "wealthos123"), ("demo", "demo123")]:
+                await conn.execute(
+                    "INSERT INTO users (username, password_hash) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+                    uname, _hash_password(passwd),
+                )
+        finally:
+            await conn.close()
+    except Exception as e:
+        logger.warning("[startup] Could not ensure users table: %s", e)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     verify_langsmith()
     init_weave()
+    await _ensure_users_table()
     yield
 
 
@@ -87,6 +127,14 @@ class AnalyzeResponse(BaseModel):
 class BriefingRequest(BaseModel):
     user_id: str = "test-user"
 
+class SignupRequest(BaseModel):
+    username: str
+    password: str
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 
 # ── Query logging ─────────────────────────────────────────────────────────────
 
@@ -98,6 +146,93 @@ def _write_query_log(entry: dict):
             f.write(json.dumps(entry) + "\n")
     except Exception as e:
         logger.warning("[query_log] Failed to write log entry: %s", e)
+
+
+async def _save_analysis_history(user_id, ticker, query, result, latency_ms, cost_snap):
+    """Persist a completed analysis run to analysis_history. Fire-and-forget."""
+    if not DB_URL:
+        return
+    try:
+        risk   = result.get("risk_report") or {}
+        code   = result.get("code_output") or {}
+        dcf_v  = (code.get("dcf") or {}).get("intrinsic_value")
+        agents = [
+            m.split("] ", 1)[1].split(" ✅")[0].split(" ❌")[0].strip()
+            for m in result.get("messages", [])
+            if "] " in m and ("✅" in m or "❌" in m)
+        ]
+        conn = await asyncpg.connect(DB_URL)
+        try:
+            await conn.execute(
+                """
+                INSERT INTO analysis_history
+                    (user_id, ticker, query, verdict, risk_score, memo,
+                     dcf_value, latency_ms, cost_usd, total_tokens, agents_invoked)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+                """,
+                user_id,
+                ticker,
+                query[:200],
+                risk.get("recommendation"),
+                risk.get("risk_score"),
+                result.get("final_memo"),
+                float(dcf_v) if dcf_v is not None else None,
+                latency_ms,
+                round(cost_snap["estimated_cost_usd"], 6),
+                cost_snap["total_tokens"],
+                agents,
+            )
+        finally:
+            await conn.close()
+    except Exception as e:
+        logger.warning("[analyze] Failed to save analysis history: %s", e)
+
+
+# ── Auth endpoints ────────────────────────────────────────────────────────────
+
+@app.post("/auth/signup")
+async def signup(req: SignupRequest):
+    username = req.username.strip()
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    if not DB_URL:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    try:
+        conn = await asyncpg.connect(DB_URL)
+        try:
+            row = await conn.fetchrow(
+                "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id::text, username",
+                username, _hash_password(req.password),
+            )
+        finally:
+            await conn.close()
+        return {"user_id": row["id"], "username": row["username"], "message": "Account created successfully"}
+    except asyncpg.UniqueViolationError:
+        raise HTTPException(status_code=409, detail="Username already taken")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/auth/login")
+async def login(req: LoginRequest):
+    if not DB_URL:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    try:
+        conn = await asyncpg.connect(DB_URL)
+        try:
+            row = await conn.fetchrow(
+                "SELECT id::text, username, password_hash FROM users WHERE username = $1",
+                req.username.strip(),
+            )
+        finally:
+            await conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if not row or not _verify_password(req.password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    return {"user_id": row["id"], "username": row["username"]}
 
 
 # ── Health check ───────────────────────────────────────────────────────────────
@@ -147,12 +282,25 @@ async def analyze(req: AnalyzeRequest):
             "latency_ms":         latency_ms,
             "total_tokens":       cost_snap["total_tokens"],
             "estimated_cost_usd": round(cost_snap["estimated_cost_usd"], 6),
-            "agents_invoked":     [m.split("]")[0].lstrip("[") for m in result.get("messages", []) if "✅" in m or "❌" in m],
+            "agents_invoked": [
+                m.split("] ", 1)[1].split(" ✅")[0].split(" ❌")[0].strip()
+                for m in result.get("messages", [])
+                if "] " in m and ("✅" in m or "❌" in m)
+            ],
             "success":            error_detail is None,
             "error":              error_detail,
         }
         logger.info("[analyze] %s", json.dumps(log_entry))
         _write_query_log(log_entry)
+        if error_detail is None and result:
+            asyncio.create_task(_save_analysis_history(
+                user_id=req.user_id,
+                ticker=ticker,
+                query=req.query,
+                result=result,
+                latency_ms=latency_ms,
+                cost_snap=cost_snap,
+            ))
 
     risk    = result.get("risk_report") or {}
     code    = result.get("code_output") or {}
@@ -315,6 +463,67 @@ async def agent_detail(agent_name: str):
     if not card:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
     return card
+
+
+# ── Analysis history ──────────────────────────────────────────────────────────
+
+@app.get("/history/{user_id}")
+async def analysis_history(user_id: str, limit: int = 20):
+    """Return the last N analysis runs for a user."""
+    if not DB_URL:
+        return {"user_id": user_id, "history": []}
+    try:
+        conn = await asyncpg.connect(DB_URL)
+        try:
+            rows = await conn.fetch(
+                """
+                SELECT id::text, ticker, query, verdict, risk_score,
+                       dcf_value, latency_ms, cost_usd, total_tokens,
+                       agents_invoked, created_at
+                FROM analysis_history
+                WHERE user_id = $1
+                ORDER BY created_at DESC
+                LIMIT $2
+                """,
+                user_id, limit,
+            )
+        finally:
+            await conn.close()
+        return {
+            "user_id": user_id,
+            "history": [dict(r) for r in rows],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Portfolio ──────────────────────────────────────────────────────────────────
+
+@app.get("/portfolio/{user_id}")
+async def get_portfolio(user_id: str):
+    """Return the current portfolio holdings for a user."""
+    if not DB_URL:
+        return {"user_id": user_id, "holdings": []}
+    try:
+        conn = await asyncpg.connect(DB_URL)
+        try:
+            rows = await conn.fetch(
+                """
+                SELECT ticker, quantity, avg_buy_price, target_weight, sector
+                FROM portfolio_holdings
+                WHERE user_id = $1
+                ORDER BY ticker
+                """,
+                user_id,
+            )
+        finally:
+            await conn.close()
+        return {
+            "user_id":  user_id,
+            "holdings": [dict(r) for r in rows],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── Run directly ───────────────────────────────────────────────────────────────
