@@ -12,51 +12,46 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      # Override .env localhost URLs with Docker service-name URLs
+      WEALTHOS_DB_URL: postgresql://wealthos:wealthos_secure_password@wealthos-db:5432/wealthos
+      REDIS_URL: redis://wealthos-redis:6379
+      QDRANT_URL: http://wealthos-qdrant:6333
     volumes:
-      - .:/app
+      - model_cache:/root/.cache/huggingface
     depends_on:
-      - wealthos-db
-      - wealthos-redis
-      - wealthos-temporal
+      wealthos-db:
+        condition: service_healthy
+      wealthos-redis:
+        condition: service_healthy
+      wealthos-qdrant:
+        condition: service_started
     networks:
       - wealthos-network
+    restart: unless-stopped
 
-  # ── 2. MCP Servers ─────────────────────────────────────
-  wealthos-mcp:
-    build:
-      context: .
-      dockerfile: Dockerfile.mcp
-    container_name: wealthos-mcp
-    ports:
-      - "8001:8001"
-    env_file:
-      - .env
-    volumes:
-      - .:/app
-    depends_on:
-      - wealthos-db
-      - wealthos-redis
-    networks:
-      - wealthos-network
-
-  # ── 3. Frontend ────────────────────────────────────────
+  # ── 2. Streamlit Frontend ──────────────────────────────
+  # MCP servers are stdio subprocesses inside the API container — no separate container needed
   wealthos-frontend:
     build:
-      context: ./frontend
+      context: .
       dockerfile: Dockerfile.frontend
     container_name: wealthos-frontend
     ports:
-      - "3000:3000"
+      - "8501:8501"
     env_file:
       - .env
+    environment:
+      WEALTHOS_API_URL: http://wealthos-api:8000
     depends_on:
       - wealthos-api
     networks:
       - wealthos-network
+    restart: unless-stopped
 
-  # ── 4. PostgreSQL + pgvector ───────────────────────────
+  # ── 3. PostgreSQL 16 ───────────────────────────────────
   wealthos-db:
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     container_name: wealthos-db
     ports:
       - "5432:5432"
@@ -68,8 +63,14 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - wealthos-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wealthos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ── 5. Redis ───────────────────────────────────────────
+  # ── 4. Redis ───────────────────────────────────────────
   wealthos-redis:
     image: redis:7-alpine
     container_name: wealthos-redis
@@ -79,19 +80,26 @@ services:
       - redis_data:/data
     networks:
       - wealthos-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ── 6. Ollama (local LLM) ──────────────────────────────
-  wealthos-ollama:
-    image: ollama/ollama:latest
-    container_name: wealthos-ollama
+  # ── 5. Qdrant (local vector store) ────────────────────
+  wealthos-qdrant:
+    image: qdrant/qdrant:latest
+    container_name: wealthos-qdrant
     ports:
-      - "11434:11434"
+      - "6333:6333"
     volumes:
-      - ollama_data:/root/.ollama
+      - qdrant_data:/qdrant/storage
     networks:
       - wealthos-network
+    restart: unless-stopped
 
-  # ── 7. Temporal ────────────────────────────────────────
+  # ── 6. Temporal (durable workflows) ───────────────────
   wealthos-temporal:
     image: temporalio/auto-setup:1.22.0
     container_name: wealthos-temporal
@@ -104,15 +112,18 @@ services:
       - POSTGRES_PWD=wealthos_secure_password
       - POSTGRES_SEEDS=wealthos-db
     depends_on:
-      - wealthos-db
+      wealthos-db:
+        condition: service_healthy
     networks:
       - wealthos-network
+    restart: unless-stopped
 
 # ── Volumes ─────────────────────────────────────────────
 volumes:
   postgres_data:
   redis_data:
-  ollama_data:
+  qdrant_data:
+  model_cache:
 
 # ── Network ─────────────────────────────────────────────
 networks:

@@ -83,8 +83,8 @@ python-dotenv==1.2.2
 python-multipart==0.0.24
 pytz==2026.1.post1
 PyYAML==6.0.3
-qdrant-client           # vector store — Qdrant Cloud hybrid search (dense + sparse)
-voyageai                # voyage-finance-2 embeddings (1024-dim, finance-specialised)
+qdrant-client           # vector store — local Qdrant hybrid search (dense + sparse)
+sentence-transformers   # all-MiniLM-L6-v2 384-dim embeddings (local CPU, no API key)
 cohere                  # rerank-english-v3.0 for post-retrieval reranking
 fastembed               # BM25 sparse vectors (Qdrant/bm25 model)
 pdfplumber              # table extraction from PDFs (supplements pypdf prose extraction)
