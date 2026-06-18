@@ -54,7 +54,7 @@ flowchart LR
     M1 & M2 & M3 & M4 & M5 --> A6[Rebalancing Agent<br>Drift Analysis]:::agent
     M1 & M2 & M3 & M4 & M5 --> A7[Writer Agent<br>DSPy Compiled]:::agent
 
-    A1 & A2 & A3 & A4 & A5 & A6 & A7 --> Orchestrator[LangGraph Orchestrator<br>8 Nodes · asyncio.gather parallelism]:::orch
+    A1 & A2 & A3 & A4 & A5 & A6 & A7 --> Orchestrator[LangGraph Orchestrator<br>7 Nodes · asyncio.gather parallelism]:::orch
 
     Orchestrator --> RAG[RAG Pipeline<br>all-MiniLM-L6-v2 · Qdrant hybrid]:::intel
     Orchestrator --> Mem0[Mem0 Memory<br>Cross-session context]:::intel
@@ -113,7 +113,7 @@ flowchart LR
 
 | Category | Implementation | Detail |
 |:---:|:---:|:---|
-| **Orchestration** | LangGraph 8-node state machine | `asyncio.gather` for parallel data+research and parallel risk+code — ~2× speedup |
+| **Orchestration** | LangGraph 7-node state machine | `asyncio.gather` for parallel data+research and parallel risk+code — ~2× speedup |
 | **MCP Transport** | MCPClient stdio subprocess | Each agent spawns the MCP server as a subprocess; JSON-RPC over stdin/stdout; retry-on-crash |
 | **LLM** | Groq `llama-3.3-70b-versatile` | Key rotation across up to 3 Groq keys to stay under 12k TPM free tier limit |
 | **RAG** | Qdrant hybrid search + Cohere reranking | `all-MiniLM-L6-v2` 384-dim dense (local CPU, no API key) + BM25 sparse; RRF fusion; 725 points indexed (AAPL/MSFT/NVDA 10-K) |
@@ -138,7 +138,7 @@ flowchart LR
 
 | Layer | Technologies |
 |:---:|:---|
-| **Orchestration** | LangGraph (8-node StateGraph) · Temporal (durable workflows) |
+| **Orchestration** | LangGraph (7-node StateGraph) · Temporal (durable workflows) |
 | **LLM** | Groq `llama-3.3-70b-versatile` with 3-key rotation |
 | **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` (384-dim, local CPU) |
 | **RAG** | Qdrant local (hybrid dense + BM25 sparse · RRF fusion) · Cohere reranking |
