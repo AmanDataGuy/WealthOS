@@ -17,7 +17,10 @@ import time
 import logging
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+import shutil
+import tempfile
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -524,6 +527,46 @@ async def get_portfolio(user_id: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Personal document upload ───────────────────────────────────────────────────
+
+@app.post("/upload-personal-doc")
+async def upload_personal_doc(
+    user_id: str = Form(...),
+    file: UploadFile = File(...),
+):
+    """
+    Index a personal finance document (PDF, HTM) into Qdrant under
+    ticker=PERSONAL_{user_id} so the research agent can retrieve it
+    during personalised analysis.
+    """
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in {".pdf", ".htm", ".html"}:
+        raise HTTPException(status_code=400, detail="Only PDF and HTML files are supported.")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+
+    try:
+        from rag.indexer import FilingIndexer
+        indexer = FilingIndexer()
+        personal_ticker = f"PERSONAL_{user_id}"
+        result = await indexer.index_filing(
+            tmp_path,
+            personal_ticker,
+            "personal-doc",
+        )
+    finally:
+        os.unlink(tmp_path)
+
+    return {
+        "status":         result.get("status", "unknown"),
+        "chunks_indexed": result.get("total_points", 0),
+        "filename":       file.filename,
+        "indexed_as":     personal_ticker,
+    }
 
 
 # ── Run directly ───────────────────────────────────────────────────────────────
