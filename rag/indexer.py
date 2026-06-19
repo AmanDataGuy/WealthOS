@@ -408,6 +408,108 @@ class FilingIndexer:
         }
 
 
+    async def index_personal_doc(
+        self,
+        file_path: str,
+        user_id: str,
+        filename: str = "",
+    ) -> dict:
+        """
+        Flat-chunk indexer for short personal finance documents (receipts, loan
+        statements, salary slips). Bypasses the hierarchical chunker's 50-word
+        minimum so even a 1-page EMI receipt gets indexed.
+        """
+        ticker = f"PERSONAL_{user_id}"
+
+        # Extract raw text
+        try:
+            elements = await asyncio.to_thread(extract_elements, file_path)
+        except Exception as e:
+            return {"error": f"Extraction failed: {e}", "ticker": ticker}
+
+        # Combine all text and split into ~150-word flat chunks (no minimum)
+        full_text = "\n\n".join(e["content"] for e in elements if e.get("content", "").strip())
+        if not full_text.strip():
+            return {"error": "No text could be extracted from this document.", "ticker": ticker}
+
+        words = full_text.split()
+        CHUNK_SIZE = 150
+        raw_chunks = [
+            " ".join(words[i:i + CHUNK_SIZE])
+            for i in range(0, len(words), CHUNK_SIZE)
+            if words[i:i + CHUNK_SIZE]
+        ]
+
+        chunks = [
+            {
+                "id":           str(uuid.uuid4()),
+                "chunk_level":  2,
+                "chunk_type":   "prose",
+                "section":      "personal-document",
+                "content":      text,
+                "ticker":       ticker,
+                "form_type":    "personal-doc",
+                "filing_date":  datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "fiscal_year":  datetime.now(timezone.utc).year,
+                "page_number":  0,
+                "source_file":  filename or Path(file_path).name,
+                "parent_id":    None,
+                "table_json":   None,
+                "user_id":      user_id,
+            }
+            for text in raw_chunks
+        ]
+
+        if not chunks:
+            return {"error": "Document too short to index.", "ticker": ticker}
+
+        # Delete old version of this file for this user
+        try:
+            from qdrant_client.models import Filter, FieldCondition, MatchValue
+            self.qdrant.delete(
+                collection_name=COLLECTION_NAME,
+                points_selector=Filter(must=[
+                    FieldCondition(key="ticker",      match=MatchValue(value=ticker)),
+                    FieldCondition(key="source_file", match=MatchValue(value=filename or Path(file_path).name)),
+                ]),
+            )
+        except Exception:
+            pass
+
+        # Embed and upsert
+        texts = [c["content"] for c in chunks]
+        dense  = await asyncio.to_thread(embed_dense_batch,  texts)
+        sparse = await asyncio.to_thread(embed_sparse_batch, texts)
+
+        from qdrant_client.models import PointStruct, SparseVector
+        points = [
+            PointStruct(
+                id=c["id"],
+                vector={
+                    "dense":  dv,
+                    "sparse": SparseVector(indices=sv.indices.tolist(), values=sv.values.tolist()),
+                },
+                payload={k: v for k, v in c.items() if k != "id"},
+            )
+            for c, dv, sv in zip(chunks, dense, sparse)
+        ]
+
+        UPSERT = 100
+        for i in range(0, len(points), UPSERT):
+            await asyncio.to_thread(
+                self.qdrant.upsert,
+                collection_name=COLLECTION_NAME,
+                points=points[i:i + UPSERT],
+            )
+
+        return {
+            "ticker":         ticker,
+            "filename":       filename or Path(file_path).name,
+            "chunks_indexed": len(points),
+            "status":         "success",
+        }
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
