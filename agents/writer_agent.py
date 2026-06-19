@@ -88,6 +88,25 @@ class InvestmentMemo(BaseModel):
     analysis_date:      str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
+# ── Currency detection ────────────────────────────────────────────────────────
+
+_INDIAN_TICKERS = {
+    "RELIANCE","TCS","INFY","WIPRO","HCLTECH","SBIN","HDFCBANK","ICICIBANK",
+    "AXISBANK","KOTAKBANK","BHARTIARTL","ITC","HINDUNILVR","TATAMOTORS",
+    "MARUTI","BAJFINANCE","ASIANPAINT","ULTRACEMCO","NESTLEIND","TITAN",
+    "SUNPHARMA","DRREDDY","CIPLA","ONGC","POWERGRID","NTPC","COALINDIA",
+    "ADANIENT","ADANIPORTS","LT","TECHM","DIVISLAB","BAJAJFINSV","HDFC",
+    "TATASTEEL","JSWSTEEL","HINDALCO","VEDL","INDUSINDBK","BANDHANBNK",
+    "FEDERALBNK","IDFCFIRSTB","PNB","CANBK","BANKBARODA","IOC","BPCL","GAIL",
+}
+
+def _get_currency(ticker: str) -> str:
+    t = ticker.upper().split(".")[0]
+    if ticker.upper().endswith((".NS", ".BO")) or t in _INDIAN_TICKERS:
+        return "₹"
+    return "$"
+
+
 # ── Context Builders ──────────────────────────────────────────────────────────
 # These convert agent outputs into concise strings for the LLM prompt.
 # Handles both Pydantic objects and plain dicts gracefully.
@@ -102,25 +121,26 @@ def format_financial_snapshot(snapshot) -> str:
     bal = d.get("balance_sheet", {})
     cf  = d.get("cash_flow", {})
     gr  = d.get("growth", {})
+    c   = _get_currency(d.get("ticker", ""))
 
     lines = [f"**{d.get('company_name', d.get('ticker', 'N/A'))}** ({d.get('ticker', '')})"]
     lines.append(f"Sector: {d.get('sector', 'N/A')}")
     lines.append("")
 
     if inc.get("total_revenue"):
-        lines.append(f"- Revenue (FY{inc.get('fiscal_year', 'N/A')}): **${inc['total_revenue']:,.0f}M**")
+        lines.append(f"- Revenue (FY{inc.get('fiscal_year', 'N/A')}): **{c}{inc['total_revenue']:,.0f}M**")
     if inc.get("net_income"):
-        lines.append(f"- Net Income: **${inc['net_income']:,.0f}M**")
+        lines.append(f"- Net Income: **{c}{inc['net_income']:,.0f}M**")
     if val.get("current_price"):
-        lines.append(f"- Current Price: **${val['current_price']:.2f}**")
+        lines.append(f"- Current Price: **{c}{val['current_price']:.2f}**")
     if val.get("pe_ratio"):
         lines.append(f"- P/E Ratio: **{val['pe_ratio']:.1f}x**")
     if val.get("market_cap"):
-        lines.append(f"- Market Cap: **${val['market_cap']/1e9:.1f}B**")
+        lines.append(f"- Market Cap: **{c}{val['market_cap']/1e9:.1f}B**")
     if bal.get("total_debt"):
-        lines.append(f"- Total Debt: **${bal['total_debt']:,.0f}M**")
+        lines.append(f"- Total Debt: **{c}{bal['total_debt']:,.0f}M**")
     if cf.get("free_cash_flow"):
-        lines.append(f"- Free Cash Flow: **${cf['free_cash_flow']:,.0f}M**")
+        lines.append(f"- Free Cash Flow: **{c}{cf['free_cash_flow']:,.0f}M**")
     if gr.get("revenue_cagr_3y"):
         lines.append(f"- Revenue CAGR (3Y): **{gr['revenue_cagr_3y']:.1f}%**")
 
@@ -157,19 +177,20 @@ def format_risk_report(report) -> str:
     return "\n".join(lines)
 
 
-def format_code_output(code_output) -> str:
+def format_code_output(code_output, ticker: str = "") -> str:
     if not code_output:
         return "No valuation models available."
 
     d = code_output.model_dump() if hasattr(code_output, "model_dump") else code_output
+    c = _get_currency(ticker)
 
     lines = []
     dcf = d.get("dcf")
     mc  = d.get("monte_carlo")
 
     if dcf:
-        lines.append(f"**DCF Intrinsic Value: ${dcf.get('intrinsic_value', 0):.2f}**")
-        lines.append(f"- Current Price: ${dcf.get('current_price', 0):.2f}")
+        lines.append(f"**DCF Intrinsic Value: {c}{dcf.get('intrinsic_value', 0):.2f}**")
+        lines.append(f"- Current Price: {c}{dcf.get('current_price', 0):.2f}")
         upside = dcf.get('upside_downside', 0)
         direction = "upside" if upside > 0 else "downside"
         lines.append(f"- Implied {direction}: {abs(upside):.1f}%")
@@ -177,21 +198,22 @@ def format_code_output(code_output) -> str:
 
     if mc:
         lines.append(f"\n**Monte Carlo (1000 paths):**")
-        lines.append(f"- Bear case (P10): ${mc.get('percentile_10', 0):.2f}")
-        lines.append(f"- Base case (P50): ${mc.get('median_price', 0):.2f}")
-        lines.append(f"- Bull case (P90): ${mc.get('percentile_90', 0):.2f}")
+        lines.append(f"- Bear case (P10): {c}{mc.get('percentile_10', 0):.2f}")
+        lines.append(f"- Base case (P50): {c}{mc.get('median_price', 0):.2f}")
+        lines.append(f"- Bull case (P90): {c}{mc.get('percentile_90', 0):.2f}")
         lines.append(f"- Probability of gain: {mc.get('probability_upside', 0):.1f}%")
 
     return "\n".join(lines) if lines else "Valuation models ran but produced no output."
 
 
-def format_rebalancing(suggestion) -> str:
+def format_rebalancing(suggestion, ticker: str = "") -> str:
     if not suggestion:
         return "No rebalancing analysis available."
 
     d = suggestion.model_dump() if hasattr(suggestion, "model_dump") else suggestion
+    c = _get_currency(ticker)
 
-    lines = [f"Portfolio Value: **${d.get('total_portfolio_value', 0):,.0f}**"]
+    lines = [f"Portfolio Value: **{c}{d.get('total_portfolio_value', 0):,.0f}**"]
 
     actions = d.get("actions", [])
     if actions:
@@ -201,7 +223,7 @@ def format_rebalancing(suggestion) -> str:
             sector = a.get("sector", "") if isinstance(a, dict) else a.sector
             amount = a.get("amount", 0) if isinstance(a, dict) else a.amount
             reason = a.get("reason", "") if isinstance(a, dict) else a.reason
-            lines.append(f"  - {act.upper()} {sector}: ${amount:,.0f} — {reason[:80]}")
+            lines.append(f"  - {act.upper()} {sector}: {c}{amount:,.0f} — {reason[:80]}")
     else:
         lines.append("Portfolio is well balanced. No rebalancing required.")
 
@@ -340,8 +362,8 @@ async def run_writer_agent(
     # Format all context upfront (same for both paths)
     fin_context   = format_financial_snapshot(financial_snapshot)
     risk_context  = format_risk_report(risk_report)
-    code_context  = format_code_output(code_output)
-    rebal_context = format_rebalancing(rebalance_suggestion)
+    code_context  = format_code_output(code_output, ticker)
+    rebal_context = format_rebalancing(rebalance_suggestion, ticker)
     personal_ctx  = format_personal_finance(personal_finance)
 
     # Top-level values for the memo header
