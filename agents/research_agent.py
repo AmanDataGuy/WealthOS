@@ -313,16 +313,22 @@ async def summarize_with_llm(text: str, instruction: str) -> str:
 # ── Tool 6 ────────────────────────────────────────────────────────────────────
 
 async def query_rag(question: str, user_id: str, symbols: list[str] | None = None) -> str:
-    if not symbols:
-        return ""
     try:
         from rag.query_engine import FilingQueryEngine
         engine = FilingQueryEngine()
         parts = []
-        for ticker in symbols[:3]:
+
+        for ticker in (symbols or [])[:3]:
             result = await engine.search(question=question, ticker=ticker)
             if result:
-                parts.append(f"[{ticker}] {result}")
+                parts.append(f"[{ticker} filing] {result}")
+
+        # Also search this user's uploaded personal finance documents
+        personal_ticker = f"PERSONAL_{user_id}"
+        personal = await engine.search(question=question, ticker=personal_ticker)
+        if personal:
+            parts.append(f"[Personal documents] {personal}")
+
         return "\n\n".join(parts)
     except Exception as e:
         logger.warning("RAG query failed: %s", e)
