@@ -421,16 +421,46 @@ class FilingIndexer:
         """
         ticker = f"PERSONAL_{user_id}"
 
-        # Extract raw text
+        # Extract raw text — try pdfplumber first (handles Chrome-printed PDFs
+        # and modern fonts better than pypdf), fall back to pypdf, then HTML path
+        def _extract_text(path: str) -> str:
+            ext = Path(path).suffix.lower()
+            if ext in {".htm", ".html"}:
+                elems = extract_from_html(path)
+                return "\n\n".join(e["content"] for e in elems if e.get("content", "").strip())
+
+            text_parts = []
+            # pdfplumber — best for text-based PDFs
+            try:
+                import pdfplumber
+                with pdfplumber.open(path) as pdf:
+                    for page in pdf.pages:
+                        t = page.extract_text(x_tolerance=2, y_tolerance=2) or ""
+                        if t.strip():
+                            text_parts.append(t)
+            except Exception:
+                pass
+
+            # pypdf fallback
+            if not text_parts:
+                try:
+                    from pypdf import PdfReader
+                    for page in PdfReader(path).pages:
+                        t = page.extract_text() or ""
+                        if t.strip():
+                            text_parts.append(t)
+                except Exception:
+                    pass
+
+            return "\n\n".join(text_parts)
+
         try:
-            elements = await asyncio.to_thread(extract_elements, file_path)
+            full_text = await asyncio.to_thread(_extract_text, file_path)
         except Exception as e:
             return {"error": f"Extraction failed: {e}", "ticker": ticker}
 
-        # Combine all text and split into ~150-word flat chunks (no minimum)
-        full_text = "\n\n".join(e["content"] for e in elements if e.get("content", "").strip())
         if not full_text.strip():
-            return {"error": "No text could be extracted from this document.", "ticker": ticker}
+            return {"error": "No text could be extracted. The document may be image-based or scanned. Please use a text-based PDF.", "ticker": ticker}
 
         words = full_text.split()
         CHUNK_SIZE = 150
