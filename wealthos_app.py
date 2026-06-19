@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import requests
 import time
@@ -8,7 +9,7 @@ from datetime import datetime
 from streamlit_cookies_controller import CookieController
 
 # ── Config ────────────────────────────────────────────────────────────────────
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("WEALTHOS_API_URL", "http://localhost:8000")
 
 st.set_page_config(
     page_title="WealthOS — AI Finance",
