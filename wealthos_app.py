@@ -259,6 +259,30 @@ with st.sidebar:
         🟢 7 Agents Active
     </div>
     """, unsafe_allow_html=True)
+    st.divider()
+    st.markdown("**My Documents**")
+    uploaded_file = st.file_uploader(
+        "Upload EMI receipts, loan statements, salary slips (PDF)",
+        type=["pdf"],
+        key="personal_doc_upload",
+    )
+    if uploaded_file is not None:
+        with st.spinner("Indexing document..."):
+            try:
+                resp = requests.post(
+                    f"{API_URL}/upload-personal-doc",
+                    data={"user_id": st.session_state.user_id},
+                    files={"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")},
+                    timeout=120,
+                )
+                if resp.status_code == 200:
+                    r = resp.json()
+                    st.success(f"Indexed {r['chunks_indexed']} chunks from {r['filename']}")
+                else:
+                    st.error(f"Upload failed: {resp.text}")
+            except Exception as e:
+                st.error(f"Upload error: {e}")
+
     st.markdown("")
     if st.button("Sign Out", use_container_width=True):
         _cookies.remove("wo_user_id")
