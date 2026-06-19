@@ -1,0 +1,5 @@
+streamlit
+streamlit-cookies-controller
+requests
+pandas
+python-dotenv
