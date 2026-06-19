@@ -452,6 +452,21 @@ class FilingIndexer:
                 except Exception:
                     pass
 
+            # OCR fallback — for image-based or scanned PDFs
+            if not text_parts:
+                try:
+                    import pytesseract
+                    from pdf2image import convert_from_path
+                    images = convert_from_path(path, dpi=200)
+                    for img in images:
+                        t = pytesseract.image_to_string(img, lang="eng") or ""
+                        if t.strip():
+                            text_parts.append(t)
+                    if text_parts:
+                        print(f"[indexer] OCR extracted text from {Path(path).name}")
+                except Exception as e:
+                    print(f"[indexer] OCR failed: {e}")
+
             return "\n\n".join(text_parts)
 
         try:
