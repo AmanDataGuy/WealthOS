@@ -88,6 +88,8 @@ sentence-transformers   # all-MiniLM-L6-v2 384-dim embeddings (local CPU, no API
 cohere                  # rerank-english-v3.0 for post-retrieval reranking
 fastembed               # BM25 sparse vectors (Qdrant/bm25 model)
 pdfplumber              # table extraction from PDFs (supplements pypdf prose extraction)
+pytesseract             # OCR wrapper for tesseract (image-based PDFs)
+pdf2image               # converts PDF pages to images for OCR
 redis==7.4.0
 referencing==0.37.0
 requests==2.33.1
