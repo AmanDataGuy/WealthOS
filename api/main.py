@@ -552,21 +552,18 @@ async def upload_personal_doc(
     try:
         from rag.indexer import FilingIndexer
         indexer = FilingIndexer()
-        personal_ticker = f"PERSONAL_{user_id}"
-        result = await indexer.index_filing(
+        result = await indexer.index_personal_doc(
             tmp_path,
-            personal_ticker,
-            "personal-doc",
+            user_id,
+            filename=file.filename,
         )
     finally:
         os.unlink(tmp_path)
 
-    return {
-        "status":         result.get("status", "unknown"),
-        "chunks_indexed": result.get("total_points", 0),
-        "filename":       file.filename,
-        "indexed_as":     personal_ticker,
-    }
+    if "error" in result:
+        raise HTTPException(status_code=422, detail=result["error"])
+
+    return result
 
 
 # ── Run directly ───────────────────────────────────────────────────────────────

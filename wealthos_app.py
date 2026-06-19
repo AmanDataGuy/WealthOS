@@ -261,27 +261,40 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     st.divider()
     st.markdown("**My Documents**")
-    uploaded_file = st.file_uploader(
+
+    if "indexed_docs" not in st.session_state:
+        st.session_state.indexed_docs = []
+
+    uploaded_files = st.file_uploader(
         "Upload EMI receipts, loan statements, salary slips (PDF)",
         type=["pdf"],
+        accept_multiple_files=True,
         key="personal_doc_upload",
     )
-    if uploaded_file is not None:
-        with st.spinner("Indexing document..."):
-            try:
-                resp = requests.post(
-                    f"{API_URL}/upload-personal-doc",
-                    data={"user_id": st.session_state.user_id},
-                    files={"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")},
-                    timeout=120,
-                )
-                if resp.status_code == 200:
-                    r = resp.json()
-                    st.success(f"Indexed {r['chunks_indexed']} chunks from {r['filename']}")
-                else:
-                    st.error(f"Upload failed: {resp.text}")
-            except Exception as e:
-                st.error(f"Upload error: {e}")
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            if uploaded_file.name not in st.session_state.indexed_docs:
+                with st.spinner(f"Indexing {uploaded_file.name}..."):
+                    try:
+                        resp = requests.post(
+                            f"{API_URL}/upload-personal-doc",
+                            data={"user_id": st.session_state.user_id},
+                            files={"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")},
+                            timeout=120,
+                        )
+                        if resp.status_code == 200:
+                            r = resp.json()
+                            st.session_state.indexed_docs.append(uploaded_file.name)
+                            st.success(f"{r['filename']} — {r['chunks_indexed']} chunks indexed")
+                        else:
+                            st.error(f"{uploaded_file.name}: {resp.json().get('detail', resp.text)}")
+                    except Exception as e:
+                        st.error(f"{uploaded_file.name}: {e}")
+
+    if st.session_state.indexed_docs:
+        st.markdown("**Indexed:**")
+        for doc in st.session_state.indexed_docs:
+            st.markdown(f"- {doc}")
 
     st.markdown("")
     if st.button("Sign Out", use_container_width=True):
