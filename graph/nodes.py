@@ -236,6 +236,7 @@ async def writer_node(state: WealthOSState) -> dict:
             rebalance_suggestion=state.get("rebalance_suggestion"),
             personal_finance=state.get("personal_finance"),
             research_snapshot=state.get("research_output"),
+            user_memory=state.get("user_memory", ""),
         )
 
         valid, error = validate_memo(memo.full_memo)

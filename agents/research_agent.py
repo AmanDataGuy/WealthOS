@@ -323,11 +323,26 @@ async def query_rag(question: str, user_id: str, symbols: list[str] | None = Non
             if result:
                 parts.append(f"[{ticker} filing] {result}")
 
-        # Also search this user's uploaded personal finance documents
+        # Always fetch this user's personal finance documents regardless of query similarity
         personal_ticker = f"PERSONAL_{user_id}"
-        personal = await engine.search(question=question, ticker=personal_ticker)
-        if personal:
-            parts.append(f"[Personal documents] {personal}")
+        try:
+            from rag.query_engine import get_qdrant_client
+            from qdrant_client.models import Filter, FieldCondition, MatchValue
+            qc = get_qdrant_client()
+            hits = await asyncio.to_thread(
+                qc.query_points,
+                collection_name="wealthos_docs",
+                query_filter=Filter(must=[FieldCondition(key="ticker", match=MatchValue(value=personal_ticker))]),
+                limit=5,
+                with_payload=True,
+            )
+            personal_chunks = [h.payload.get("content", "") for h in hits.points if h.payload.get("content")]
+            if personal_chunks:
+                parts.append("[Personal documents]\n" + "\n\n".join(personal_chunks))
+        except Exception:
+            personal = await engine.search(question=question, ticker=personal_ticker)
+            if personal:
+                parts.append(f"[Personal documents] {personal}")
 
         return "\n\n".join(parts)
     except Exception as e:
