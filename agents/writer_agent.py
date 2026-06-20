@@ -347,6 +347,7 @@ async def run_writer_agent(
     rebalance_suggestion= None,
     personal_finance    = None,
     research_snapshot   = None,
+    user_memory:  str   = "",
 ) -> InvestmentMemo:
     """
     Main entry point. Called by LangGraph in Phase 4.
@@ -455,11 +456,12 @@ async def run_writer_agent(
 
         # 6. Personal Finance Fit
         print(f"  Writing: Personal Finance Fit...")
+        memory_ctx = f"\n\nUser's past analysis history:\n{user_memory}" if user_memory else ""
         sections["personal_fit"] = await write_section(
             section_name="Personal Finance Fit",
             instructions="Assess whether this investment fits the user's personal financial situation. "
-                         "Reference their surplus, health score, and risk capacity directly.",
-            context=f"{personal_ctx}\n\nRisk Assessment:\n{risk_context}",
+                         "Reference their surplus, health score, risk capacity, and any past decisions directly.",
+            context=f"{personal_ctx}\n\nRisk Assessment:\n{risk_context}{memory_ctx}",
             client=client,
         )
 
@@ -468,8 +470,9 @@ async def run_writer_agent(
         sections["final_verdict"] = await write_section(
             section_name="Final Verdict",
             instructions=f"Give a clear {verdict} recommendation with 2-3 specific reasons. "
+                          "If the user has analysed stocks before, reference relevant past decisions. "
                           "End with one actionable next step for the investor.",
-            context=f"Verdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}",
+            context=f"Verdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}{memory_ctx}",
             client=client,
         )
 
