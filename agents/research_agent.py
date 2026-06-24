@@ -329,20 +329,18 @@ async def query_rag(question: str, user_id: str, symbols: list[str] | None = Non
             from rag.query_engine import get_qdrant_client
             from qdrant_client.models import Filter, FieldCondition, MatchValue
             qc = get_qdrant_client()
-            hits = await asyncio.to_thread(
-                qc.query_points,
+            hits, _ = await asyncio.to_thread(
+                qc.scroll,
                 collection_name="wealthos_docs",
-                query_filter=Filter(must=[FieldCondition(key="ticker", match=MatchValue(value=personal_ticker))]),
+                scroll_filter=Filter(must=[FieldCondition(key="ticker", match=MatchValue(value=personal_ticker))]),
                 limit=5,
                 with_payload=True,
             )
-            personal_chunks = [h.payload.get("content", "") for h in hits.points if h.payload.get("content")]
+            personal_chunks = [h.payload.get("content", "") for h in hits if h.payload.get("content")]
             if personal_chunks:
                 parts.append("[Personal documents]\n" + "\n\n".join(personal_chunks))
-        except Exception:
-            personal = await engine.search(question=question, ticker=personal_ticker)
-            if personal:
-                parts.append(f"[Personal documents] {personal}")
+        except Exception as e:
+            logger.warning("Personal doc fetch failed: %s", e)
 
         return "\n\n".join(parts)
     except Exception as e:
