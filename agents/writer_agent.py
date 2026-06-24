@@ -367,6 +367,16 @@ async def run_writer_agent(
     rebal_context = format_rebalancing(rebalance_suggestion, ticker)
     personal_ctx  = format_personal_finance(personal_finance)
 
+    # Extract personal documents from research RAG context
+    personal_docs_ctx = ""
+    if research_snapshot:
+        d   = research_snapshot if isinstance(research_snapshot, dict) else research_snapshot.model_dump()
+        rag = d.get("rag_context", "")
+        if "[Personal documents]" in rag:
+            personal_docs_ctx = rag[rag.find("[Personal documents]"):]
+        elif rag:
+            personal_docs_ctx = rag
+
     # Top-level values for the memo header
     verdict      = "Hold"
     risk_score   = None
@@ -456,12 +466,14 @@ async def run_writer_agent(
 
         # 6. Personal Finance Fit
         print(f"  Writing: Personal Finance Fit...")
-        memory_ctx = f"\n\nUser's past analysis history:\n{user_memory}" if user_memory else ""
+        memory_ctx   = f"\n\nUser's past analysis history:\n{user_memory}" if user_memory else ""
+        docs_ctx     = f"\n\nUser's uploaded financial documents:\n{personal_docs_ctx}" if personal_docs_ctx else ""
         sections["personal_fit"] = await write_section(
             section_name="Personal Finance Fit",
             instructions="Assess whether this investment fits the user's personal financial situation. "
-                         "Reference their surplus, health score, risk capacity, and any past decisions directly.",
-            context=f"{personal_ctx}\n\nRisk Assessment:\n{risk_context}{memory_ctx}",
+                         "Reference their surplus, health score, risk capacity, and any past decisions directly. "
+                         "If uploaded documents are present, mention specific figures (EMI amount, loan balance, etc.).",
+            context=f"{personal_ctx}\n\nRisk Assessment:\n{risk_context}{docs_ctx}{memory_ctx}",
             client=client,
         )
 
@@ -472,7 +484,7 @@ async def run_writer_agent(
             instructions=f"Give a clear {verdict} recommendation with 2-3 specific reasons. "
                           "If the user has analysed stocks before, reference relevant past decisions. "
                           "End with one actionable next step for the investor.",
-            context=f"Verdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}{memory_ctx}",
+            context=f"Verdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}{docs_ctx}{memory_ctx}",
             client=client,
         )
 
