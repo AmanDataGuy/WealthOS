@@ -29,19 +29,91 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 RESULTS_DIR = Path(__file__).parent / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
-# 10 questions representative of what Indian WealthOS users ask
-# Mix of factual (needs DB/SEC data) and qualitative (needs RAG)
+# Evaluation questions with human-written ground truth answers.
+#
+# Ground truths written for tickers with strong Qdrant coverage (180+ chunks).
+# Indian tickers (TCS, INFY) have ~8 chunks from yfinance HTML —
+# context_recall will be low there by design; they're included to surface that gap.
+#
+# Qdrant chunk counts (approx): NVDA=287, GOOGL=260, MSFT=252, TSLA=282,
+#                                AMZN=184, AAPL=181, Indian stocks ~8 each
 EVAL_QUESTIONS = [
-    {"question": "What is the revenue growth trend for TCS over the past 3 years?",         "ticker": "TCS.NS"},
-    {"question": "What are HDFC Bank's main risk factors according to its annual report?",  "ticker": "HDFCBANK.NS"},
-    {"question": "How does Infosys describe its AI strategy in its management discussion?",  "ticker": "INFY.NS"},
-    {"question": "What is Reliance Industries' free cash flow and debt position?",           "ticker": "RELIANCE.NS"},
-    {"question": "What risks does Apple cite related to China in its 10-K?",                 "ticker": "AAPL"},
-    {"question": "What is Microsoft's Azure revenue growth and competitive positioning?",    "ticker": "MSFT"},
-    {"question": "How does NVIDIA describe the competition risks in its annual filings?",    "ticker": "NVDA"},
-    {"question": "What is Amazon's stated strategy for AWS margin expansion?",               "ticker": "AMZN"},
-    {"question": "What are the key risks in Google's advertising business per its 10-K?",   "ticker": "GOOGL"},
-    {"question": "How does Meta describe its AI infrastructure spending plans?",             "ticker": "META"},
+    # ── US tickers — well-indexed, expect reasonable scores ──────────────────
+    {
+        "question": "How does NVIDIA describe the competition risks in its annual filings?",
+        "ticker": "NVDA",
+        "ground_truth": (
+            "NVIDIA cites competition from AMD, Intel, and custom AI chips designed by "
+            "cloud hyperscalers (Google TPUs, Amazon Trainium, Microsoft Maia) as key "
+            "competitive threats. It also notes export restrictions to China as a risk "
+            "to its addressable market, and that customers may shift to alternative "
+            "architectures if NVIDIA's high market share in data center GPUs erodes."
+        ),
+    },
+    {
+        "question": "What is Microsoft's Azure revenue growth and competitive positioning?",
+        "ticker": "MSFT",
+        "ground_truth": (
+            "Microsoft describes Azure as its fastest-growing segment with cloud revenue "
+            "growing over 20% year-over-year. Azure competes primarily with AWS and "
+            "Google Cloud. Microsoft highlights hybrid cloud integration with enterprise "
+            "software (Office 365, Dynamics) as a key differentiator and cites Azure "
+            "OpenAI services as a major growth driver going forward."
+        ),
+    },
+    {
+        "question": "What risks does Apple cite related to China in its 10-K?",
+        "ticker": "AAPL",
+        "ground_truth": (
+            "Apple identifies China as both a key manufacturing location and a major "
+            "revenue market. Risks cited include trade tensions and tariffs, supply chain "
+            "disruption from reliance on Chinese manufacturing partners, regulatory "
+            "restrictions on app distribution in China, and competition from local "
+            "smartphone brands including Huawei."
+        ),
+    },
+    {
+        "question": "What is Amazon's stated strategy for AWS margin expansion?",
+        "ticker": "AMZN",
+        "ground_truth": (
+            "Amazon states AWS margin expansion is driven by custom silicon (Graviton "
+            "processors, Trainium for AI training), economies of scale in infrastructure, "
+            "and a shift toward higher-margin services like AI, databases, and security. "
+            "AWS operating margin is significantly higher than the retail segment and is "
+            "described as the primary profit engine for the company."
+        ),
+    },
+    {
+        "question": "What are the key risks in Google's advertising business per its 10-K?",
+        "ticker": "GOOGL",
+        "ground_truth": (
+            "Google cites advertiser concentration risk, competition from Meta, Amazon, "
+            "and TikTok for digital ad budgets, and regulatory antitrust scrutiny as key "
+            "risks. The shift from desktop to mobile and the rise of AI-powered search "
+            "alternatives are noted as structural risks to traditional search ad revenue."
+        ),
+    },
+    # ── Indian tickers — thin coverage (~8 chunks), expect low recall ─────────
+    {
+        "question": "What is the revenue growth trend for TCS over the past 3 years?",
+        "ticker": "TCS.NS",
+        "ground_truth": (
+            "TCS reported revenue growth of 8-12% annually in INR terms, driven by "
+            "digital transformation deals. Growth slowed in FY2024 due to client budget "
+            "caution in the US and Europe. BFSI and retail verticals were under pressure "
+            "while manufacturing showed resilience."
+        ),
+    },
+    {
+        "question": "What is Infosys's AI strategy according to its management discussion?",
+        "ticker": "INFY.NS",
+        "ground_truth": (
+            "Infosys describes its AI strategy through its Topaz platform for enterprise "
+            "generative AI services. The company targets AI-led cost takeout deals and "
+            "AI-augmented software delivery, with partnerships with major cloud providers "
+            "and LLM vendors to deliver AI transformation programs."
+        ),
+    },
 ]
 
 
@@ -103,12 +175,10 @@ async def run_ragas(tickers: list[str] | None = None):
         print(f"  [{ticker}] {q[:60]}...")
         chunks, answer = await retrieve_context(q, ticker)
         rows.append({
-            "question":  q,
-            "answer":    answer,
-            "contexts":  chunks if chunks else ["(no context retrieved)"],
-            # ground_truth is required by context_recall; we use the answer as proxy
-            # since we don't have human-annotated gold answers
-            "ground_truth": answer,
+            "question":     q,
+            "answer":       answer,
+            "contexts":     chunks if chunks else ["(no context retrieved)"],
+            "ground_truth": item["ground_truth"],
         })
 
     dataset = Dataset.from_list(rows)
