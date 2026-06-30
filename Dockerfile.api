@@ -14,6 +14,9 @@ RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 COPY . .
 
+# Pre-download embedding model so first pipeline run doesn't stall
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')" || true
+
 ENV PYTHONIOENCODING=utf-8
 EXPOSE 8000
 
