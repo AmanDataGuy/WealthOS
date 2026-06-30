@@ -5,7 +5,12 @@ WealthOS LangGraph orchestrator.
 ## Phase 5 change
 `validation_node` added between risk_and_code and rebalancing.
 
+## Phase 3/4 change
+`router_node` added as first node — classifies horizon, company tier, user tier.
+
 Execution order:
+  router_node         ← Phase 3/4: classifies horizon + tiers
+      │
   finance_node
       │
       ├── data_node ──────┐   (parallel)
@@ -32,6 +37,7 @@ import asyncio
 from langgraph.graph import StateGraph, END
 from graph.state import WealthOSState
 from graph.nodes import (
+    router_node,
     finance_node,
     data_node,
     research_node,
@@ -102,6 +108,7 @@ def route_on_error(state: WealthOSState) -> str:
 def build_graph():
     graph = StateGraph(WealthOSState)
 
+    graph.add_node("router",            router_node)
     graph.add_node("finance",           finance_node)
     graph.add_node("data_and_research", data_and_research_node)
     graph.add_node("risk_and_code",     risk_and_code_node)
@@ -110,8 +117,9 @@ def build_graph():
     graph.add_node("writer",            writer_node)
     graph.add_node("error",             error_node)
 
-    graph.set_entry_point("finance")
+    graph.set_entry_point("router")
 
+    graph.add_edge("router",  "finance")
     graph.add_edge("finance", "data_and_research")
 
     graph.add_conditional_edges(
@@ -141,7 +149,7 @@ if __name__ == "__main__":
     import asyncio, sys
 
     ticker  = sys.argv[1] if len(sys.argv) > 1 else "TSLA"
-    user_id = sys.argv[2] if len(sys.argv) > 2 else "test-user"
+    user_id = sys.argv[2] if len(sys.argv) > 2 else "00000000-0000-0000-0000-000000000001"
 
     async def main():
         print(f"\n{'='*60}")
@@ -152,6 +160,11 @@ if __name__ == "__main__":
             "query":               f"Should I invest in {ticker}?",
             "tickers":             [ticker],
             "user_id":             user_id,
+            "user_memory":         None,
+            "investment_horizon":  None,
+            "company_tier":        None,
+            "user_tier":           None,
+            "fetch_plan":          None,
             "personal_finance":    None,
             "financial_snapshot":  None,
             "research_output":     None,
