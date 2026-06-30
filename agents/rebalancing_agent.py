@@ -410,7 +410,7 @@ async def run_rebalancing_agent(
 
 if __name__ == "__main__":
     import sys
-    user_id = sys.argv[1] if len(sys.argv) > 1 else "test-user"
+    user_id = sys.argv[1] if len(sys.argv) > 1 else "00000000-0000-0000-0000-000000000001"
 
     # Optional: pass ticker and amount as args
     new_inv = None
