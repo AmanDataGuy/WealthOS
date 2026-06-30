@@ -573,6 +573,175 @@ def compare_stocks(tickers: list[str]) -> dict:
     return data
 
 
+# --- Technical Analysis Tools ---
+
+@mcp.tool()
+def get_technicals(ticker: str, period: str = "3mo") -> dict:
+    """
+    Compute RSI, MACD, Bollinger Bands, and support/resistance levels from price history.
+    period options: 1mo 3mo 6mo 1y
+    Example: get_technicals("AAPL", period="3mo")
+    """
+    key = f"yf:technicals:{ticker.upper()}:{period}"
+    cached = from_cache(key)
+    if cached:
+        cached["from_cache"] = True
+        return cached
+
+    try:
+        df = yf.Ticker(ticker).history(period=period, interval="1d")
+        if df.empty or len(df) < 20:
+            return {"ticker": ticker, "error": "Insufficient price history for technical analysis"}
+
+        closes = df["Close"].tolist()
+        highs  = df["High"].tolist()
+        lows   = df["Low"].tolist()
+
+        # RSI (14-period)
+        def _rsi(prices, period=14):
+            gains, losses = [], []
+            for i in range(1, len(prices)):
+                diff = prices[i] - prices[i - 1]
+                gains.append(max(diff, 0))
+                losses.append(max(-diff, 0))
+            if len(gains) < period:
+                return None
+            avg_gain = sum(gains[:period]) / period
+            avg_loss = sum(losses[:period]) / period
+            for i in range(period, len(gains)):
+                avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+                avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+            if avg_loss == 0:
+                return 100.0
+            rs = avg_gain / avg_loss
+            return round(100 - (100 / (1 + rs)), 2)
+
+        # MACD (12/26/9)
+        def _ema(prices, n):
+            k = 2 / (n + 1)
+            ema = [prices[0]]
+            for p in prices[1:]:
+                ema.append(p * k + ema[-1] * (1 - k))
+            return ema
+
+        ema12 = _ema(closes, 12)
+        ema26 = _ema(closes, 26)
+        macd_line  = [round(a - b, 4) for a, b in zip(ema12, ema26)]
+        signal_line = _ema(macd_line, 9)
+        macd_hist  = [round(m - s, 4) for m, s in zip(macd_line, signal_line)]
+
+        # Bollinger Bands (20-period, 2 std)
+        def _bollinger(prices, n=20):
+            if len(prices) < n:
+                return None, None, None
+            sma   = sum(prices[-n:]) / n
+            std   = (sum((p - sma) ** 2 for p in prices[-n:]) / n) ** 0.5
+            return round(sma + 2 * std, 4), round(sma, 4), round(sma - 2 * std, 4)
+
+        bb_upper, bb_mid, bb_lower = _bollinger(closes)
+
+        # Support / resistance: recent swing highs and lows
+        window = min(20, len(closes))
+        recent_highs = sorted(highs[-window:], reverse=True)[:3]
+        recent_lows  = sorted(lows[-window:])[:3]
+        resistance   = round(recent_highs[0], 4) if recent_highs else None
+        support      = round(recent_lows[0],  4) if recent_lows  else None
+
+        current_price = closes[-1] if closes else None
+
+        data = {
+            "ticker":        ticker,
+            "period":        period,
+            "current_price": round(current_price, 4) if current_price else None,
+            "rsi":           _rsi(closes),
+            "macd": {
+                "macd_line":   round(macd_line[-1],   4) if macd_line   else None,
+                "signal_line": round(signal_line[-1], 4) if signal_line else None,
+                "histogram":   round(macd_hist[-1],   4) if macd_hist   else None,
+            },
+            "bollinger_bands": {
+                "upper":  bb_upper,
+                "middle": bb_mid,
+                "lower":  bb_lower,
+            },
+            "support":    support,
+            "resistance": resistance,
+            "bars_used":  len(closes),
+            "from_cache": False,
+        }
+        to_cache(key, data, TTL_HISTORY)
+        return data
+
+    except Exception as e:
+        logger.error("get_technicals failed for %s: %s", ticker, e)
+        return {"ticker": ticker, "error": str(e)}
+
+
+@mcp.tool()
+def get_options_data(ticker: str) -> dict:
+    """
+    Get options market data including put/call ratio and implied volatility.
+    Example: get_options_data("AAPL")
+    """
+    key = f"yf:options:{ticker.upper()}"
+    cached = from_cache(key)
+    if cached:
+        cached["from_cache"] = True
+        return cached
+
+    try:
+        t = yf.Ticker(ticker)
+        expirations = t.options
+        if not expirations:
+            return {"ticker": ticker, "error": "No options data available", "put_call_ratio": None}
+
+        # Use the nearest expiration
+        nearest = expirations[0]
+        chain   = t.option_chain(nearest)
+
+        calls = chain.calls
+        puts  = chain.puts
+
+        total_call_vol = int(calls["volume"].fillna(0).sum()) if not calls.empty else 0
+        total_put_vol  = int(puts["volume"].fillna(0).sum())  if not puts.empty  else 0
+
+        put_call_ratio = None
+        if total_call_vol > 0:
+            put_call_ratio = round(total_put_vol / total_call_vol, 3)
+
+        # Average IV for near-the-money options
+        avg_call_iv = None
+        avg_put_iv  = None
+        if not calls.empty and "impliedVolatility" in calls.columns:
+            mid_calls   = calls[calls["volume"].fillna(0) > 0]
+            avg_call_iv = round(float(mid_calls["impliedVolatility"].mean()), 4) if not mid_calls.empty else None
+        if not puts.empty and "impliedVolatility" in puts.columns:
+            mid_puts   = puts[puts["volume"].fillna(0) > 0]
+            avg_put_iv = round(float(mid_puts["impliedVolatility"].mean()),  4) if not mid_puts.empty  else None
+
+        data = {
+            "ticker":           ticker,
+            "nearest_expiry":   nearest,
+            "total_call_volume": total_call_vol,
+            "total_put_volume":  total_put_vol,
+            "put_call_ratio":   put_call_ratio,
+            "avg_call_iv":      avg_call_iv,
+            "avg_put_iv":       avg_put_iv,
+            "sentiment": (
+                "bearish" if put_call_ratio and put_call_ratio > 1.2 else
+                "bullish" if put_call_ratio and put_call_ratio < 0.8 else
+                "neutral"
+            ),
+            "from_cache": False,
+        }
+        to_cache(key, data, TTL_HISTORY)
+        return data
+
+    except Exception as e:
+        logger.error("get_options_data failed for %s: %s", ticker, e)
+        return {"ticker": ticker, "error": str(e), "put_call_ratio": None}
+
+
 # --- Run ---
 
 if __name__ == "__main__":
