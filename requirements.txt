@@ -91,6 +91,14 @@ pdfplumber              # table extraction from PDFs (supplements pypdf prose ex
 pytesseract             # OCR wrapper for tesseract (image-based PDFs)
 pdf2image               # converts PDF pages to images for OCR
 newspaper3k             # full article body extraction in news_server.py (newspaper3k primary, Firecrawl fallback)
+
+# Eval framework (eval/evaluate.py, eval/deepeval_metrics.py, eval/ragas_eval.py)
+deepeval                # FaithfulnessMetric, AnswerRelevancyMetric, HallucinationMetric
+langchain-groq          # ChatGroq judge for evaluate.py TypedDict graders + ragas_eval.py
+langchain-google-genai  # Gemini 1.5-flash judge for deepeval_metrics.py
+langchain-huggingface   # local HuggingFaceEmbeddings for ragas_eval.py (no OpenAI needed)
+ragas                   # RAG pipeline eval — context precision/recall, faithfulness, relevancy
+datasets                # HuggingFace Dataset object required by ragas.evaluate()
 redis==7.4.0
 referencing==0.37.0
 requests==2.33.1
@@ -138,5 +146,5 @@ weave==0.51.33
 langsmith           # used in observability/langsmith_config.py (from langsmith import traceable, Client)
 
 # Input handlers
-anthropic           # used in input/pdf_processor.py and input/vision_handler.py
+anthropic           # used in input/vision_handler.py
 openai              # used in input/whisper_handler.py (Whisper transcription)
