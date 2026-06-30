@@ -339,6 +339,42 @@ def _write_memo_with_dspy(
 
 # ── Main Orchestrator ─────────────────────────────────────────────────────────
 
+def format_technicals(code_output, ticker: str = "") -> str:
+    """Format technical analysis data for the short-term Trading Setup section."""
+    if not code_output:
+        return "No technical data available."
+    d = code_output.model_dump() if hasattr(code_output, "model_dump") else code_output
+    tech = d.get("technicals")
+    if not tech:
+        return "No technical data available."
+
+    c = _get_currency(ticker)
+    lines = []
+    if tech.get("current_price"):
+        lines.append(f"- Current Price: **{c}{tech['current_price']:.2f}**")
+    rsi = tech.get("rsi")
+    if rsi is not None:
+        signal = "oversold" if rsi < 30 else "overbought" if rsi > 70 else "neutral"
+        lines.append(f"- RSI (14): **{rsi}** ({signal})")
+    macd = tech.get("macd") or {}
+    if macd.get("macd_line") is not None:
+        direction = "bullish" if (macd.get("histogram") or 0) > 0 else "bearish"
+        lines.append(f"- MACD: **{macd['macd_line']:.4f}** | Signal: {macd.get('signal_line'):.4f} | Histogram: {macd.get('histogram'):.4f} ({direction})")
+    bb = tech.get("bollinger_bands") or {}
+    if bb.get("upper"):
+        lines.append(f"- Bollinger Bands: Upper={c}{bb['upper']:.2f} | Mid={c}{bb.get('middle',0):.2f} | Lower={c}{bb['lower']:.2f}")
+    if tech.get("support"):
+        lines.append(f"- Support: **{c}{tech['support']:.2f}**")
+    if tech.get("resistance"):
+        lines.append(f"- Resistance: **{c}{tech['resistance']:.2f}**")
+    opts = tech.get("options") or {}
+    pcr = opts.get("put_call_ratio")
+    if pcr is not None:
+        lines.append(f"- Put/Call Ratio: **{pcr:.3f}** ({opts.get('sentiment', 'n/a')})")
+
+    return "\n".join(lines) if lines else "Technical data incomplete."
+
+
 async def run_writer_agent(
     ticker:             str,
     financial_snapshot  = None,
@@ -348,6 +384,8 @@ async def run_writer_agent(
     personal_finance    = None,
     research_snapshot   = None,
     user_memory:  str   = "",
+    investment_horizon: Optional[str] = None,
+    past_decisions_ctx: Optional[str] = None,
 ) -> InvestmentMemo:
     """
     Main entry point. Called by LangGraph in Phase 4.
@@ -366,6 +404,16 @@ async def run_writer_agent(
     code_context  = format_code_output(code_output, ticker)
     rebal_context = format_rebalancing(rebalance_suggestion, ticker)
     personal_ctx  = format_personal_finance(personal_finance)
+    tech_context  = format_technicals(code_output, ticker)
+
+    # Past decisions context block for LLM injection
+    past_ctx_block = ""
+    if past_decisions_ctx and past_decisions_ctx.strip():
+        past_ctx_block = (
+            f"\n\n## User's Past Investment Decisions\n{past_decisions_ctx}\n"
+            "Consider consistency with these prior decisions. "
+            "If the new verdict conflicts with a recent one for the same ticker, explicitly acknowledge it."
+        )
 
     # Extract personal documents from research RAG context
     personal_docs_ctx = ""
@@ -434,15 +482,27 @@ async def run_writer_agent(
             client=client,
         )
 
-        # 3. Valuation Analysis
-        print(f"  Writing: Valuation Analysis...")
-        sections["valuation_analysis"] = await write_section(
-            section_name="Valuation Analysis",
-            instructions="Interpret the DCF and Monte Carlo results. "
-                         "Is the stock overvalued or undervalued? What does the probability distribution tell us?",
-            context=code_context,
-            client=client,
-        )
+        # 3. Valuation Analysis (long/mid) OR Trading Setup (short)
+        if investment_horizon == "short":
+            print(f"  Writing: Trading Setup (short-term)...")
+            sections["valuation_analysis"] = await write_section(
+                section_name="Trading Setup",
+                instructions="Interpret the RSI, MACD, Bollinger Bands, and put/call ratio. "
+                             "Identify the current trend direction and momentum. "
+                             "Comment on support and resistance levels. "
+                             "Assess whether the setup favours buyers or sellers right now.",
+                context=tech_context,
+                client=client,
+            )
+        else:
+            print(f"  Writing: Valuation Analysis...")
+            sections["valuation_analysis"] = await write_section(
+                section_name="Valuation Analysis",
+                instructions="Interpret the DCF and Monte Carlo results. "
+                             "Is the stock overvalued or undervalued? What does the probability distribution tell us?",
+                context=code_context,
+                client=client,
+            )
 
         # 4. Risk Assessment
         print(f"  Writing: Risk Assessment...")
@@ -473,24 +533,39 @@ async def run_writer_agent(
             instructions="Assess whether this investment fits the user's personal financial situation. "
                          "Reference their surplus, health score, risk capacity, and any past decisions directly. "
                          "If uploaded documents are present, mention specific figures (EMI amount, loan balance, etc.).",
-            context=f"{personal_ctx}\n\nRisk Assessment:\n{risk_context}{docs_ctx}{memory_ctx}",
+            context=f"{personal_ctx}\n\nRisk Assessment:\n{risk_context}{docs_ctx}{memory_ctx}{past_ctx_block}",
             client=client,
         )
 
-        # 7. Final Verdict
+        # 7. Final Verdict (+ Trade Plan for short-term)
         print(f"  Writing: Final Verdict...")
-        sections["final_verdict"] = await write_section(
-            section_name="Final Verdict",
-            instructions=f"Give a clear {verdict} recommendation with 2-3 specific reasons. "
-                          "If the user has analysed stocks before, reference relevant past decisions. "
-                          "End with one actionable next step for the investor.",
-            context=f"Verdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}{docs_ctx}{memory_ctx}",
-            client=client,
-        )
+        if investment_horizon == "short":
+            sections["final_verdict"] = await write_section(
+                section_name="Final Verdict & Trade Plan",
+                instructions=f"Give a clear {verdict} recommendation with 2-3 specific reasons based on the technical setup. "
+                              "Then provide a Trade Plan with: entry zone, stop-loss estimate (below key support), "
+                              "1-week price target, and suggested position size as a % of investable monthly surplus. "
+                              "If the user has analysed this ticker before, acknowledge any change in stance.",
+                context=f"Verdict: {verdict}\n\nTechnicals:\n{tech_context}\n\nPersonal:\n{personal_ctx}{past_ctx_block}",
+                client=client,
+            )
+        else:
+            sections["final_verdict"] = await write_section(
+                section_name="Final Verdict",
+                instructions=f"Give a clear {verdict} recommendation with 2-3 specific reasons. "
+                              "If the user has analysed stocks before, reference relevant past decisions. "
+                              "End with one actionable next step for the investor.",
+                context=f"Verdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}{docs_ctx}{memory_ctx}{past_ctx_block}",
+                client=client,
+            )
 
     # Assemble full memo
+    _valuation_header = "Trading Setup" if investment_horizon == "short" else "Valuation Analysis"
+    _verdict_header   = "Final Verdict & Trade Plan" if investment_horizon == "short" else f"Final Verdict: {verdict.upper()}"
+
     full_memo = f"""# WealthOS Investment Analysis: {company_name} ({ticker})
 *Generated: {datetime.now(timezone.utc).strftime('%B %d, %Y')}*
+*Horizon: {(investment_horizon or 'long').upper()}*
 
 ---
 
@@ -504,7 +579,7 @@ async def run_writer_agent(
 
 ---
 
-## Valuation Analysis
+## {_valuation_header}
 {sections['valuation_analysis']}
 
 ---
@@ -524,7 +599,7 @@ async def run_writer_agent(
 
 ---
 
-## Final Verdict: {verdict.upper()}
+## {_verdict_header}
 {sections['final_verdict']}
 
 ---
