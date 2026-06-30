@@ -1,0 +1,37 @@
+{
+  "date": "2026-06-30",
+  "results": [
+    {
+      "id": 1,
+      "ticker": "AAPL",
+      "query": "[1] AAPL \u2014 Apple Inc.",
+      "scores": {
+        "Faithfulness": null,
+        "Answer Relevancy": null,
+        "Hallucination": null
+      },
+      "passed": {
+        "Faithfulness": false,
+        "Answer Relevancy": false,
+        "Hallucination": false
+      },
+      "overall_pass": false
+    },
+    {
+      "id": 2,
+      "ticker": "MSFT",
+      "query": "[2] MSFT \u2014 Microsoft Corporation",
+      "scores": {
+        "Faithfulness": null,
+        "Answer Relevancy": null,
+        "Hallucination": null
+      },
+      "passed": {
+        "Faithfulness": false,
+        "Answer Relevancy": false,
+        "Hallucination": false
+      },
+      "overall_pass": false
+    }
+  ]
+}
