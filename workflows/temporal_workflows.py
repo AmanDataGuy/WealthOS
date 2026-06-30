@@ -10,7 +10,7 @@ Run the worker separately:
   python -m workflows.temporal_worker
 
 Trigger a workflow from api/main.py or CLI:
-  python -m workflows.temporal_workflows TSLA test-user
+  python -m workflows.temporal_workflows TSLA 00000000-0000-0000-0000-000000000001
 """
 
 import asyncio
@@ -222,7 +222,7 @@ class WealthOSWorkflow:
 
 async def _cli():
     ticker  = sys.argv[1] if len(sys.argv) > 1 else "TSLA"
-    user_id = sys.argv[2] if len(sys.argv) > 2 else "test-user"
+    user_id = sys.argv[2] if len(sys.argv) > 2 else "00000000-0000-0000-0000-000000000001"
 
     client = await Client.connect("localhost:7233")
 
