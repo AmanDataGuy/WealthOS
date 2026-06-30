@@ -1,0 +1,67 @@
+# .github/workflows/eval.yml
+# DeepEval quality gate — runs on every PR touching writer or eval code.
+# Fails if memo quality drops below 80%. Reads golden dataset — no live pipeline needed.
+name: Eval Gate
+
+on:
+  pull_request:
+    paths:
+      - "agents/writer_agent.py"
+      - "eval/writer_golden_dataset.json"
+      - "eval/deepeval_metrics.py"
+      - "eval/run_deepeval.py"
+      - "graph/nodes.py"
+
+jobs:
+  deepeval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install eval dependencies
+        run: pip install deepeval openai python-dotenv
+
+      - name: Run DeepEval (first 5 examples)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python eval/run_deepeval.py --limit 5
+
+      - name: Check pass rate >= 80%
+        run: |
+          python - <<'EOF'
+          import json, sys, pathlib
+
+          files = sorted(pathlib.Path("eval/results").glob("deepeval_*.json"))
+          if not files:
+              print("No deepeval results found — skipping gate")
+              sys.exit(0)
+
+          data    = json.loads(files[-1].read_text())
+          results = data.get("results", [])
+          if not results:
+              print("No results in file — skipping gate")
+              sys.exit(0)
+
+          passed = sum(1 for r in results if r.get("overall_pass"))
+          total  = len(results)
+          rate   = passed / total
+          print(f"DeepEval pass rate: {passed}/{total} ({rate:.0%})")
+          if rate < 0.80:
+              print(f"FAIL: {rate:.0%} < 80% threshold")
+              sys.exit(1)
+          print("PASS")
+          EOF
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepeval-results
+          path: eval/results/deepeval_*.json
+          retention-days: 30
