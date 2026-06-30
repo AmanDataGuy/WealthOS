@@ -74,7 +74,7 @@ def send_notification(user_id: str, subject: str, message: str) -> dict:
     # TODO: Fetch these from a User database table
     # For now, we mock a DB lookup and fallback to env
     mock_db = {
-        "test-user": {
+        "00000000-0000-0000-0000-000000000001": {
             "email": os.getenv("NOTIFY_EMAIL", ""),
             "phone": os.getenv("NOTIFY_PHONE", "")
         }
