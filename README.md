@@ -169,11 +169,20 @@ flowchart LR
 | Full 7-agent pipeline end-to-end | ✅ Done |
 | MCP stdio transport via MCPClient | ✅ Done |
 | LangSmith tracing on all 8 nodes | ✅ Done |
-| RAG — 725 Qdrant points (AAPL / MSFT / NVDA 10-K) | ✅ Done |
-| Dockerfiles (api / mcp / frontend) | 🔄 Planned |
+| RAG — 725+ Qdrant points (AAPL / MSFT / NVDA / GOOGL / TSLA / AMZN 10-K) | ✅ Done |
+| DSPy BootstrapFewShot compiled writer (28 golden examples) | ✅ Done |
+| W&B Weave LLM-as-judge eval (4-dimension scoring) | ✅ Done |
+| Analysis history — full memo stored, sidebar + Reports page | ✅ Done |
+| Personal document RAG (salary slips, bank statements via OCR) | ✅ Done |
+| A2A agent cards at `/agents` endpoint | ✅ Done |
+| Dockerfiles (api / frontend) | ✅ Done |
+| `user_analyses` Qdrant collection — per-user verdict vectors | ✅ Done |
+| Indian stock BSE PDF indexer (30 companies) | 🔄 Planned |
+| Investment horizon routing (short / mid / long-term) | 🔄 Planned |
 | API key auth + rate limiting on `/analyze` | 🔄 Planned |
 | DeepEval CI gate | 🔄 Planned |
-| Real-time price alerts | 🔄 Planned |
+| Full news article body fetch (newspaper3k) | 🔄 Planned |
+| Earnings call transcript indexing | 🔄 Planned |
 
 </div>
 
@@ -226,5 +235,24 @@ python -m rag.pipeline batch AAPL MSFT NVDA
 | `COHERE_API_KEY` | RAG reranking |
 
 See `.env.example` for the full list.
+
+---
+
+## Demo
+
+**Suggested tickers for a live walkthrough:**
+
+| Market | Tickers | Coverage |
+|--------|---------|----------|
+| US | `NVDA` `MSFT` `AAPL` `AMZN` `GOOGL` `TSLA` | Full SEC 10-K indexed |
+| India | `SBIN` `RELIANCE` `TCS` `INFY` `WIPRO` `HCLTECH` `ICICIBANK` `HDFCBANK` | yfinance annual report indexed |
+
+**3-minute script:**
+
+1. Enter `NVDA` with a sample financial profile → watch the 7-node graph execute → point out DCF intrinsic value, Monte Carlo P10/P50/P90, and personalised risk score
+2. Switch to `SBIN` → same pipeline, currency auto-switches to `₹`, RAG pulls from Indian market data
+3. Open `/docs` → show the REST API schema and JWT auth
+
+Any ticker works — the system fetches live data via yfinance even without a pre-indexed filing (RAG context is limited but DCF, Monte Carlo, and risk scoring still run fully).
 
 </div>
