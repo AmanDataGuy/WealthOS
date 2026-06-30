@@ -116,7 +116,31 @@ def main():
     )
 
     print(f"\nDone. Collection '{COLLECTION_NAME}' created with {DENSE_DIMS}-dim dense vectors.")
-    print("Next step: ingest documents with rag/indexer.py")
+
+    # ── user_analyses collection ────────────────────────────────────────────────
+    # Stores one vector per user analysis (the Final Verdict section embedding).
+    # Used to retrieve semantically similar past decisions at pipeline start.
+    USER_ANALYSES = "user_analyses"
+    if USER_ANALYSES not in existing:
+        print(f"\nCreating collection '{USER_ANALYSES}' (per-user analysis memory) ...")
+        client.create_collection(
+            collection_name=USER_ANALYSES,
+            vectors_config={
+                "dense": VectorParams(
+                    size=DENSE_DIMS,
+                    distance=Distance.COSINE,
+                    on_disk=False,
+                ),
+            },
+        )
+        client.create_payload_index(USER_ANALYSES, "user_id", PayloadSchemaType.KEYWORD)
+        client.create_payload_index(USER_ANALYSES, "ticker",  PayloadSchemaType.KEYWORD)
+        client.create_payload_index(USER_ANALYSES, "verdict", PayloadSchemaType.KEYWORD)
+        print(f"  Collection '{USER_ANALYSES}' created with user_id / ticker / verdict indexes.")
+    else:
+        print(f"\nCollection '{USER_ANALYSES}' already exists — skipping.")
+
+    print("\nNext step: ingest documents with rag/indexer.py")
     print("  python -m rag.indexer --file path/to/doc.pdf --user_id <uuid> --doc_type loan_statement")
 
 
