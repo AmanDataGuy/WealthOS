@@ -90,6 +90,7 @@ fastembed               # BM25 sparse vectors (Qdrant/bm25 model)
 pdfplumber              # table extraction from PDFs (supplements pypdf prose extraction)
 pytesseract             # OCR wrapper for tesseract (image-based PDFs)
 pdf2image               # converts PDF pages to images for OCR
+newspaper3k             # full article body extraction in news_server.py (newspaper3k primary, Firecrawl fallback)
 redis==7.4.0
 referencing==0.37.0
 requests==2.33.1
