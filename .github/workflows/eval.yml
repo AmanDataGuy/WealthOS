@@ -25,11 +25,12 @@ jobs:
           python-version: "3.11"
 
       - name: Install eval dependencies
-        run: pip install deepeval openai python-dotenv
+        run: pip install deepeval langchain-google-genai python-dotenv
 
       - name: Run DeepEval (first 5 examples)
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python eval/run_deepeval.py --limit 5
 
       - name: Check pass rate >= 80%
