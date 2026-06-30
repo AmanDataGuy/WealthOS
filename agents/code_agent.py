@@ -56,6 +56,7 @@ class CodeAgentOutput(BaseModel):
     dcf:                Optional[DCFResult]         = None
     monte_carlo:        Optional[MonteCarloResult]  = None
     sensitivity:        Optional[SensitivityResult] = None
+    technicals:         Optional[dict]              = None   # set on short/mid-term path
     raw_output:         Optional[str]               = None
     error:              Optional[str]               = None
     analysis_date:      str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -254,11 +255,53 @@ def extract_inputs(snapshot) -> dict:
     }
 
 
+# ── Short-Term Technical Path ─────────────────────────────────────────────────
+
+async def _run_technicals_path(ticker: str) -> CodeAgentOutput:
+    """
+    Called when fetch_plan["use_technicals"] is True (short/mid horizon).
+    Fetches RSI/MACD/Bollinger Bands + options data from market_server via MCP.
+    Skips E2B sandbox entirely.
+    """
+    from services.mcp_client import MCPClient
+    import os
+
+    server = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mcp_servers", "market_server.py")
+
+    technicals = {}
+    options    = {}
+
+    try:
+        async with MCPClient(server) as client:
+            print(f"  [1/2] Fetching technicals for {ticker}...")
+            technicals = await client.call_tool("get_technicals", {"ticker": ticker, "period": "3mo"}) or {}
+            print(f"  [2/2] Fetching options data for {ticker}...")
+            options = await client.call_tool("get_options_data", {"ticker": ticker}) or {}
+    except Exception as e:
+        print(f"  ⚠️  Technical/options fetch failed: {e}")
+
+    combined = {**technicals, "options": options}
+
+    rsi = technicals.get("rsi")
+    pcr = options.get("put_call_ratio")
+    print(f"  ✅ Technicals: RSI={rsi} | P/C ratio={pcr} | sentiment={options.get('sentiment', 'n/a')}")
+
+    return CodeAgentOutput(
+        ticker=ticker,
+        dcf=None,
+        monte_carlo=None,
+        sensitivity=None,
+        technicals=combined,
+        raw_output=f"Short-term path: RSI={rsi}, P/C={pcr}",
+    )
+
+
 # ── Main Orchestrator ─────────────────────────────────────────────────────────
 
 async def run_code_agent(
     ticker: str,
     financial_snapshot=None,
+    fetch_plan: Optional[dict] = None,
 ) -> CodeAgentOutput:
     """
     Main entry point. Called by LangGraph in Phase 4.
@@ -269,6 +312,11 @@ async def run_code_agent(
     print(f"\n{'='*50}")
     print(f"  Code Agent — {ticker}")
     print(f"{'='*50}")
+
+    # Short/mid-term path: use technicals instead of DCF/Monte Carlo
+    if fetch_plan and fetch_plan.get("use_technicals"):
+        print(f"  [code_agent] Short-term path — fetching technicals (skipping E2B sandbox)")
+        return await _run_technicals_path(ticker)
 
     _defaults = {
         "fcf": 1000.0, "current_price": 100.0, "shares": 10.0,
