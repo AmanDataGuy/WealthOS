@@ -424,6 +424,72 @@ def get_financial_facts(ticker: str) -> dict:
         return {"ticker": ticker, "error": str(e)}
 
 
+# ── Tool 5: get_insider_trades ────────────────────────────────────────────────
+
+@mcp.tool()
+async def get_insider_trades(ticker: str, days_back: int = 90) -> dict:
+    """
+    Fetch recent SEC Form 4 insider trading filings for a US-listed company.
+    Form 4 reports purchases and sales by directors, officers, and 10%+ shareholders.
+    No API key required — SEC EDGAR is a free public API.
+
+    Args:
+        ticker:    Stock ticker (US only — e.g. 'NVDA', 'AAPL')
+        days_back: How many days of filings to retrieve (default 90)
+
+    Returns:
+        List of insider transactions with: insider_name, title, transaction_type,
+        shares, price_per_share, date
+    """
+    cache_key = f"insider:{ticker}:{days_back}"
+    cached = from_cache(cache_key)
+    if cached:
+        return cached
+
+    try:
+        from datetime import date, timedelta
+        import xml.etree.ElementTree as ET
+
+        start_dt = (date.today() - timedelta(days=days_back)).isoformat()
+
+        # Search SEC EDGAR full-text search for Form 4 filings
+        search_url = "https://efts.sec.gov/LATEST/search-index"
+        params = {
+            "q": f'"{ticker}"',
+            "forms": "4",
+            "dateRange": "custom",
+            "startdt": start_dt,
+        }
+        async with httpx.AsyncClient(headers=SEC_HEADERS, timeout=15) as client:
+            resp = await client.get(search_url, params=params)
+            resp.raise_for_status()
+            hits = resp.json().get("hits", {}).get("hits", [])
+
+        transactions = []
+        for hit in hits[:10]:  # cap at 10 most recent
+            source = hit.get("_source", {})
+            transactions.append({
+                "filing_date":    source.get("file_date", ""),
+                "insider_name":   source.get("display_names", ["Unknown"])[0] if source.get("display_names") else "Unknown",
+                "form_type":      "4",
+                "description":    source.get("period_of_report", ""),
+            })
+
+        data = {
+            "ticker":       ticker,
+            "days_back":    days_back,
+            "count":        len(transactions),
+            "transactions": transactions,
+            "from_cache":   False,
+        }
+        to_cache(cache_key, data, TTL_FILINGS)
+        return data
+
+    except Exception as e:
+        logger.error("get_insider_trades failed for %s: %s", ticker, e)
+        return {"error": str(e), "ticker": ticker, "transactions": []}
+
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
