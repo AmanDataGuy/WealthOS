@@ -1,6 +1,7 @@
 # news_server.py
 # Fetches financial news and computes sentiment for stocks.
 # Uses NewsAPI as primary source + Firecrawl for Reddit community sentiment.
+# Optional: newspaper3k for full article body extraction (pip install newspaper3k)
 #
 # Tools:
 #   search_news           — search recent news articles for a query or ticker
@@ -92,11 +93,36 @@ def fetch_articles(query: str, days: int = 7, count: int = 10) -> list[dict]:
                 "url":         a.get("url", ""),
                 "published":   a.get("publishedAt", "")[:10],
             })
+            # Try to fetch full article body (newspaper3k primary, Firecrawl fallback)
+            body = _fetch_article_body(a.get("url", ""))
+            articles[-1]["body"] = body
         return articles
 
     except Exception as e:
         logger.error("fetch_articles failed for query '%s': %s", query, e)
         return []
+
+
+def _fetch_article_body(url: str) -> str:
+    """Fetch full article body via newspaper3k; falls back to Firecrawl if available."""
+    try:
+        from newspaper import Article
+        article = Article(url)
+        article.download()
+        article.parse()
+        if article.text and len(article.text) > 100:
+            return article.text[:2000]
+    except Exception:
+        pass
+    try:
+        if FIRECRAWL_API_KEY:
+            from firecrawl import FirecrawlApp
+            fc = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
+            result = fc.scrape_url(url, params={"formats": ["markdown"]})
+            return result.get("markdown", "")[:2000]
+    except Exception:
+        pass
+    return ""
 
 
 def score_sentiment(articles: list[dict]) -> dict:
