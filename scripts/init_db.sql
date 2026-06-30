@@ -161,6 +161,47 @@ CREATE INDEX IF NOT EXISTS idx_tracked_symbols_user
 --  UUID is hardcoded so it matches the example curl in setup.md.
 -- ──────────────────────────────────────────────────────────────────────────────
 
+-- ──────────────────────────────────────────────────────────────────────────────
+--  8. indexed_tickers
+--     Used by: router_agent.py  (company_tier check — well_indexed / thin / not_indexed)
+--     Also written by: rag/indexer.py  (upsert after each indexing run)
+-- ──────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS indexed_tickers (
+    id              SERIAL        PRIMARY KEY,
+    ticker          TEXT          NOT NULL UNIQUE,
+    company_name    TEXT,
+    chunk_count     INTEGER       DEFAULT 0,
+    last_indexed_at TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    filing_year     TEXT,
+    data_source     TEXT,         -- "sec_edgar" | "bse_pdf" | "yfinance_html"
+    status          TEXT          DEFAULT 'active'
+                                  CHECK (status IN ('active', 'stale', 'indexing', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_indexed_tickers_ticker
+    ON indexed_tickers(ticker);
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+--  9. user_risk_profiles
+--     Used by: risk_agent.py  (inject user behavior context into risk scoring)
+--     Written by: graph/nodes.py  (upsert after each writer_node completes)
+-- ──────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS user_risk_profiles (
+    user_id             TEXT          PRIMARY KEY,
+    total_analyses      INTEGER       DEFAULT 0,
+    buy_count           INTEGER       DEFAULT 0,
+    hold_count          INTEGER       DEFAULT 0,
+    avoid_count         INTEGER       DEFAULT 0,
+    avg_risk_score      FLOAT,
+    preferred_sectors   TEXT[],
+    tickers_analysed    TEXT[],
+    last_updated_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+
 INSERT INTO portfolio_holdings (user_id, ticker, quantity, avg_buy_price, sector, asset_type)
 VALUES ('00000000-0000-0000-0000-000000000001', 'TCS.NS', 10, 3200.00, 'Technology', 'equity')
 ON CONFLICT DO NOTHING;
