@@ -20,6 +20,10 @@ import argparse
 from datetime import date
 from pathlib import Path
 
+# Force UTF-8 on Windows so status chars print correctly
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 # Make sure project root is on the path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -85,13 +89,13 @@ def run_eval(limit: int | None = None):
         f_score = f"{scores['Faithfulness']:.3f}" if scores["Faithfulness"] is not None else "err"
         r_score = f"{scores['Answer Relevancy']:.3f}" if scores["Answer Relevancy"] is not None else "err"
         h_score = f"{scores['Hallucination']:.3f}" if scores["Hallucination"] is not None else "err"
-        status  = "✅" if overall_pass else "❌"
+        status  = "PASS" if overall_pass else "FAIL"
         print(f"{query[:col_w]:<{col_w}}  {f_score:>10}  {r_score:>10}  {h_score:>10}  {status:>6}")
 
     # Summary
     total  = len(results)
     passed_count = sum(1 for r in results if r["overall_pass"])
-    print(f"\n{'─'*(col_w + 46)}")
+    print(f"\n{'-'*(col_w + 46)}")
     print(f"  Passed: {passed_count}/{total}  ({100*passed_count//total if total else 0}%)")
     print()
 
