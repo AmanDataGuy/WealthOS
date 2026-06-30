@@ -13,7 +13,7 @@ Start the briefing cron:
   python -m workflows.morning_briefing start
 
 Send immediately for one user (testing):
-  python -m workflows.morning_briefing now test-user
+  python -m workflows.morning_briefing now 00000000-0000-0000-0000-000000000001
 """
 import time
 import asyncio
@@ -187,7 +187,7 @@ async def run_worker():
 
 # ── Start the daily cron ──────────────────────────────────────────────────────
 
-async def start_cron(user_id: str = "test-user"):
+async def start_cron(user_id: str = "00000000-0000-0000-0000-000000000001"):
     """Register the 8 AM daily cron for a user."""
     client = await Client.connect("localhost:7233")
     handle = await client.start_workflow(
@@ -203,7 +203,7 @@ async def start_cron(user_id: str = "test-user"):
 
 # ── Send immediately (for testing) ───────────────────────────────────────────
 
-async def send_now(user_id: str = "test-user") -> str:
+async def send_now(user_id: str = "00000000-0000-0000-0000-000000000001") -> str:
     """Trigger one briefing immediately without waiting for 8 AM."""
     client = await Client.connect("localhost:7233")
     result = await client.execute_workflow(
@@ -220,7 +220,7 @@ async def send_now(user_id: str = "test-user") -> str:
 
 if __name__ == "__main__":
     cmd     = sys.argv[1] if len(sys.argv) > 1 else "now"
-    user_id = sys.argv[2] if len(sys.argv) > 2 else "test-user"
+    user_id = sys.argv[2] if len(sys.argv) > 2 else "00000000-0000-0000-0000-000000000001"
 
     if cmd == "start":
         asyncio.run(start_cron(user_id))
