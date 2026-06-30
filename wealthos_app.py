@@ -443,6 +443,19 @@ elif page == "🔍 Analyze":
             placeholder="e.g. Should I invest in AAPL right now? I have a moderate risk appetite.",
             help="This is sent as the 'query' to the backend. Be specific!"
         )
+        horizon_choice = st.radio(
+            "Investment Horizon",
+            ["Long-term (1+ year, fundamentals)", "Mid-term (1–3 months, earnings)", "Short-term (days–weeks, trading)", "Let AI decide"],
+            index=0,
+            horizontal=True,
+        )
+        HORIZON_MAP = {
+            "Long-term (1+ year, fundamentals)":    "long",
+            "Mid-term (1–3 months, earnings)":      "mid",
+            "Short-term (days–weeks, trading)":     "short",
+            "Let AI decide":                         None,
+        }
+        selected_horizon = HORIZON_MAP[horizon_choice]
         submitted = st.form_submit_button("🚀 Run Analysis", use_container_width=True, type="primary")
 
     if submitted:
@@ -477,11 +490,13 @@ elif page == "🔍 Analyze":
             }
         else:
             payload = {
-                "query":         query or f"Analyze {ticker} stock",
-                "ticker":        ticker,
-                "user_id":       user_id,
-                "invest_amount": float(amount),
+                "query":              query or f"Analyze {ticker} stock",
+                "ticker":             ticker,
+                "user_id":            user_id,
+                "invest_amount":      float(amount),
             }
+            if selected_horizon is not None:
+                payload["investment_horizon"] = selected_horizon
             progress_bar.progress(0.1, text="Sending to backend...")
             with st.spinner(f"Running 8 agents for {ticker}... (~60s)"):
                 try:
