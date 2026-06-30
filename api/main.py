@@ -20,7 +20,8 @@ from contextlib import asynccontextmanager
 import shutil
 import tempfile
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+import re
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -113,10 +114,11 @@ app.add_middleware(
 # ── Request / Response schemas ─────────────────────────────────────────────────
 
 class AnalyzeRequest(BaseModel):
-    query:         str
-    ticker:        str
-    user_id:       str = "test-user"
-    invest_amount: Optional[float] = 20000.0
+    query:              str
+    ticker:             str
+    user_id:            str = "00000000-0000-0000-0000-000000000001"
+    invest_amount:      Optional[float] = 20000.0
+    investment_horizon: Optional[str] = None   # "short" | "mid" | "long" | None
 
 class AnalyzeResponse(BaseModel):
     ticker:     str
@@ -128,7 +130,7 @@ class AnalyzeResponse(BaseModel):
     error:      Optional[str]
 
 class BriefingRequest(BaseModel):
-    user_id: str = "test-user"
+    user_id: str = "00000000-0000-0000-0000-000000000001"
 
 class SignupRequest(BaseModel):
     username: str
@@ -137,6 +139,30 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+# ── API key auth dependency ───────────────────────────────────────────────────
+
+async def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    api_key = os.getenv("WEALTHOS_API_KEY", "")
+    if api_key and x_api_key != api_key:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+# ── Input sanitization ────────────────────────────────────────────────────────
+
+_INJECTION_PATTERNS = [
+    r"ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions?",
+    r"you\s+are\s+now\s+(?:a|an)\s+",
+    r"disregard\s+(?:all\s+)?(?:previous|prior)\s+",
+    r"forget\s+(?:all\s+)?(?:previous|prior)\s+",
+]
+
+def _sanitize_query(q: str) -> str:
+    q = q.strip()[:500]
+    for pat in _INJECTION_PATTERNS:
+        q = re.sub(pat, "[filtered]", q, flags=re.IGNORECASE)
+    return q
 
 
 # ── Query logging ─────────────────────────────────────────────────────────────
@@ -247,15 +273,19 @@ async def health():
 
 # ── Main analysis endpoint ─────────────────────────────────────────────────────
 
-@app.post("/analyze", response_model=AnalyzeResponse)
+@app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_api_key)])
 async def analyze(req: AnalyzeRequest):
     ticker = req.ticker.upper().strip()
+    query  = _sanitize_query(req.query)
 
     initial_state: WealthOSState = {
-        "query":              req.query,
+        "query":              query,
         "tickers":            [ticker],
         "user_id":            req.user_id,
+        "investment_horizon": req.investment_horizon,
+        "fetch_plan":         None,
         "user_memory":        None,
+        "past_decisions_ctx": None,
         "personal_finance":   None,
         "financial_snapshot": None,
         "research_output":    None,
@@ -279,7 +309,7 @@ async def analyze(req: AnalyzeRequest):
         latency_ms = round((time.monotonic() - t0) * 1000)
         cost_snap  = get_session_cost()
         log_entry  = {
-            "query":              req.query[:100],
+            "query":              query[:100],
             "tickers":            [ticker],
             "user_id":            req.user_id,
             "latency_ms":         latency_ms,
@@ -299,7 +329,7 @@ async def analyze(req: AnalyzeRequest):
             asyncio.create_task(_save_analysis_history(
                 user_id=req.user_id,
                 ticker=ticker,
-                query=req.query,
+                query=query,
                 result=result,
                 latency_ms=latency_ms,
                 cost_snap=cost_snap,
@@ -342,15 +372,19 @@ async def analyze(req: AnalyzeRequest):
 
 # ── Streaming endpoint ─────────────────────────────────────────────────────────
 
-@app.post("/analyze/stream")
+@app.post("/analyze/stream", dependencies=[Depends(verify_api_key)])
 async def analyze_stream(req: AnalyzeRequest):
     ticker = req.ticker.upper().strip()
+    query  = _sanitize_query(req.query)
 
     initial_state: WealthOSState = {
-        "query":              req.query,
+        "query":              query,
         "tickers":            [ticker],
         "user_id":            req.user_id,
+        "investment_horizon": req.investment_horizon,
+        "fetch_plan":         None,
         "user_memory":        None,
+        "past_decisions_ctx": None,
         "personal_finance":   None,
         "financial_snapshot": None,
         "research_output":    None,
