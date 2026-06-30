@@ -153,6 +153,37 @@ def _fetch_parents_sync(parent_ids: list[str]) -> list[dict]:
         return []
 
 
+# ── Staleness scoring ─────────────────────────────────────────────────────────
+
+def staleness_score(filing_date_str: str, half_life_days: int) -> float:
+    try:
+        from datetime import datetime, timezone
+        filed    = datetime.fromisoformat(filing_date_str).replace(tzinfo=timezone.utc)
+        age_days = (datetime.now(timezone.utc) - filed).days
+        return round(max(0.1, 0.5 ** (age_days / half_life_days)), 3)
+    except Exception:
+        return 0.5
+
+
+def _annotate_staleness(hit: dict) -> str:
+    """Return chunk content, appending a stale-data warning when score < 0.5."""
+    content       = hit.get("content", "")
+    filing_date   = hit.get("filing_date", "")
+    half_life     = hit.get("half_life_days", 180)
+    if not filing_date:
+        return content
+    try:
+        from datetime import datetime, timezone
+        filed    = datetime.fromisoformat(filing_date).replace(tzinfo=timezone.utc)
+        age_days = (datetime.now(timezone.utc) - filed).days
+    except Exception:
+        return content
+    score = staleness_score(filing_date, half_life)
+    if score < 0.5:
+        content += f" [⚠️ data may be stale — {age_days}d old, half-life {half_life}d]"
+    return content
+
+
 # ── SQL tool (unchanged — still hits Postgres financial_facts) ────────────────
 
 async def _tool_sql(ticker: str, question: str) -> str:
@@ -202,7 +233,7 @@ async def _tool_hybrid_search(
         parent_content = ""
         if h.get("parent_id") and h["parent_id"] in parents_by_id:
             parent_content = f"\n[Section context]: {parents_by_id[h['parent_id']]['content'][:500]}"
-        parts.append(f"[{sec}] {h['content']}{parent_content}")
+        parts.append(f"[{sec}] {_annotate_staleness(h)}{parent_content}")
 
     return "\n\n---\n\n".join(parts)
 
@@ -250,7 +281,7 @@ class FilingQueryEngine:
             parent_content = ""
             if h.get("parent_id") and h["parent_id"] in parents_by_id:
                 parent_content = f"\n{parents_by_id[h['parent_id']]['content'][:400]}"
-            context_parts.append(f"[{sec}] {h['content']}{parent_content}")
+            context_parts.append(f"[{sec}] {_annotate_staleness(h)}{parent_content}")
 
         context = "\n\n".join(context_parts)
         prompt = [
