@@ -146,6 +146,27 @@ async def retrieve_context(question: str, ticker: str) -> tuple[list[str], str]:
     return chunks, answer or ""
 
 
+def _get_ragas_llm():
+    """Groq-backed LLM for RAGAS — free, no OpenAI key needed."""
+    from langchain_groq import ChatGroq
+    from ragas.llms import LangchainLLMWrapper
+    import os
+    return LangchainLLMWrapper(ChatGroq(
+        model="llama-3.3-70b-versatile",
+        api_key=os.getenv("GROQ_API_KEY", ""),
+        temperature=0,
+    ))
+
+
+def _get_ragas_embeddings():
+    """Local HuggingFace embeddings — same model as Qdrant indexer, zero cost."""
+    from langchain_huggingface import HuggingFaceEmbeddings
+    from ragas.embeddings import LangchainEmbeddingsWrapper
+    return LangchainEmbeddingsWrapper(
+        HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    )
+
+
 async def run_ragas(tickers: list[str] | None = None):
     try:
         from ragas import evaluate
@@ -185,6 +206,8 @@ async def run_ragas(tickers: list[str] | None = None):
     result  = evaluate(
         dataset,
         metrics=[context_precision, context_recall, faithfulness, answer_relevancy],
+        llm=_get_ragas_llm(),
+        embeddings=_get_ragas_embeddings(),
     )
 
     # Print summary
