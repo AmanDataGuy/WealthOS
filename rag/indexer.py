@@ -61,6 +61,20 @@ SECTION_HEADERS = {
 }
 
 
+def _info_type_and_half_life(section: str) -> tuple:
+    s = section.lower()
+    if any(k in s for k in ["risk_factor", "legal", "market_risk"]):
+        return "risk_factors", 365
+    elif any(k in s for k in ["income_statement", "cash_flow", "balance_sheet", "financial_summary"]):
+        return "financials", 90
+    elif any(k in s for k in ["md_and_a", "notes"]):
+        return "guidance", 90
+    elif any(k in s for k in ["business", "properties"]):
+        return "business_model", 365
+    else:
+        return "general", 180
+
+
 def detect_section(text: str) -> Optional[str]:
     t = text.lower()
     for keyword, section in SECTION_HEADERS.items():
@@ -276,6 +290,7 @@ def build_hierarchical_chunks(
         page    = elem.get("page_number", 0)
 
         if elem["type"] == "table":
+            _itype, _hlife = _info_type_and_half_life(current_section)
             child = {
                 "id": str(uuid.uuid4()), "chunk_level": 2, "chunk_type": "table",
                 "section": current_section, "content": content,
@@ -283,6 +298,7 @@ def build_hierarchical_chunks(
                 "filing_date": filing_date, "fiscal_year": _year(filing_date),
                 "page_number": page, "source_file": source_file,
                 "parent_id": None, "table_json": elem.get("table_json"),
+                "info_type": _itype, "half_life_days": _hlife,
             }
             section_buffer.append(child)
             all_chunks.append(child)
@@ -295,6 +311,7 @@ def build_hierarchical_chunks(
             current_section = detected
 
         for prose_chunk in chunk_prose(content):
+            _itype, _hlife = _info_type_and_half_life(current_section)
             child = {
                 "id": str(uuid.uuid4()), "chunk_level": 2, "chunk_type": "prose",
                 "section": current_section, "content": prose_chunk,
@@ -302,6 +319,7 @@ def build_hierarchical_chunks(
                 "filing_date": filing_date, "fiscal_year": _year(filing_date),
                 "page_number": page, "source_file": source_file,
                 "parent_id": None, "table_json": None,
+                "info_type": _itype, "half_life_days": _hlife,
             }
             section_buffer.append(child)
             all_chunks.append(child)
