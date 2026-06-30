@@ -13,8 +13,15 @@ class WealthOSState(TypedDict):
     tickers:        list[str]
     user_id:        str
 
+    # ── Router classifications ─────────────────────────────
+    investment_horizon: Optional[str]   # "short" | "mid" | "long" — set by router
+    fetch_plan:         Optional[dict]  # {"use_technicals": bool, ...} — set by router
+
     # ── Phase 6: Mem0 long-term memory ─────────────────────
     user_memory:    Optional[str]   # injected at start of finance_node
+
+    # ── Past decisions context (Qdrant user_analyses) ──────
+    past_decisions_ctx: Optional[str]  # 3 most recent analyses for this user
 
     # ── Agent outputs ───────────────────────────────────────
     personal_finance:       Optional[dict]   # Finance Agent
