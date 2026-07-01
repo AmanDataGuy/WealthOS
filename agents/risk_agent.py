@@ -125,18 +125,35 @@ async def risk_scorer_node(
     macro_analysis: str,
     stock_analysis: str,
     personal_context: Optional[str] = None,
+    past_decisions_ctx: str = "",
+    user_risk_profile: Optional[dict] = None,
 ) -> dict:
     """
     Synthesizes macro + stock analysis.
     Applies personal finance adjustments if PersonalFinanceSnapshot provided.
     Produces final risk score and recommendation.
-    Uses DeepSeek R1 for final synthesis.
     """
     print(f"  [Node 3] RiskScorer synthesizing...")
 
     personal_section = ""
     if personal_context:
         personal_section = f"\nPersonal Finance Context:\n{personal_context}"
+
+    past_section = ""
+    if past_decisions_ctx and past_decisions_ctx.strip():
+        past_section = f"\nUser's Past Investment Decisions:\n{past_decisions_ctx}"
+
+    profile_section = ""
+    if user_risk_profile:
+        total = user_risk_profile.get("total_analyses", 0)
+        avoid = user_risk_profile.get("avoid_count", 0)
+        avg_r = user_risk_profile.get("avg_risk_score")
+        avoid_rate = round(avoid / total, 2) if total else 0
+        profile_section = (
+            f"\nUser Risk Profile: {total} past analyses, "
+            f"avoid rate {avoid_rate:.0%}, avg risk score {avg_r or 'N/A'}. "
+            f"Preferred sectors: {user_risk_profile.get('preferred_sectors', [])}."
+        )
 
     system = """You are a senior risk officer making a final investment risk assessment.
 You receive analysis from a MacroAnalyst and a StockAnalyst.
@@ -147,6 +164,8 @@ Rules:
 - Recommendation: "Buy" (score 1-4), "Hold" (score 5-6), "Avoid" (score 7-10)
 - If personal finance context shows high debt burden or low surplus → add 1-2 to score
 - If personal finance context shows strong health score (>75) → subtract 1 from score
+- If user has avoided >60% of past high-risk recommendations → flag consistency with their profile
+- If past decisions show repeated HOLD on same ticker → note the ongoing uncertainty
 
 Respond in this EXACT JSON format:
 {
@@ -172,7 +191,7 @@ MacroAnalyst Report:
 
 StockAnalyst Report:
 {stock_analysis}
-{personal_section}
+{personal_section}{past_section}{profile_section}
 
 Produce the final risk assessment JSON."""
 
@@ -294,6 +313,8 @@ async def run_risk_agent(
     ticker: str,
     financial_snapshot=None,
     personal_finance: Optional[dict] = None,
+    past_decisions_ctx: str = "",
+    user_risk_profile: Optional[dict] = None,
 ) -> RiskReport:
     """
     Main entry point. Called by LangGraph in Phase 4.
@@ -333,6 +354,8 @@ async def run_risk_agent(
         macro_analysis=macro_analysis,
         stock_analysis=stock_analysis,
         personal_context=personal_context,
+        past_decisions_ctx=past_decisions_ctx,
+        user_risk_profile=user_risk_profile,
     )
 
     # Build RiskFactor objects

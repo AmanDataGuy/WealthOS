@@ -573,6 +573,65 @@ class FilingIndexer:
         }
 
 
+# ── User Analysis Indexer ──────────────────────────────────────────────────────
+
+async def index_user_analysis(
+    user_id: str,
+    ticker: str,
+    verdict: str,
+    full_memo: str,
+    risk_score: Optional[float] = None,
+) -> bool:
+    """
+    Embed and upsert the Final Verdict section of a memo into the
+    `user_analyses` Qdrant collection. Called at end of writer_node.
+    Returns True on success, False on any failure (non-fatal).
+    """
+    try:
+        verdict_text = full_memo
+        for marker in ["## Final Verdict", "**Final Verdict", "7. Final Verdict"]:
+            idx = full_memo.find(marker)
+            if idx != -1:
+                verdict_text = full_memo[idx:idx + 500].strip()
+                break
+        verdict_text = verdict_text[:400]
+
+        dense_model = _get_dense_model()
+        vec = await asyncio.to_thread(
+            lambda: dense_model.encode(f"{ticker} {verdict} {verdict_text}").tolist()
+        )
+
+        from qdrant_client import QdrantClient
+        from qdrant_client.models import PointStruct, Distance, VectorParams
+
+        qc = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
+
+        existing = [c.name for c in qc.get_collections().collections]
+        if "user_analyses" not in existing:
+            qc.create_collection(
+                collection_name="user_analyses",
+                vectors_config={"dense": VectorParams(size=DENSE_DIMS, distance=Distance.COSINE)},
+            )
+
+        point = PointStruct(
+            id=str(uuid.uuid4()),
+            vector={"dense": vec},
+            payload={
+                "user_id":       user_id,
+                "ticker":        ticker,
+                "verdict":       verdict,
+                "risk_score":    float(risk_score) if risk_score is not None else None,
+                "analysis_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "verdict_text":  verdict_text,
+            },
+        )
+        await asyncio.to_thread(qc.upsert, collection_name="user_analyses", points=[point])
+        return True
+    except Exception as e:
+        print(f"  [indexer] ⚠️  index_user_analysis failed: {e}")
+        return False
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
