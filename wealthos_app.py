@@ -1,876 +1,838 @@
 import os
-import streamlit as st
 import requests
-import time
-import random
-import json
 import pandas as pd
-from datetime import datetime
+import streamlit as st
 from streamlit_cookies_controller import CookieController
 
-# ── Config ────────────────────────────────────────────────────────────────────
 API_URL = os.getenv("WEALTHOS_API_URL", "http://localhost:8000")
 
 st.set_page_config(
-    page_title="WealthOS — AI Finance",
-    page_icon="💰",
+    page_title="WealthOS",
+    page_icon="W",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 st.markdown("""
 <style>
-/* ── Global ──────────────────────────────────────────────────── */
-[data-testid="stAppViewContainer"] { background: #0f1117; }
-[data-testid="stSidebar"] { background: #161b27; border-right: 1px solid #2d3348; }
-[data-testid="stSidebar"] * { color: #e0e6f0 !important; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ── Hide default Streamlit chrome ───────────────────────────── */
-#MainMenu { visibility: hidden; }
-footer { visibility: hidden; }
-[data-testid="stToolbar"] { visibility: hidden; }
-[data-testid="stDecoration"] { display: none; }
+html, body, [class*="css"], * {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
 
-/* ── Permanent sidebar ───────────────────────────────────────── */
-/* Override Streamlit's translateX(-110%) that hides a collapsed sidebar */
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+section.main { background: #ffffff !important; }
+.main .block-container { padding: 2rem 2.5rem 3rem; max-width: 1080px; }
+
+#MainMenu, footer,
+[data-testid="stToolbar"],
+[data-testid="stDecoration"] { display: none !important; }
+
+[data-testid="stSidebar"] {
+    background: #f8fafc !important;
+    border-right: 1px solid #e5e7eb !important;
+}
 section[data-testid="stSidebar"] {
     transform: none !important;
-    min-width: 280px !important;
-    width: 280px !important;
-    display: flex !important;
-    visibility: visible !important;
+    min-width: 210px !important;
+    width: 210px !important;
 }
-/* Hide the collapse button — user can never trigger collapse */
-[data-testid="stSidebarCollapseButton"] { display: none !important; }
-[data-testid="collapsedControl"]        { display: none !important; }
+[data-testid="stSidebarCollapseButton"],
+[data-testid="collapsedControl"] { display: none !important; }
 
-/* ── Auth card ───────────────────────────────────────────────── */
-.auth-hero {
-    text-align: center;
-    padding: 2.5rem 0 1.5rem;
+h1 { color: #111827 !important; font-size: 1.4rem !important; font-weight: 700 !important; margin: 0 0 0.15rem !important; }
+h2 { color: #111827 !important; font-size: 1rem !important; font-weight: 600 !important; margin: 0 0 0.6rem !important; }
+h3 { color: #374151 !important; font-size: 0.9rem !important; font-weight: 600 !important; }
+p, li { color: #374151 !important; }
+
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea,
+[data-testid="stNumberInput"] input {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    color: #111827 !important;
+    font-size: 0.9rem !important;
 }
-.auth-hero h1 {
-    font-size: 2.8rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #4f9cf9, #a855f7);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin: 0;
-}
-.auth-hero p {
-    color: #8b9ab5;
-    font-size: 1rem;
-    margin-top: 0.4rem;
+[data-testid="stTextInput"] input:focus,
+[data-testid="stTextArea"] textarea:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px #dbeafe !important;
 }
 
-/* ── Metric cards ────────────────────────────────────────────── */
-[data-testid="stMetric"] {
-    background: #1e2435;
-    border: 1px solid #2d3348;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-}
-[data-testid="stMetricLabel"] { color: #8b9ab5 !important; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
-[data-testid="stMetricValue"] { color: #e0e6f0 !important; font-size: 1.6rem; font-weight: 700; }
-[data-testid="stMetricDelta"] { color: #4f9cf9 !important; }
-
-/* ── Dataframe ───────────────────────────────────────────────── */
-[data-testid="stDataFrame"] { border: 1px solid #2d3348; border-radius: 10px; overflow: hidden; }
-
-/* ── Buttons ─────────────────────────────────────────────────── */
-[data-testid="stButton"] button[kind="primary"] {
-    background: linear-gradient(135deg, #4f9cf9, #a855f7) !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.02em !important;
-    transition: opacity 0.2s !important;
-}
-[data-testid="stButton"] button[kind="primary"]:hover { opacity: 0.88 !important; }
+[data-testid="stButton"] button,
 [data-testid="stFormSubmitButton"] button {
-    background: linear-gradient(135deg, #4f9cf9, #a855f7) !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+    transition: all 0.15s !important;
+}
+[data-testid="stButton"] button[kind="primary"],
+[data-testid="stFormSubmitButton"] button {
+    background: #2563eb !important;
     border: none !important;
-    border-radius: 8px !important;
+    color: #ffffff !important;
     font-weight: 600 !important;
 }
+[data-testid="stButton"] button[kind="primary"]:hover,
+[data-testid="stFormSubmitButton"] button:hover { background: #1d4ed8 !important; }
+[data-testid="stButton"] button[kind="secondary"] {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    color: #374151 !important;
+}
+[data-testid="stButton"] button[kind="secondary"]:hover {
+    border-color: #2563eb !important;
+    color: #2563eb !important;
+}
 
-/* ── Tabs ────────────────────────────────────────────────────── */
-[data-testid="stTabs"] [data-baseweb="tab-list"] { border-bottom: 1px solid #2d3348; gap: 1rem; }
-[data-testid="stTabs"] [data-baseweb="tab"] { color: #8b9ab5 !important; font-weight: 500; padding: 0.5rem 1rem !important; }
-[data-testid="stTabs"] [aria-selected="true"] { color: #4f9cf9 !important; border-bottom: 2px solid #4f9cf9 !important; }
+[data-baseweb="tab-list"] {
+    border-bottom: 1px solid #e5e7eb !important;
+    background: transparent !important;
+    gap: 0 !important;
+}
+[data-baseweb="tab"] {
+    color: #6b7280 !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    padding: 0.6rem 1.25rem !important;
+    border-bottom: 2px solid transparent !important;
+    background: transparent !important;
+}
+[data-baseweb="tab"]:hover { color: #374151 !important; background: transparent !important; }
+[aria-selected="true"][data-baseweb="tab"] {
+    color: #2563eb !important;
+    border-bottom: 2px solid #2563eb !important;
+}
 
-/* ── Inputs ──────────────────────────────────────────────────── */
-[data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea {
-    background: #1e2435 !important;
-    border: 1px solid #2d3348 !important;
+[data-testid="stMetric"] {
+    background: #f8fafc !important;
+    border: 1px solid #e5e7eb !important;
     border-radius: 8px !important;
-    color: #e0e6f0 !important;
+    padding: 1rem 1.25rem !important;
 }
-[data-testid="stTextInput"] input:focus, [data-testid="stTextArea"] textarea:focus {
-    border-color: #4f9cf9 !important;
-    box-shadow: 0 0 0 2px rgba(79,156,249,0.2) !important;
+[data-testid="stMetricLabel"] { color: #6b7280 !important; font-size: 0.72rem !important; text-transform: uppercase; letter-spacing: 0.05em; }
+[data-testid="stMetricValue"] { color: #111827 !important; font-size: 1.3rem !important; font-weight: 700 !important; }
+
+[data-testid="stDataFrame"] {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
 }
 
-/* ── Expanders ───────────────────────────────────────────────── */
-[data-testid="stExpander"] { background: #1e2435; border: 1px solid #2d3348; border-radius: 10px; }
+[data-testid="stFileUploader"] section {
+    border: 1.5px dashed #d1d5db !important;
+    border-radius: 8px !important;
+    background: #f8fafc !important;
+}
 
-/* ── Sidebar nav ─────────────────────────────────────────────── */
-[data-testid="stRadio"] label { padding: 0.4rem 0.6rem; border-radius: 6px; }
-[data-testid="stRadio"] label:hover { background: #252c3e; }
+[data-testid="stExpander"] {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+}
 
-/* ── Page titles ─────────────────────────────────────────────── */
-h1 { color: #e0e6f0 !important; font-weight: 700 !important; }
-h2, h3 { color: #c5cfe0 !important; }
+[data-testid="stAlert"] { border-radius: 6px !important; font-size: 0.875rem !important; }
+hr { border-color: #e5e7eb !important; margin: 1.25rem 0 !important; }
 
-/* ── Divider ─────────────────────────────────────────────────── */
-hr { border-color: #2d3348 !important; }
+[data-baseweb="select"] > div {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+}
 
-/* ── Success / Error / Info ──────────────────────────────────── */
-[data-testid="stAlert"] { border-radius: 8px !important; border: none !important; }
+[data-testid="stSidebar"] [data-testid="stRadio"] label {
+    padding: 0.45rem 0.75rem !important;
+    border-radius: 6px !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    display: block;
+    cursor: pointer;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+}
+
+small, .stCaptionContainer, [data-testid="stCaptionContainer"] {
+    color: #9ca3af !important;
+    font-size: 0.78rem !important;
+}
 </style>
 """, unsafe_allow_html=True)
-
-# ── Auth ──────────────────────────────────────────────────────────────────────
-_cookies = CookieController()
-
-# CookieController returns None on the first render (JS not yet executed).
-# Streamlit auto-reruns once the component loads — on that second render the
-# real cookie values are available. So we check cookies on EVERY render
-# while the user is not yet confirmed logged-in.
-if not st.session_state.get("logged_in", False):
-    saved_uid  = _cookies.get("wo_user_id")
-    saved_user = _cookies.get("wo_username")
-    if saved_uid and saved_user:
-        st.session_state.logged_in = True
-        st.session_state.username  = saved_user
-        st.session_state.user_id   = saved_uid
-    else:
-        st.session_state.setdefault("logged_in", False)
-        st.session_state.setdefault("username", "")
-        st.session_state.setdefault("user_id", "")
-
-def _auth_api(endpoint: str, payload: dict):
-    try:
-        r = requests.post(f"{API_URL}{endpoint}", json=payload, timeout=10)
-        return r.json(), r.status_code
-    except Exception as e:
-        return {"detail": str(e)}, 503
-
-# ── Auth page ─────────────────────────────────────────────────────────────────
-if not st.session_state.logged_in:
-    col_l, col_m, col_r = st.columns([1, 1.4, 1])
-    with col_m:
-        st.markdown("""
-        <div class="auth-hero">
-            <h1>💰 WealthOS</h1>
-            <p>AI-powered personal financial intelligence · 7 agents · DCF · Risk · Memo</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        tab_in, tab_up = st.tabs(["Sign In", "Sign Up"])
-
-        with tab_in:
-            with st.form("login_form"):
-                li_user = st.text_input("Username", placeholder="Enter your username")
-                li_pass = st.text_input("Password", type="password", placeholder="Enter your password")
-                li_btn  = st.form_submit_button("Sign In →", use_container_width=True, type="primary")
-            if li_btn:
-                if not li_user or not li_pass:
-                    st.error("Please fill in both fields")
-                else:
-                    data, code = _auth_api("/auth/login", {"username": li_user, "password": li_pass})
-                    if code == 200:
-                        st.session_state.logged_in = True
-                        st.session_state.username  = data["username"]
-                        st.session_state.user_id   = data["user_id"]
-                        _cookies.set("wo_user_id",  data["user_id"],  max_age=30*24*3600)
-                        _cookies.set("wo_username", data["username"], max_age=30*24*3600)
-                        st.rerun()
-                    elif code == 503:
-                        st.error("⚠️ Backend offline — start the API server first")
-                    else:
-                        st.error("Invalid username or password")
-            st.caption("Default accounts: `admin / wealthos123` · `demo / demo123`")
-
-        with tab_up:
-            with st.form("signup_form"):
-                su_user  = st.text_input("Username", placeholder="At least 3 characters")
-                su_pass  = st.text_input("Password", type="password", placeholder="At least 6 characters")
-                su_pass2 = st.text_input("Confirm Password", type="password", placeholder="Repeat your password")
-                su_btn   = st.form_submit_button("Create Account →", use_container_width=True, type="primary")
-            if su_btn:
-                if not su_user or not su_pass or not su_pass2:
-                    st.error("All fields are required")
-                elif su_pass != su_pass2:
-                    st.error("Passwords do not match")
-                elif len(su_user.strip()) < 3:
-                    st.error("Username must be at least 3 characters")
-                elif len(su_pass) < 6:
-                    st.error("Password must be at least 6 characters")
-                else:
-                    data, code = _auth_api("/auth/signup", {"username": su_user.strip(), "password": su_pass})
-                    if code == 200:
-                        st.success(f"✅ Account created! Welcome, **{data['username']}**. Sign in with the Sign In tab.")
-                    elif code == 409:
-                        st.error("Username already taken — try a different one")
-                    elif code == 503:
-                        st.error("⚠️ Backend offline — start the API server first")
-                    else:
-                        st.error(data.get("detail", "Signup failed"))
-
-    st.stop()
-
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("""
-    <div style="padding: 1rem 0 0.5rem; text-align: center;">
-        <div style="font-size: 1.8rem; font-weight: 800; background: linear-gradient(135deg, #4f9cf9, #a855f7);
-             -webkit-background-clip: text; -webkit-text-fill-color: transparent;">💰 WealthOS</div>
-        <div style="font-size: 0.72rem; color: #5a6478; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px;">
-            AI Financial Intelligence
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div style="background: #252c3e; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;
-         border: 1px solid #2d3348; display: flex; align-items: center; gap: 0.5rem;">
-        <div style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #4f9cf9, #a855f7);
-             display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0;">
-            {st.session_state.username[:1].upper()}
-        </div>
-        <div>
-            <div style="font-size: 0.82rem; font-weight: 600; color: #e0e6f0;">{st.session_state.username}</div>
-            <div style="font-size: 0.68rem; color: #5a6478;">Signed in</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.divider()
-    page = st.radio(
-        "Navigate",
-        ["📊 Dashboard", "🔍 Analyze", "📈 Portfolio", "📋 Reports", "⚙️ Settings", "ℹ️ About Us", "📬 Contact Us"],
-        label_visibility="collapsed",
-    )
-    st.divider()
-    st.markdown("""
-    <div style="background: #1a2e1a; border: 1px solid #2d4a2d; border-radius: 8px; padding: 0.5rem 0.75rem;
-         font-size: 0.78rem; color: #4caf73;">
-        🟢 7 Agents Active
-    </div>
-    """, unsafe_allow_html=True)
-    st.divider()
-    st.markdown("**My Documents**")
-
-    if "indexed_docs" not in st.session_state:
-        st.session_state.indexed_docs = []
-
-    uploaded_files = st.file_uploader(
-        "Upload EMI receipts, loan statements, salary slips (PDF)",
-        type=["pdf"],
-        accept_multiple_files=True,
-        key="personal_doc_upload",
-    )
-    if uploaded_files:
-        for uploaded_file in uploaded_files:
-            if uploaded_file.name not in st.session_state.indexed_docs:
-                with st.spinner(f"Indexing {uploaded_file.name}..."):
-                    try:
-                        resp = requests.post(
-                            f"{API_URL}/upload-personal-doc",
-                            data={"user_id": st.session_state.user_id},
-                            files={"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")},
-                            timeout=120,
-                        )
-                        if resp.status_code == 200:
-                            r = resp.json()
-                            st.session_state.indexed_docs.append(uploaded_file.name)
-                            st.success(f"{r['filename']} — {r['chunks_indexed']} chunks indexed")
-                        else:
-                            st.error(f"{uploaded_file.name}: {resp.json().get('detail', resp.text)}")
-                    except Exception as e:
-                        st.error(f"{uploaded_file.name}: {e}")
-
-    if st.session_state.indexed_docs:
-        st.markdown("**Indexed:**")
-        for doc in st.session_state.indexed_docs:
-            st.markdown(f"- {doc}")
-
-    st.markdown("")
-    if st.button("Sign Out", use_container_width=True):
-        _cookies.remove("wo_user_id")
-        _cookies.remove("wo_username")
-        st.session_state.logged_in = False
-        st.session_state.username  = ""
-        st.session_state.user_id   = ""
-        st.rerun()
-
-USER_ID = st.session_state.user_id
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def verdict_emoji(v):
-    if not v: return "⚪"
-    v = v.lower()
-    if "buy" in v: return "🟢"
-    if "hold" in v: return "🟡"
-    if "avoid" in v or "sell" in v: return "🔴"
-    return "⚪"
-
-def _api_get(path: str, timeout: int = 10):
+def _api(method: str, path: str, **kwargs):
     try:
-        r = requests.get(f"{API_URL}{path}", timeout=timeout)
-        if r.status_code == 200:
-            return r.json(), None
-        return None, f"HTTP {r.status_code}"
-    except Exception as e:
-        return None, str(e)
-
-AGENTS = [
-    "Finance Node", "Data Node", "Research Node", "Code Node (DCF)",
-    "Risk Node", "Validation Node", "Rebalancing Node", "Writer Node"
-]
-
-MOCK_MEMO = """## WealthOS Investment Analysis: Tesla, Inc. (TSLA)
-
-### Executive Summary
-**AVOID** — Tesla presents a high-risk profile with DCF intrinsic value of **$20.76**, implying a **94% downside** from current price of $348.95.
-
-### Financial Snapshot
-- Revenue: $94,827M | Net Income: $3,794M | P/E: 323.1x | FCF: $6,220M
-
-### Valuation Analysis
-DCF intrinsic value of **$20.76** vs current **$348.95** — stock appears significantly overvalued.
-
-### Risk Assessment
-Risk score **8/10 (High)** driven by macro sensitivity and high valuation multiples.
-
-### Recommendation
-Avoid initiating new positions. Current price leaves no margin of safety.
-"""
+        r = getattr(requests, method)(
+            f"{API_URL}{path}", timeout=kwargs.pop("timeout", 12), **kwargs
+        )
+        return r.json() if r.ok else None
+    except Exception:
+        return None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE: DASHBOARD
-# ══════════════════════════════════════════════════════════════════════════════
-if page == "📊 Dashboard":
-    st.markdown("""
-    <div style="margin-bottom: 1.5rem;">
-        <h1 style="margin: 0; font-size: 1.8rem;">📊 Dashboard</h1>
-        <p style="color: #5a6478; margin: 0.2rem 0 0; font-size: 0.9rem;">Your financial intelligence overview</p>
-    </div>
-    """, unsafe_allow_html=True)
+def verdict_pill(v: str) -> str:
+    cfg = {
+        "buy":   ("background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;", "Buy"),
+        "hold":  ("background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db;", "Hold"),
+        "avoid": ("background:#111827;color:#ffffff;border:1px solid #111827;", "Avoid"),
+    }
+    style, label = cfg.get((v or "").lower(),
+                           ("background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db;", v or "—"))
+    return (
+        f'<span style="{style}font-size:0.75rem;font-weight:600;'
+        f'padding:0.2rem 0.6rem;border-radius:999px;letter-spacing:0.03em;">'
+        f'{label}</span>'
+    )
 
-    history_data, err = _api_get(f"/history/{USER_ID}?limit=20")
-    history = history_data.get("history", []) if history_data else []
 
-    # ── Metrics ───────────────────────────────────────────────────────────────
-    total_runs = len(history)
-    avg_risk   = round(
-        sum(h.get("risk_score") or 0 for h in history) / total_runs, 1
-    ) if total_runs else 0
-    avg_latency = round(
-        sum(h.get("latency_ms") or 0 for h in history) / total_runs / 1000, 1
-    ) if total_runs else 0
-    last_verdict = history[0].get("verdict", "N/A") if history else "N/A"
+def risk_bar_html(score) -> str:
+    if not score:
+        return '<span style="color:#9ca3af;font-size:0.82rem;">—</span>'
+    pct   = int(score) * 10
+    color = "#2563eb" if pct <= 40 else "#6b7280" if pct <= 60 else "#111827"
+    return (
+        f'<div style="display:flex;align-items:center;gap:0.6rem;">'
+        f'<div style="flex:1;background:#e5e7eb;border-radius:4px;height:5px;">'
+        f'<div style="background:{color};width:{pct}%;height:5px;border-radius:4px;"></div></div>'
+        f'<span style="font-size:0.82rem;color:#374151;font-weight:600;white-space:nowrap;">{score}/10</span>'
+        f'</div>'
+    )
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Analyses", str(total_runs),        "this account")
-    c2.metric("Avg Risk Score", f"{avg_risk}/10",       "lower is safer")
-    c3.metric("Last Verdict",   last_verdict or "—",    "most recent")
-    c4.metric("Avg Latency",    f"{avg_latency}s",      "per pipeline run")
+
+def alloc_bar_html(ticker: str, weight: float, max_w: float) -> str:
+    pct = (weight / max_w * 100) if max_w else 0
+    return (
+        f'<div style="margin-bottom:0.55rem;">'
+        f'<div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem;">'
+        f'<span style="color:#111827;font-weight:500;">{ticker}</span>'
+        f'<span style="color:#6b7280;">{weight:.1f}%</span></div>'
+        f'<div style="background:#e5e7eb;border-radius:4px;height:6px;">'
+        f'<div style="background:#2563eb;width:{min(pct,100):.0f}%;height:6px;border-radius:4px;"></div>'
+        f'</div></div>'
+    )
+
+
+def fmt_date(ts: str) -> str:
+    return ts[:10] if ts else "—"
+
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+_cookies = CookieController()
+
+if not st.session_state.get("logged_in"):
+    uid  = _cookies.get("wo_user_id")
+    user = _cookies.get("wo_username")
+    if uid and user:
+        st.session_state.logged_in = True
+        st.session_state.username  = user
+        st.session_state.user_id   = uid
+    else:
+        st.session_state.setdefault("logged_in", False)
+        st.session_state.setdefault("username",  "")
+        st.session_state.setdefault("user_id",   "")
+
+if not st.session_state.logged_in:
+    _, col, _ = st.columns([1, 1.1, 1])
+    with col:
+        st.markdown(
+            '<div style="text-align:center;padding:2.5rem 0 1.75rem;">'
+            '<div style="font-size:1.75rem;font-weight:700;color:#111827;letter-spacing:-0.02em;">WealthOS</div>'
+            '<div style="font-size:0.85rem;color:#6b7280;margin-top:0.35rem;">Personal financial intelligence</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        t_in, t_up = st.tabs(["Sign in", "Create account"])
+
+        with t_in:
+            with st.form("login"):
+                u  = st.text_input("Username")
+                p  = st.text_input("Password", type="password")
+                ok = st.form_submit_button("Sign in", use_container_width=True, type="primary")
+            if ok:
+                if not u or not p:
+                    st.error("Fill in both fields.")
+                else:
+                    try:
+                        r = requests.post(f"{API_URL}/auth/login",
+                                          json={"username": u, "password": p}, timeout=10)
+                        if r.status_code == 200:
+                            d = r.json()
+                            st.session_state.logged_in = True
+                            st.session_state.username  = d["username"]
+                            st.session_state.user_id   = d["user_id"]
+                            _cookies.set("wo_user_id",  d["user_id"],  max_age=30 * 24 * 3600)
+                            _cookies.set("wo_username", d["username"], max_age=30 * 24 * 3600)
+                            st.rerun()
+                        elif r.status_code == 503:
+                            st.error("Backend offline — start the API server first.")
+                        else:
+                            st.error("Invalid username or password.")
+                    except Exception:
+                        st.error("Cannot reach backend at localhost:8000.")
+            st.caption("Demo: `admin / wealthos123` · `demo / demo123`")
+
+        with t_up:
+            with st.form("signup"):
+                su  = st.text_input("Username")
+                sp  = st.text_input("Password", type="password")
+                sp2 = st.text_input("Confirm password", type="password")
+                sok = st.form_submit_button("Create account", use_container_width=True, type="primary")
+            if sok:
+                if not su or not sp or not sp2:
+                    st.error("All fields are required.")
+                elif sp != sp2:
+                    st.error("Passwords do not match.")
+                elif len(su.strip()) < 3:
+                    st.error("Username must be at least 3 characters.")
+                elif len(sp) < 6:
+                    st.error("Password must be at least 6 characters.")
+                else:
+                    try:
+                        r = requests.post(f"{API_URL}/auth/signup",
+                                          json={"username": su.strip(), "password": sp}, timeout=10)
+                        if r.status_code == 200:
+                            st.success("Account created. Sign in above.")
+                        elif r.status_code == 409:
+                            st.error("Username taken — try another.")
+                        else:
+                            st.error(r.json().get("detail", "Signup failed."))
+                    except Exception:
+                        st.error("Cannot reach backend.")
+    st.stop()
+
+
+# ── Session defaults ──────────────────────────────────────────────────────────
+
+USER_ID = st.session_state.user_id
+st.session_state.setdefault("doc_status",   {})
+st.session_state.setdefault("last_result",  None)
+st.session_state.setdefault("viewing_memo", None)
+
+
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+
+with st.sidebar:
+    st.markdown(
+        '<div style="padding:1.25rem 0 0.5rem;">'
+        '<span style="font-size:1.05rem;font-weight:700;color:#111827;letter-spacing:-0.01em;">WealthOS</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    initial = st.session_state.username[:1].upper()
+    st.markdown(
+        f'<div style="display:flex;align-items:center;gap:0.5rem;padding:0 0 0.75rem;">'
+        f'<div style="width:24px;height:24px;border-radius:50%;background:#dbeafe;'
+        f'display:flex;align-items:center;justify-content:center;'
+        f'font-size:0.7rem;font-weight:700;color:#2563eb;flex-shrink:0;">{initial}</div>'
+        f'<span style="font-size:0.82rem;color:#374151;font-weight:500;">{st.session_state.username}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
     st.divider()
-    col_chart, col_qa = st.columns([2, 1])
+    page = st.radio("nav", ["Analyze", "History", "Settings"], label_visibility="collapsed")
+    st.divider()
 
-    with col_chart:
-        st.subheader("Recent Analyses")
-        if history:
-            rows = []
-            for h in history[:10]:
-                ts = h.get("created_at", "")
-                date_str = ts[:10] if ts else "—"
-                rows.append({
-                    "Date":       date_str,
-                    "Ticker":     h.get("ticker", ""),
-                    "Verdict":    f"{verdict_emoji(h.get('verdict'))} {h.get('verdict') or '—'}",
-                    "Risk":       f"{h.get('risk_score') or '—'}/10",
-                    "DCF":        f"${h.get('dcf_value'):.2f}" if h.get("dcf_value") else "—",
-                    "Latency(s)": round((h.get("latency_ms") or 0) / 1000, 1),
-                })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            if err:
-                st.caption(f"⚠️ API error: {err}")
-        else:
-            st.info("No analyses yet. Go to 🔍 Analyze to run your first one.")
-            if err:
-                st.caption(f"(Could not reach backend: {err})")
-
-    with col_qa:
-        st.subheader("Quick Analyze")
-        st.caption("Enter a ticker and run the full AI pipeline instantly.")
-        ticker_quick = st.text_input("Ticker", placeholder="e.g. AAPL, NVDA, TSLA")
-        if st.button("Run Analysis →", use_container_width=True, type="primary"):
-            if ticker_quick:
-                st.info(f"Go to 🔍 Analyze page and enter **{ticker_quick.upper()}**")
-            else:
-                st.warning("Enter a ticker first")
-        st.caption("Takes ~60s · 8 agents · DCF + Risk + Memo")
+    st.markdown(
+        '<div style="font-size:0.77rem;color:#6b7280;display:flex;align-items:center;gap:0.4rem;">'
+        '<span style="width:6px;height:6px;border-radius:50%;background:#16a34a;'
+        'display:inline-block;flex-shrink:0;"></span>8 agents active</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("")
+    if st.button("Sign out", use_container_width=True):
+        _cookies.remove("wo_user_id")
+        _cookies.remove("wo_username")
+        for k in ("logged_in", "username", "user_id", "doc_status", "last_result", "viewing_memo"):
+            st.session_state.pop(k, None)
+        st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE: ANALYZE
+# PAGE — ANALYZE
 # ══════════════════════════════════════════════════════════════════════════════
-elif page == "🔍 Analyze":
-    st.title("🔍 Analyze Stock")
 
-    mock = st.toggle("🧪 Mock Mode (no backend needed)", value=False)
-    if mock:
-        st.info("Mock Mode ON — using fake data, backend not called")
+if page == "Analyze":
 
+    # Memory banner — one line, only if memory exists
+    mem_data = _api("get", f"/memory/{USER_ID}")
+    if mem_data and mem_data.get("has_memory"):
+        raw     = (mem_data["memory"] or "").replace("\n", " · ").strip()
+        preview = raw[:160] + "…" if len(raw) > 160 else raw
+        st.markdown(
+            f'<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;'
+            f'padding:0.45rem 0.85rem;font-size:0.82rem;color:#1d4ed8;margin-bottom:1rem;">'
+            f'<strong>Memory</strong>&nbsp;&nbsp;{preview}</div>',
+            unsafe_allow_html=True,
+        )
+
+    # File uploader — outside form so indexing fires immediately on drop
+    st.markdown(
+        '<span style="font-size:0.875rem;font-weight:500;color:#374151;">Attach documents</span>'
+        '<span style="font-size:0.78rem;color:#9ca3af;margin-left:0.5rem;">'
+        'salary slips, bank statements, loan docs (PDF)</span>',
+        unsafe_allow_html=True,
+    )
+    uploaded = st.file_uploader(
+        "docs",
+        type=["pdf"],
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+        key="doc_uploader",
+    )
+
+    if uploaded:
+        for uf in uploaded:
+            if uf.name not in st.session_state.doc_status:
+                st.session_state.doc_status[uf.name] = "indexing"
+                with st.spinner(f"Indexing {uf.name}…"):
+                    try:
+                        r = requests.post(
+                            f"{API_URL}/upload-personal-doc",
+                            data={"user_id": USER_ID},
+                            files={"file": (uf.name, uf.getvalue(), "application/pdf")},
+                            timeout=120,
+                        )
+                        st.session_state.doc_status[uf.name] = "ready" if r.ok else "error"
+                    except Exception:
+                        st.session_state.doc_status[uf.name] = "error"
+
+    if st.session_state.doc_status:
+        parts = []
+        for name, status in st.session_state.doc_status.items():
+            icon  = "✓" if status == "ready" else "×" if status == "error" else "…"
+            color = "#16a34a" if status == "ready" else "#dc2626" if status == "error" else "#6b7280"
+            parts.append(f'<span style="color:{color};font-size:0.8rem;">{icon} {name}</span>')
+        st.markdown("&nbsp;&nbsp;".join(parts) + "<br>", unsafe_allow_html=True)
+
+    # Analysis form
     with st.form("analyze_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            ticker  = st.text_input("Ticker Symbol *", placeholder="e.g. AAPL")
-            amount  = st.number_input("Investment Amount (₹)", min_value=1000, value=50000, step=1000)
-            user_id = st.text_input("User ID", value=USER_ID)
-        with col2:
-            risk    = st.selectbox("Risk Tolerance", ["Conservative", "Moderate", "Aggressive"])
-            horizon = st.selectbox("Investment Horizon", ["Short Term (< 1yr)", "Medium Term (1-3yr)", "Long Term (3yr+)"])
         query = st.text_area(
-            "Your Question / Context *",
-            placeholder="e.g. Should I invest in AAPL right now? I have a moderate risk appetite.",
-            help="This is sent as the 'query' to the backend. Be specific!"
+            "What do you want to know?",
+            placeholder=(
+                "e.g. I have around ₹30k–50k to invest and I'm fairly conservative. "
+                "Should I add AAPL to my portfolio right now, or wait?"
+            ),
+            height=115,
         )
-        horizon_choice = st.radio(
-            "Investment Horizon",
-            ["Long-term (1+ year, fundamentals)", "Mid-term (1–3 months, earnings)", "Short-term (days–weeks, trading)", "Let AI decide"],
-            index=0,
+
+        fc1, fc2 = st.columns([1, 2])
+        ticker  = fc1.text_input("Ticker", placeholder="AAPL")
+        horizon = fc2.radio(
+            "Horizon",
+            ["Short-term", "Mid-term", "Long-term", "Let AI decide"],
             horizontal=True,
+            index=2,
         )
-        HORIZON_MAP = {
-            "Long-term (1+ year, fundamentals)":    "long",
-            "Mid-term (1–3 months, earnings)":      "mid",
-            "Short-term (days–weeks, trading)":     "short",
-            "Let AI decide":                         None,
-        }
-        selected_horizon = HORIZON_MAP[horizon_choice]
-        submitted = st.form_submit_button("🚀 Run Analysis", use_container_width=True, type="primary")
+        mock = st.checkbox("Mock mode (no backend needed)", value=False)
+        submitted = st.form_submit_button(
+            "Run analysis", use_container_width=True, type="primary"
+        )
 
     if submitted:
-        if not ticker:
-            st.error("Please enter a ticker symbol")
+        if not mock and not ticker:
+            st.error("Enter a ticker symbol.")
             st.stop()
-        if not query and not mock:
-            st.error("Please enter your question/context")
+        if not mock and not query:
+            st.error("Write your question first.")
             st.stop()
 
-        ticker = ticker.upper().strip()
-
-        st.subheader("🤖 Agent Progress")
-        progress_bar = st.progress(0, text="Starting agents...")
-        agent_cols   = st.columns(4)
-        agent_ph     = {}
-        for i, agent in enumerate(AGENTS):
-            agent_ph[agent] = agent_cols[i % 4].empty()
-            agent_ph[agent].info(f"⏳ {agent}")
-
-        result = None
+        ticker = (ticker or "AAPL").upper().strip()
+        h_map  = {
+            "Short-term":    "short",
+            "Mid-term":      "mid",
+            "Long-term":     "long",
+            "Let AI decide": None,
+        }
+        sel_horizon = h_map[horizon]
 
         if mock:
-            for i, agent in enumerate(AGENTS):
-                time.sleep(0.5)
-                agent_ph[agent].success(f"✅ {agent} ({random.randint(2,9)}s)")
-                progress_bar.progress((i + 1) / len(AGENTS), text=f"Running {agent}...")
-            result = {
-                "ticker": ticker, "verdict": "Avoid", "risk_score": 8,
-                "dcf_value": 20.76, "memo": MOCK_MEMO,
-                "messages": [f"✅ {a}" for a in AGENTS], "error": None,
+            import time as _t
+            with st.spinner(f"Running mock analysis for {ticker}…"):
+                _t.sleep(2)
+            st.session_state.last_result = {
+                "ticker": ticker,
+                "verdict": "Hold",
+                "risk_score": 5,
+                "dcf_value": 162.40,
+                "final_memo": (
+                    f"## {ticker} — Investment Analysis\n\n"
+                    "### Financial Snapshot\n"
+                    "Revenue $383B (10-K FY2024) · Net Income $97B · P/E 28x · FCF $107B\n\n"
+                    "### Risk Assessment\n"
+                    "Risk score 5/10 (Moderate). Valuation is reasonable; "
+                    "macro headwinds are mild. Balance sheet is strong.\n\n"
+                    "### Final Verdict\n"
+                    "**Hold.** Fair value near current price. "
+                    "Add on a 5–8% pullback rather than at current levels."
+                ),
+                "messages": [
+                    "Router Node ✅", "Finance Node ✅", "Data Node ✅",
+                    "Risk Node ✅", "Code Node ✅", "Writer Node ✅",
+                ],
+                "error": None,
             }
         else:
             payload = {
-                "query":              query or f"Analyze {ticker} stock",
-                "ticker":             ticker,
-                "user_id":            user_id,
-                "invest_amount":      float(amount),
+                "query":   query or f"Analyze {ticker}",
+                "ticker":  ticker,
+                "user_id": USER_ID,
             }
-            if selected_horizon is not None:
-                payload["investment_horizon"] = selected_horizon
-            progress_bar.progress(0.1, text="Sending to backend...")
-            with st.spinner(f"Running 8 agents for {ticker}... (~60s)"):
+            if sel_horizon:
+                payload["investment_horizon"] = sel_horizon
+            with st.spinner(f"Running 8 agents for {ticker}… (~60 s)"):
                 try:
-                    response = requests.post(f"{API_URL}/analyze", json=payload, timeout=180)
-                    if response.status_code == 200:
-                        result = response.json()
+                    r = requests.post(f"{API_URL}/analyze", json=payload, timeout=180)
+                    if r.status_code == 200:
+                        st.session_state.last_result = r.json()
+                    elif r.status_code == 429:
+                        st.error("Rate limit reached — max 10 analyses per minute. Try again shortly.")
+                        st.stop()
                     else:
-                        st.error(f"❌ Backend returned {response.status_code}: {response.text}")
+                        st.error(f"Backend error {r.status_code}: {r.text[:200]}")
                         st.stop()
                 except requests.exceptions.ConnectionError:
-                    st.error("❌ Cannot connect to backend at `localhost:8000`. Is it running?")
-                    st.info("Run: `uvicorn api.main:app --reload` in another terminal, or enable Mock Mode.")
+                    st.error("Cannot connect to backend at localhost:8000. Is it running?")
                     st.stop()
                 except requests.exceptions.Timeout:
-                    st.error("❌ Timed out after 180s.")
-                    st.stop()
-                except Exception as e:
-                    st.error(f"❌ Error: {e}")
+                    st.error("Request timed out after 180 s.")
                     st.stop()
 
-            for i, agent in enumerate(AGENTS):
-                agent_ph[agent].success(f"✅ {agent}")
-                progress_bar.progress((i + 1) / len(AGENTS))
-
-        progress_bar.progress(1.0, text="✅ Analysis Complete!")
-
-        # ── Results ──────────────────────────────────────────────────────────
+    # Results section
+    res = st.session_state.get("last_result")
+    if res:
         st.divider()
-        st.subheader(f"📄 Results — {ticker}")
 
-        verdict    = result.get("verdict") or "N/A"
-        risk_score = result.get("risk_score") or 0
-        dcf        = result.get("dcf_value") or 0
-        memo       = result.get("memo") or ""
-        messages   = result.get("messages", [])
-        error      = result.get("error")
+        verdict    = res.get("verdict") or ""
+        risk_score = res.get("risk_score")
+        dcf        = res.get("dcf_value")
+        memo       = res.get("final_memo") or res.get("memo") or ""
+        messages   = res.get("messages", [])
 
-        if error:
-            st.warning(f"⚠️ Agent error: {error}")
+        if res.get("error"):
+            st.warning(f"Agent warning: {res['error']}")
 
-        verdict_color = {"buy": "#1a3a1a", "hold": "#2e2a0e", "avoid": "#3a1a1a"}.get(verdict.lower() if verdict else "", "#1e2435")
-        verdict_border = {"buy": "#2d6a2d", "hold": "#6a5c1a", "avoid": "#6a2d2d"}.get(verdict.lower() if verdict else "", "#2d3348")
-        verdict_text   = {"buy": "#4caf73", "hold": "#f0c040", "avoid": "#f06060"}.get(verdict.lower() if verdict else "", "#8b9ab5")
-        st.markdown(f"""
-        <div style="background: {verdict_color}; border: 1px solid {verdict_border}; border-radius: 12px;
-             padding: 1.2rem 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem;">
-            <div style="font-size: 2.5rem;">{verdict_emoji(verdict)}</div>
-            <div>
-                <div style="font-size: 0.72rem; color: #8b9ab5; text-transform: uppercase; letter-spacing: 0.1em;">Verdict for {ticker}</div>
-                <div style="font-size: 2rem; font-weight: 800; color: {verdict_text};">{verdict or "N/A"}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        col_v, col_r, col_d = st.columns(3)
+        with col_v:
+            st.markdown(
+                f'<div style="padding:0.75rem 0 0.25rem;">'
+                f'<div style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;'
+                f'letter-spacing:0.06em;margin-bottom:0.45rem;">Verdict</div>'
+                f'{verdict_pill(verdict)}</div>',
+                unsafe_allow_html=True,
+            )
+        with col_r:
+            st.markdown(
+                f'<div style="padding:0.75rem 0 0.25rem;">'
+                f'<div style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;'
+                f'letter-spacing:0.06em;margin-bottom:0.55rem;">Risk</div>'
+                f'{risk_bar_html(risk_score)}</div>',
+                unsafe_allow_html=True,
+            )
+        with col_d:
+            dcf_str = f"${dcf:,.2f}" if dcf else "—"
+            st.markdown(
+                f'<div style="padding:0.75rem 0 0.25rem;">'
+                f'<div style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;'
+                f'letter-spacing:0.06em;margin-bottom:0.35rem;">DCF value</div>'
+                f'<div style="font-size:1.3rem;font-weight:700;color:#111827;">{dcf_str}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-        m1, m2 = st.columns(2)
-        m1.metric("DCF Intrinsic Value", f"${dcf:,.2f}" if dcf else "N/A (no FCF data)")
-        m2.metric("Risk Score", f"{risk_score}/10" if risk_score else "N/A")
+        if memo:
+            st.markdown(
+                '<div style="border:1px solid #e5e7eb;border-radius:8px;'
+                'padding:1.5rem 1.75rem;background:#ffffff;margin-top:0.75rem;">',
+                unsafe_allow_html=True,
+            )
+            st.markdown(memo.replace("$", "\\$"))
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        col_memo, col_right = st.columns([3, 2])
-        with col_memo:
-            st.subheader("📝 Investment Memo")
-            st.markdown(memo.replace("$", "\\$") if memo else "_No memo generated_")
-
-        with col_right:
-            if dcf:
-                st.subheader("DCF vs Market Price")
-                st.bar_chart(pd.DataFrame({"Value ($)": [dcf]}, index=["DCF Value"]))
-            if risk_score and risk_score > 0:
-                st.subheader("Risk Level")
-                st.progress(min(int(risk_score), 10) / 10)
-                label = "🟢 Low" if risk_score <= 3 else "🟡 Medium" if risk_score <= 6 else "🔴 High"
-                st.caption(f"{risk_score}/10 — {label} Risk")
+            c1, _ = st.columns([1, 4])
+            c1.download_button(
+                "Download memo",
+                data=memo,
+                file_name=f"{res.get('ticker', 'analysis')}_memo.txt",
+                mime="text/plain",
+            )
 
         if messages:
-            with st.expander("📋 Agent Log"):
-                for msg in messages:
-                    st.text(msg)
+            with st.expander("Agent log", expanded=False):
+                for m in messages:
+                    st.caption(m)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE: PORTFOLIO
+# PAGE — HISTORY
 # ══════════════════════════════════════════════════════════════════════════════
-elif page == "📈 Portfolio":
-    st.title("📈 Portfolio")
 
-    portfolio_data, err = _api_get(f"/portfolio/{USER_ID}")
-    holdings = portfolio_data.get("holdings", []) if portfolio_data else []
+elif page == "History":
+
+    tab_analyses, tab_memory = st.tabs(["Analyses", "Memory"])
+
+    # ── Analyses tab ──────────────────────────────────────────────────────────
+    with tab_analyses:
+        st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+
+        history_data = _api("get", f"/history/{USER_ID}?limit=50")
+        history      = (history_data or {}).get("history", [])
+
+        fc1, fc2 = st.columns([3, 1])
+        search  = fc1.text_input("Search", placeholder="Ticker, e.g. AAPL", label_visibility="collapsed")
+        vfilter = fc2.selectbox("Verdict", ["All", "Buy", "Hold", "Avoid"], label_visibility="collapsed")
+
+        filtered = history
+        if search:
+            filtered = [h for h in filtered if search.upper() in (h.get("ticker") or "").upper()]
+        if vfilter != "All":
+            filtered = [h for h in filtered if vfilter.lower() in (h.get("verdict") or "").lower()]
+
+        if not history:
+            st.markdown("<div style='height:0.75rem'></div>", unsafe_allow_html=True)
+            st.info("No analyses yet — run your first one from the Analyze page.")
+        elif not filtered:
+            st.caption("No results match your filter.")
+        else:
+            st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+            for i, h in enumerate(filtered):
+                ticker_h = h.get("ticker") or "—"
+                verdict  = h.get("verdict") or ""
+                risk     = h.get("risk_score")
+                dcf      = h.get("dcf_value")
+                date     = fmt_date(h.get("created_at", ""))
+                meta     = " · ".join(filter(None, [
+                    f"Risk {risk}/10" if risk else "",
+                    f"DCF ${dcf:,.2f}" if dcf else "",
+                    date,
+                ]))
+                c_info, c_btn = st.columns([6, 1])
+                with c_info:
+                    st.markdown(
+                        f'<div style="padding:0.55rem 0;border-bottom:1px solid #f3f4f6;">'
+                        f'<div style="display:flex;align-items:center;gap:0.55rem;">'
+                        f'<span style="font-weight:600;color:#111827;font-size:0.9rem;">{ticker_h}</span>'
+                        f'{verdict_pill(verdict)}</div>'
+                        f'<div style="font-size:0.77rem;color:#9ca3af;margin-top:0.15rem;">{meta}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                with c_btn:
+                    st.markdown("<div style='padding-top:0.4rem'>", unsafe_allow_html=True)
+                    if st.button("View", key=f"v_{i}", type="secondary"):
+                        st.session_state.viewing_memo = h
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+    # Memo dialog
+    if st.session_state.get("viewing_memo"):
+        @st.dialog("Investment memo", width="large")
+        def _memo_dialog():
+            h    = st.session_state.viewing_memo
+            memo = h.get("memo") or ""
+            st.caption(
+                f"{h.get('ticker', '—')} · {fmt_date(h.get('created_at', ''))} · "
+                f"{h.get('verdict', '—')}"
+            )
+            st.divider()
+            if memo:
+                st.markdown(memo.replace("$", "\\$"))
+                st.download_button(
+                    "Download",
+                    data=memo,
+                    file_name=f"{h.get('ticker', 'analysis')}_memo.txt",
+                    mime="text/plain",
+                )
+            else:
+                st.info("Full memo not stored for this run.")
+            if st.button("Close"):
+                st.session_state.viewing_memo = None
+                st.rerun()
+        _memo_dialog()
+
+    # ── Memory tab ────────────────────────────────────────────────────────────
+    with tab_memory:
+        st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+
+        # Mem0
+        st.markdown(
+            '<span style="font-size:0.875rem;font-weight:600;color:#111827;">'
+            'What WealthOS knows about you</span>',
+            unsafe_allow_html=True,
+        )
+        mem_data = _api("get", f"/memory/{USER_ID}")
+        mem_text = (mem_data or {}).get("memory", "")
+        if mem_text:
+            for s in [ln.strip().lstrip("- ") for ln in mem_text.split("\n") if ln.strip()][:6]:
+                st.markdown(
+                    f'<div style="padding:0.4rem 0;font-size:0.875rem;color:#374151;'
+                    f'border-bottom:1px solid #f3f4f6;">{s}</div>',
+                    unsafe_allow_html=True,
+                )
+            st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+            if st.button("Clear memory", type="secondary"):
+                r = requests.delete(f"{API_URL}/memory/{USER_ID}", timeout=10)
+                if r.ok:
+                    st.success("Memory cleared.")
+                    st.rerun()
+                else:
+                    st.error("Could not clear memory.")
+        else:
+            st.caption("No memory yet. Run an analysis to start building context.")
+
+        st.markdown("<div style='height:1.25rem'></div>", unsafe_allow_html=True)
+
+        # Investor profile
+        st.markdown(
+            '<span style="font-size:0.875rem;font-weight:600;color:#111827;">Your investor profile</span>',
+            unsafe_allow_html=True,
+        )
+        profile_data = _api("get", f"/user-profile/{USER_ID}")
+        profile      = (profile_data or {}).get("profile")
+        if profile:
+            total  = profile.get("total_analyses") or 0
+            buys   = profile.get("buy_count")   or 0
+            holds  = profile.get("hold_count")  or 0
+            avoids = profile.get("avoid_count") or 0
+            avg_r  = profile.get("avg_risk_score")
+            sectors = profile.get("preferred_sectors") or []
+
+            pc1, pc2, pc3 = st.columns(3)
+            pc1.metric("Analyses", total)
+            pc2.metric("Buy / Hold / Avoid", f"{buys} · {holds} · {avoids}")
+            pc3.metric("Avg risk", f"{avg_r:.1f}/10" if avg_r else "—")
+
+            if sectors:
+                tags = "".join(
+                    f'<span style="background:#eff6ff;color:#2563eb;font-size:0.75rem;'
+                    f'font-weight:500;padding:0.18rem 0.5rem;border-radius:999px;'
+                    f'margin-right:0.3rem;border:1px solid #bfdbfe;">{s}</span>'
+                    for s in sectors
+                )
+                st.markdown(
+                    f'<div style="margin-top:0.6rem;">'
+                    f'<span style="font-size:0.78rem;color:#6b7280;margin-right:0.5rem;">Sectors</span>'
+                    f'{tags}</div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.caption("Profile builds after your first completed analysis.")
+
+        st.markdown("<div style='height:1.25rem'></div>", unsafe_allow_html=True)
+
+        # Past decisions
+        st.markdown(
+            '<span style="font-size:0.875rem;font-weight:600;color:#111827;">'
+            'Past decisions</span>',
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            "These verdict embeddings are retrieved during every new risk analysis "
+            "to keep recommendations consistent with your history."
+        )
+        analyses_data = _api("get", f"/user-analyses/{USER_ID}?limit=8")
+        analyses      = (analyses_data or {}).get("analyses", [])
+        if analyses:
+            rows = [
+                {
+                    "Ticker":  a.get("ticker", "—"),
+                    "Date":    fmt_date(a.get("analysis_date", "")),
+                    "Verdict": a.get("verdict", "—"),
+                    "Excerpt": (a.get("verdict_text") or "")[:100],
+                }
+                for a in analyses
+            ]
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        else:
+            st.caption("No past decisions stored yet.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE — SETTINGS
+# ══════════════════════════════════════════════════════════════════════════════
+
+elif page == "Settings":
+    st.markdown("<div style='height:0.25rem'></div>", unsafe_allow_html=True)
+
+    st.markdown(
+        '<span style="font-size:0.875rem;font-weight:600;color:#111827;">Portfolio</span>',
+        unsafe_allow_html=True,
+    )
+    portfolio_data = _api("get", f"/portfolio/{USER_ID}")
+    holdings       = (portfolio_data or {}).get("holdings", [])
 
     if not holdings:
-        st.info("No portfolio holdings found for this user.")
-        if err:
-            st.caption(f"(API error: {err})")
+        st.info("No holdings found. Add them via the portfolio MCP server or the API.")
     else:
         df = pd.DataFrame(holdings)
+        display_cols = [c for c in ["ticker", "quantity", "avg_buy_price", "target_weight", "sector"]
+                        if c in df.columns]
 
-        col_left, col_right = st.columns(2)
-        with col_left:
-            st.subheader("Allocation by Ticker")
-            if "ticker" in df.columns and "quantity" in df.columns:
-                st.bar_chart(df.set_index("ticker")["quantity"])
-
-        with col_right:
-            st.subheader("Avg Buy Price vs Target Weight")
-            if "ticker" in df.columns and "avg_buy_price" in df.columns:
-                st.bar_chart(df.set_index("ticker")["avg_buy_price"])
-
-        st.divider()
-        st.subheader("Holdings Detail")
-        st.dataframe(df, use_container_width=True, hide_index=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE: REPORTS
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "📋 Reports":
-    st.title("📋 Reports")
-
-    col_s, col_f = st.columns([3, 1])
-    search         = col_s.text_input("Search by ticker", placeholder="e.g. AAPL")
-    verdict_filter = col_f.selectbox("Verdict", ["All", "Buy", "Hold", "Avoid"])
-
-    history_data, err = _api_get(f"/history/{USER_ID}?limit=50")
-    history = history_data.get("history", []) if history_data else []
-
-    if err and not history:
-        st.warning(f"Could not load history from backend: {err}")
-
-    # Filter
-    filtered = history
-    if search:
-        filtered = [h for h in filtered if search.upper() in (h.get("ticker") or "").upper()]
-    if verdict_filter != "All":
-        filtered = [h for h in filtered if verdict_filter.lower() in (h.get("verdict") or "").lower()]
-
-    # Fetch live from backend
-    st.divider()
-    col_fetch, col_btn = st.columns([3, 1])
-    fetch_ticker = col_fetch.text_input("Fetch live cached analysis from backend", placeholder="e.g. AAPL")
-    if col_btn.button("Fetch", use_container_width=True):
-        try:
-            r = requests.get(f"{API_URL}/state/{fetch_ticker.upper()}", timeout=10)
-            if r.status_code == 200:
-                data = r.json()
-                st.success(f"Found cached analysis for {fetch_ticker.upper()}")
-                st.metric("Verdict", data.get("verdict", "N/A"))
-                st.metric("Risk Score", data.get("risk_score", "N/A"))
-                st.markdown(data.get("memo", ""))
-            else:
-                st.warning(f"No cached analysis found for {fetch_ticker.upper()}")
-        except Exception:
-            st.error("Cannot connect to backend")
-
-    st.divider()
-    st.subheader(f"Past Analyses ({len(filtered)} found)")
-
-    if not filtered:
-        st.info("No analyses match your filters. Run an analysis from the 🔍 Analyze page first.")
-    else:
-        for h in filtered:
-            ticker  = h.get("ticker", "?")
-            verdict = h.get("verdict") or "N/A"
-            risk    = h.get("risk_score")
-            dcf     = h.get("dcf_value")
-            ts      = h.get("created_at", "")
-            date_str = ts[:10] if ts else "—"
-            memo    = h.get("memo") or ""
-            label   = (
-                f"{verdict_emoji(verdict)} {ticker} | "
-                f"Verdict: {verdict} | "
-                f"Risk: {risk}/10 | "
-                f"DCF: {'${:.2f}'.format(dcf) if dcf else '—'} | "
-                f"{date_str}"
-            )
-            with st.expander(label):
-                if memo:
-                    st.markdown(memo.replace("$", "\\$"))
-                    st.download_button(
-                        "📥 Download Memo", data=memo,
-                        file_name=f"{ticker}_memo.txt", mime="text/plain",
-                        key=f"dl_{h.get('id', ticker)}",
+        col_t, col_c = st.columns([3, 2])
+        with col_t:
+            st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
+        with col_c:
+            if "target_weight" in df.columns:
+                max_w = float(df["target_weight"].max() or 1)
+                for _, row in df.iterrows():
+                    st.markdown(
+                        alloc_bar_html(row["ticker"], float(row.get("target_weight") or 0), max_w),
+                        unsafe_allow_html=True,
                     )
-                else:
-                    st.caption("_No memo stored for this run._")
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE: SETTINGS
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "⚙️ Settings":
-    st.title("⚙️ Settings")
-
-    st.subheader("🔌 Backend Status")
-    if st.button("Check Backend Connection"):
-        try:
-            r = requests.get(f"{API_URL}/health", timeout=5)
-            if r.status_code == 200:
-                data = r.json()
-                st.success(f"✅ Connected! Version: {data.get('version')} | Agents: {data.get('agents')}")
-            else:
-                st.error(f"Backend returned {r.status_code}")
-        except Exception:
-            st.error("❌ Cannot reach backend at localhost:8000")
-
-    st.divider()
-    st.subheader("Financial Profile")
-    col1, col2, col3 = st.columns(3)
-    col1.number_input("Monthly Income (₹)", value=100000, step=5000)
-    col2.number_input("Monthly Expenses (₹)", value=70000, step=5000)
-    col3.number_input("Portfolio Value (₹)", value=500000, step=10000)
-
-    st.subheader("Risk Tolerance")
-    st.radio("Select your risk profile", [
-        "Conservative — Capital preservation, low volatility",
-        "Moderate — Balanced growth and safety",
-        "Aggressive — Maximum growth, high volatility OK",
-    ])
-
-    st.subheader("Notification Preferences")
-    st.toggle("Analysis Complete notifications", value=True)
-    st.toggle("Market Alerts", value=True)
-    st.toggle("Weekly Summary emails", value=False)
-
-    st.subheader("🌅 Morning Briefing")
-    user_id_brief = st.text_input("User ID", value=USER_ID)
-    if st.button("📨 Trigger Morning Briefing Now", type="primary"):
-        try:
-            r = requests.post(f"{API_URL}/briefing/send-now", json={"user_id": user_id_brief}, timeout=60)
-            if r.status_code == 200:
-                data = r.json()
-                st.success("✅ Briefing triggered!")
-                st.markdown(data.get("briefing", ""))
-            else:
-                st.error(f"Error: {r.text}")
-        except Exception as e:
-            st.error(f"❌ {e}")
-
-    st.divider()
-    if st.button("💾 Save Settings", type="primary", use_container_width=True):
-        st.success("✅ Settings saved!")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE: ABOUT US
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "ℹ️ About Us":
-    st.title("ℹ️ About WealthOS")
-
-    st.markdown("""
-    **WealthOS** is an AI-powered personal financial intelligence platform built to answer one question:
-
-    > *"Should I — specifically me, given my income and risk profile — invest in this right now?"*
-
-    Instead of generic advice, WealthOS combines your personal financial situation with real-time stock data,
-    SEC filings, and rigorous financial models to deliver a personalized investment memo in under 90 seconds.
-    """)
-
-    st.divider()
-    st.subheader("How It Works")
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("#### 📥 You Provide")
-        st.markdown("""
-        - A stock ticker (e.g. AAPL)
-        - Your investment question
-        - Your financial profile
-        """)
-    with col2:
-        st.markdown("#### 🤖 7 AI Agents Run")
-        st.markdown("""
-        - Finance Agent — your health score
-        - Data Agent — real stock numbers
-        - Research Agent — news & filings
-        - Risk Agent — 3-way debate
-        - Code Agent — DCF & Monte Carlo
-        - Rebalancing Agent — portfolio fit
-        - Writer Agent — full memo
-        """)
-    with col3:
-        st.markdown("#### 📄 You Get")
-        st.markdown("""
-        - BUY / HOLD / AVOID verdict
-        - DCF intrinsic value
-        - Risk score 1–10
-        - 7-section investment memo
-        - Portfolio rebalancing plan
-        """)
-
-    st.divider()
-    st.subheader("Technology Stack")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.markdown("""
-        | Layer | Technology |
-        |---|---|
-        | Orchestration | LangGraph (StateGraph) |
-        | LLM | Groq — Llama 3.3 70B |
-        | Vector Search | Qdrant (hybrid dense + BM25) |
-        | Embeddings | sentence-transformers (local CPU) |
-        | Code Sandbox | E2B cloud containers |
-        """)
-    with col_b:
-        st.markdown("""
-        | Layer | Technology |
-        |---|---|
-        | Tool Protocol | MCP (Model Context Protocol) |
-        | Database | PostgreSQL + asyncpg |
-        | Cache | Redis |
-        | Prompt Optimization | DSPy BootstrapFewShot |
-        | Backend | FastAPI |
-        """)
-
-    st.divider()
-    st.subheader("The Team")
-    st.markdown("""
-    WealthOS is built as a showcase of modern AI engineering patterns:
-    multi-agent orchestration, RAG pipelines, financial modeling, and production-grade observability.
-
-    Built with ❤️ using LangGraph, FastMCP, Qdrant, and Groq.
-    """)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE: CONTACT US
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "📬 Contact Us":
-    st.title("📬 Contact Us")
-
-    col_left, col_right = st.columns([3, 2])
-
-    with col_left:
-        st.markdown("Have a question, bug report, or feature request? Fill out the form below.")
+    # Rebalance suggestion from last analysis
+    res = st.session_state.get("last_result")
+    if res and res.get("rebalance_suggestion"):
         st.divider()
+        st.markdown(
+            '<span style="font-size:0.875rem;font-weight:600;color:#111827;">'
+            'Last rebalancing suggestion</span>',
+            unsafe_allow_html=True,
+        )
+        actions = (res["rebalance_suggestion"] or {}).get("actions", [])
+        if actions:
+            for a in actions:
+                urg   = (a.get("urgency") or "").capitalize()
+                u_col = "#dc2626" if a.get("urgency") == "high" else "#6b7280"
+                st.markdown(
+                    f'<div style="padding:0.4rem 0;border-bottom:1px solid #f3f4f6;font-size:0.875rem;">'
+                    f'<span style="color:#374151;">'
+                    f'{a.get("action","").capitalize()} <strong>{a.get("ticker","")}</strong> '
+                    f'{a.get("from_weight","")}% → {a.get("to_weight","")}%</span>'
+                    f'<span style="float:right;font-size:0.75rem;color:{u_col};">{urg}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.caption("No rebalancing actions needed.")
+    else:
+        st.caption("Run an analysis from the Analyze page to see rebalancing suggestions here.")
 
-        with st.form("contact_form"):
-            name    = st.text_input("Your Name", value=st.session_state.username)
-            email   = st.text_input("Email Address", placeholder="you@example.com")
-            subject = st.selectbox("Subject", [
-                "General Inquiry",
-                "Bug Report",
-                "Feature Request",
-                "Data / Analysis Question",
-                "Other",
-            ])
-            message = st.text_area("Message", placeholder="Describe your question or feedback...", height=150)
-            send    = st.form_submit_button("Send Message", use_container_width=True, type="primary")
-
-        if send:
-            if not email or "@" not in email:
-                st.error("Please enter a valid email address")
-            elif not message.strip():
-                st.error("Please enter a message")
-            else:
-                st.success(f"✅ Thanks, **{name}**! Your message has been received. We'll get back to you at {email} shortly.")
-                st.balloons()
-
-    with col_right:
-        st.subheader("Get In Touch")
-        st.markdown("""
-        **Response time:** Within 24–48 hours
-
-        **For bugs:** Please include:
-        - The ticker you analyzed
-        - The error message shown
-        - Approximate time of the run
-
-        **For features:** Describe the use case,
-        not just the feature — helps us build
-        the right thing.
-        """)
-        st.divider()
-        st.subheader("Quick Links")
-        st.markdown("""
-        - [API Docs](http://localhost:8000/docs)
-        - [Health Check](http://localhost:8000/health)
-        - [Agent Cards](http://localhost:8000/agents)
-        """)
+    # Risk tolerance
+    st.divider()
+    st.markdown(
+        '<span style="font-size:0.875rem;font-weight:600;color:#111827;">Risk tolerance</span>',
+        unsafe_allow_html=True,
+    )
+    st.radio(
+        "risk",
+        [
+            "Conservative — capital preservation, low volatility",
+            "Moderate — balanced growth and safety",
+            "Aggressive — maximum growth, volatility is fine",
+        ],
+        label_visibility="collapsed",
+        index=1,
+    )
+    st.caption(
+        "Mention your risk preference in the Analyze message — "
+        "the agent reads it directly from your query."
+    )
