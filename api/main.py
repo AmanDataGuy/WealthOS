@@ -535,7 +535,7 @@ async def analysis_history(user_id: str, limit: int = 20):
                 """
                 SELECT id::text, ticker, query, verdict, risk_score,
                        dcf_value, latency_ms, cost_usd, total_tokens,
-                       agents_invoked, created_at
+                       agents_invoked, created_at, memo
                 FROM analysis_history
                 WHERE user_id = $1
                 ORDER BY created_at DESC
@@ -620,6 +620,73 @@ async def upload_personal_doc(
         raise HTTPException(status_code=422, detail=result["error"])
 
     return result
+
+
+# ── Memory endpoints ──────────────────────────────────────────────────────────
+
+@app.get("/memory/{user_id}")
+async def get_memory(user_id: str):
+    """Return Mem0 memories for a user as a plain string."""
+    try:
+        from memory.mem0_client import read_memory
+        mem = read_memory(user_id)
+        return {"memory": mem or "", "has_memory": bool(mem)}
+    except Exception as e:
+        return {"memory": "", "has_memory": False, "error": str(e)}
+
+
+@app.delete("/memory/{user_id}")
+async def clear_memory(user_id: str):
+    """Delete all Mem0 memories for a user."""
+    try:
+        from memory.mem0_client import get_client
+        get_client().delete_all(user_id=user_id)
+        return {"status": "cleared"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/user-profile/{user_id}")
+async def get_user_profile(user_id: str):
+    """Return the user_risk_profiles row for a user."""
+    if not DB_URL:
+        return {"profile": None}
+    try:
+        conn = await asyncpg.connect(DB_URL)
+        try:
+            row = await conn.fetchrow(
+                "SELECT * FROM user_risk_profiles WHERE user_id = $1", user_id
+            )
+        finally:
+            await conn.close()
+        return {"profile": dict(row) if row else None}
+    except Exception as e:
+        return {"profile": None, "error": str(e)}
+
+
+@app.get("/user-analyses/{user_id}")
+async def get_user_analyses(user_id: str, limit: int = 8):
+    """Return the last N verdict entries from the Qdrant user_analyses collection."""
+    try:
+        from qdrant_client import QdrantClient
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        qc = QdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+        results, _ = qc.scroll(
+            collection_name="user_analyses",
+            scroll_filter=Filter(must=[
+                FieldCondition("user_id", match=MatchValue(value=user_id))
+            ]),
+            limit=limit,
+            with_payload=True,
+        )
+        analyses = sorted(
+            [r.payload for r in results],
+            key=lambda x: x.get("analysis_date", ""),
+            reverse=True,
+        )
+        return {"analyses": analyses}
+    except Exception as e:
+        return {"analyses": [], "error": str(e)}
 
 
 # ── Run directly ───────────────────────────────────────────────────────────────
