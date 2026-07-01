@@ -18,7 +18,7 @@ import logging
 import asyncio
 from contextlib import asynccontextmanager
 import shutil
-import tempfile
+import collections
 from pathlib import Path
 import re
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends
@@ -139,6 +139,24 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+# ── Rate limiting (simple in-memory, per user_id, 10 req/min) ────────────────
+
+_rate_buckets: dict = collections.defaultdict(list)
+_RATE_LIMIT    = int(os.getenv("ANALYZE_RATE_LIMIT", "10"))
+_RATE_WINDOW   = 60  # seconds
+
+def _check_rate_limit(user_id: str) -> None:
+    now = time.time()
+    bucket = _rate_buckets[user_id]
+    _rate_buckets[user_id] = [t for t in bucket if now - t < _RATE_WINDOW]
+    if len(_rate_buckets[user_id]) >= _RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded: max {_RATE_LIMIT} analyses per minute.",
+        )
+    _rate_buckets[user_id].append(now)
 
 
 # ── API key auth dependency ───────────────────────────────────────────────────
@@ -275,6 +293,7 @@ async def health():
 
 @app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_api_key)])
 async def analyze(req: AnalyzeRequest):
+    _check_rate_limit(req.user_id)
     ticker = req.ticker.upper().strip()
     query  = _sanitize_query(req.query)
 
@@ -579,20 +598,23 @@ async def upload_personal_doc(
     if suffix not in {".pdf", ".htm", ".html"}:
         raise HTTPException(status_code=400, detail="Only PDF and HTML files are supported.")
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        shutil.copyfileobj(file.file, tmp)
-        tmp_path = tmp.name
+    # Save permanently to data/personal_docs/{user_id}/
+    docs_dir = Path("data") / "personal_docs" / user_id
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    perm_path = docs_dir / file.filename
+    with perm_path.open("wb") as f:
+        shutil.copyfileobj(file.file, f)
 
     try:
         from rag.indexer import FilingIndexer
         indexer = FilingIndexer()
         result = await indexer.index_personal_doc(
-            tmp_path,
+            str(perm_path),
             user_id,
             filename=file.filename,
         )
-    finally:
-        os.unlink(tmp_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     if "error" in result:
         raise HTTPException(status_code=422, detail=result["error"])
