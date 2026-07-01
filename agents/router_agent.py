@@ -146,6 +146,91 @@ def _build_fetch_plan(horizon: str, company_tier: str) -> dict:
     return base
 
 
+async def _on_demand_index(ticker: str) -> None:
+    """
+    Background task: download latest 10-K from SEC EDGAR and index it into Qdrant.
+    Upserts indexed_tickers on success; marks status='failed' on error.
+    Fired via asyncio.create_task — never blocks the pipeline.
+    """
+    import httpx
+    logger.info("[router] on-demand indexing triggered for %s", ticker)
+    try:
+        from mcp_servers.sec_edgar_server import get_10k
+        meta = await asyncio.to_thread(get_10k, ticker)
+        if "error" in meta:
+            logger.warning("[router] SEC EDGAR lookup: %s", meta["error"])
+            return
+
+        document_url = meta["document_url"]
+        filing_date  = meta.get("filed_date", "")
+        company_name = meta.get("company_name", ticker)
+
+        # Persist to data/filings/ so the file survives between runs
+        import pathlib
+        filings_dir = pathlib.Path("data/filings")
+        filings_dir.mkdir(parents=True, exist_ok=True)
+        dest = filings_dir / f"{ticker}_10-K.htm"
+
+        async with httpx.AsyncClient(
+            timeout=120, follow_redirects=True,
+            headers={"User-Agent": "WealthOS/1.0 ankit.work2026@gmail.com"},
+        ) as client:
+            resp = await client.get(document_url)
+            resp.raise_for_status()
+            dest.write_bytes(resp.content)
+
+        logger.info("[router] downloaded 10-K for %s (%d bytes)", ticker, len(resp.content))
+
+        from rag.indexer import FilingIndexer
+        result      = await FilingIndexer().index_filing(
+            file_path=str(dest), ticker=ticker,
+            filing_type="10-K", filing_date=filing_date,
+        )
+        chunk_count = result.get("chunks_indexed", 0)
+        logger.info("[router] indexed %d chunks for %s", chunk_count, ticker)
+
+        db_url = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
+        if db_url:
+            import asyncpg
+            conn = await asyncpg.connect(db_url)
+            await conn.execute(
+                """
+                INSERT INTO indexed_tickers
+                    (ticker, company_name, chunk_count, filing_year, data_source, status)
+                VALUES ($1, $2, $3, $4, 'sec_edgar', 'active')
+                ON CONFLICT (ticker) DO UPDATE SET
+                    company_name    = EXCLUDED.company_name,
+                    chunk_count     = EXCLUDED.chunk_count,
+                    filing_year     = EXCLUDED.filing_year,
+                    data_source     = 'sec_edgar',
+                    status          = 'active',
+                    last_indexed_at = NOW()
+                """,
+                ticker, company_name, chunk_count,
+                filing_date[:4] if filing_date else None,
+            )
+            await conn.close()
+            logger.info("[router] indexed_tickers upserted for %s", ticker)
+
+    except Exception as e:
+        logger.error("[router] on-demand indexing failed for %s: %s", ticker, e)
+        try:
+            db_url = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
+            if db_url:
+                import asyncpg
+                conn = await asyncpg.connect(db_url)
+                await conn.execute(
+                    """
+                    INSERT INTO indexed_tickers (ticker, status) VALUES ($1, 'failed')
+                    ON CONFLICT (ticker) DO UPDATE SET status = 'failed', last_indexed_at = NOW()
+                    """,
+                    ticker,
+                )
+                await conn.close()
+        except Exception:
+            pass
+
+
 async def run_router_agent(
     query: str,
     ticker: str,
@@ -156,7 +241,6 @@ async def run_router_agent(
     Main entry point. If investment_horizon is provided (from UI), skip LLM classification.
     Returns partial WealthOSState dict.
     """
-    # Parallelise: horizon classification + company tier + user tier
     if investment_horizon and investment_horizon in ("short", "mid", "long"):
         horizon, confidence = investment_horizon, 1.0
         logger.info("[router] horizon from UI: %s", horizon)
@@ -168,6 +252,11 @@ async def run_router_agent(
         asyncio.to_thread(_get_company_tier, ticker),
         _get_user_tier(user_id),
     )
+
+    # Fire-and-forget indexing for unknown companies — pipeline continues immediately
+    if company_tier == "not_indexed":
+        asyncio.create_task(_on_demand_index(ticker))
+        logger.info("[router] background indexing scheduled for %s", ticker)
 
     fetch_plan = _build_fetch_plan(horizon, company_tier)
 

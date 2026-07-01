@@ -1,0 +1,30 @@
+# Dockerfile.mcp
+# Runs MCP servers (market, news, sec_edgar) — one server per container.
+# Default CMD starts market_server; override for others:
+#   docker run wealthos-mcp python mcp_servers/news_server.py
+#   docker run wealthos-mcp python mcp_servers/sec_edgar_server.py
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libmagic1 \
+        poppler-utils \
+        tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir \
+        fastmcp \
+        yfinance \
+        httpx \
+        python-dotenv \
+        redis \
+        newspaper3k \
+        lxml_html_clean \
+        fredapi
+
+COPY mcp_servers/ ./mcp_servers/
+
+CMD ["python", "mcp_servers/market_server.py"]

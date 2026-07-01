@@ -63,9 +63,10 @@ def trace_node(node_name: str):
                 print("[langsmith] not installed — pip install langsmith")
                 return await fn(state, *args, **kwargs)
 
-            # Pull useful metadata from state for filtering in the UI
+            # Pull useful metadata — mask user_id to first 8 chars (PII protection)
+            raw_uid = state.get("user_id", "unknown") or "unknown"
             metadata = {
-                "user_id":      state.get("user_id", "unknown"),
+                "user_id":      raw_uid[:8] + "****" if len(raw_uid) > 8 else raw_uid,
                 "tickers":      state.get("tickers", []),
                 "input_source": state.get("input_source", "text"),
             }
