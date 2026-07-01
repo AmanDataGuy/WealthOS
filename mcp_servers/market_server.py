@@ -742,6 +742,82 @@ def get_options_data(ticker: str) -> dict:
         return {"ticker": ticker, "error": str(e), "put_call_ratio": None}
 
 
+@mcp.tool()
+def get_macro_data() -> dict:
+    """
+    Get key macro-economic indicators: 10Y treasury yield, VIX, S&P 500 level,
+    and Fed Funds Rate (if FRED_API_KEY is set).
+
+    No arguments needed. Returns latest values for risk-free rate, volatility
+    index, and broad market level. Used by the Risk Agent for macro context.
+
+    Example: get_macro_data()
+    """
+    key = "macro:overview"
+    cached = from_cache(key)
+    if cached:
+        cached["from_cache"] = True
+        return cached
+
+    result: dict = {"from_cache": False}
+
+    # ── FRED (authoritative source if key is set) ──────────────────────────────
+    fred_key = os.getenv("FRED_API_KEY", "")
+    if fred_key:
+        try:
+            import fredapi
+            fred = fredapi.Fred(api_key=fred_key)
+            dff  = fred.get_series("DFF",  observation_start="2024-01-01").dropna()
+            gs10 = fred.get_series("GS10", observation_start="2024-01-01").dropna()
+            if not dff.empty:
+                result["fed_funds_rate"]     = round(float(dff.iloc[-1]),  3)
+                result["fed_funds_date"]     = str(dff.index[-1].date())
+            if not gs10.empty:
+                result["treasury_10y_yield"] = round(float(gs10.iloc[-1]), 3)
+                result["treasury_10y_date"]  = str(gs10.index[-1].date())
+            result["macro_source"] = "FRED"
+        except Exception as e:
+            logger.warning("FRED fetch failed: %s — falling back to yfinance", e)
+            result["macro_source"] = "yfinance_fallback"
+    else:
+        result["macro_source"] = "yfinance"
+
+    # ── yfinance fallback (yields + VIX + SPX) ────────────────────────────────
+    yf_map = {"^TNX": "treasury_10y_yield", "^VIX": "vix", "^GSPC": "sp500"}
+    for symbol, field in yf_map.items():
+        if field in result:
+            continue  # already from FRED
+        try:
+            t   = yf.Ticker(symbol)
+            val = t.fast_info.get("lastPrice") or t.fast_info.get("regularMarketPrice")
+            if val:
+                result[field] = round(float(val), 3)
+        except Exception:
+            pass
+
+    # ── Derived regime labels ─────────────────────────────────────────────────
+    vix = result.get("vix")
+    if vix is not None:
+        result["vix_regime"] = (
+            "low_vol"    if vix < 15 else
+            "normal_vol" if vix < 25 else
+            "high_vol"   if vix < 35 else
+            "crisis"
+        )
+
+    ty = result.get("treasury_10y_yield")
+    if ty is not None:
+        result["rate_environment"] = (
+            "ultra_low"  if ty < 1.5 else
+            "low"        if ty < 3.0 else
+            "normal"     if ty < 5.0 else
+            "elevated"
+        )
+
+    to_cache(key, result, 3600)  # macro moves slowly — cache 1 hour
+    return result
+
+
 # --- Run ---
 
 if __name__ == "__main__":
