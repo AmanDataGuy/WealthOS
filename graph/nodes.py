@@ -12,6 +12,7 @@ Errors are caught per-node so one failure doesn't kill the whole pipeline.
 `writer_node` now writes results to Mem0 at the end.
 """
 
+import os
 import time
 from agents.data_agent        import run_data_agent
 from agents.risk_agent        import run_risk_agent
@@ -212,18 +213,40 @@ async def research_node(state: WealthOSState) -> dict:
 # ── Risk Node ──────────────────────────────────────────────────────────────────
 
 @trace_node("risk_node")
+async def _fetch_user_risk_profile(user_id: str) -> dict | None:
+    db_url = os.getenv("WEALTHOS_DB_URL", "")
+    if not db_url:
+        return None
+    try:
+        import asyncpg
+        conn = await asyncpg.connect(db_url)
+        try:
+            row = await conn.fetchrow(
+                "SELECT * FROM user_risk_profiles WHERE user_id = $1", user_id
+            )
+            return dict(row) if row else None
+        finally:
+            await conn.close()
+    except Exception:
+        return None
+
+
 async def risk_node(state: WealthOSState) -> dict:
     print("\n[Graph] Risk Node running...")
     ticker   = state["tickers"][0] if state.get("tickers") else None
     snapshot = state.get("financial_snapshot")
     personal = state.get("personal_finance")
+    user_id  = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
     if not ticker:
         return {"messages": log(state, "Risk Node ❌ no ticker")}
     try:
+        user_risk_profile = await _fetch_user_risk_profile(user_id)
         report = await run_risk_agent(
             ticker=ticker,
             financial_snapshot=snapshot,
             personal_finance=personal,
+            past_decisions_ctx=state.get("past_decisions_ctx", ""),
+            user_risk_profile=user_risk_profile,
         )
         return {
             "risk_report": report.model_dump(),
@@ -334,7 +357,7 @@ async def writer_node(state: WealthOSState) -> dict:
         if not valid:
             print(f"  [validation] ⚠️  Memo validation: {error}")
 
-        # Phase 6 — save this analysis to Mem0
+        # Save to Mem0 (2-line signal)
         try:
             from memory.mem0_client import write_memory
             write_memory(state.get("user_id") or "00000000-0000-0000-0000-000000000001", {
@@ -343,6 +366,21 @@ async def writer_node(state: WealthOSState) -> dict:
             })
         except Exception as e:
             print(f"  [mem0] ⚠️  write failed: {e}")
+
+        # Index Final Verdict into user_analyses Qdrant collection
+        try:
+            from rag.indexer import index_user_analysis
+            _uid    = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
+            _ticker = state["tickers"][0] if state.get("tickers") else "UNKNOWN"
+            await index_user_analysis(
+                user_id=_uid,
+                ticker=_ticker,
+                verdict=memo.verdict or "Hold",
+                full_memo=memo.full_memo,
+                risk_score=float(memo.risk_score) if memo.risk_score is not None else None,
+            )
+        except Exception as e:
+            print(f"  [indexer] ⚠️  user_analyses index failed: {e}")
 
         # Upsert user_risk_profiles with verdict + sector from this analysis
         try:

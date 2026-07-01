@@ -476,8 +476,15 @@ async def run_writer_agent(
         print(f"  Writing: Financial Snapshot...")
         sections["financial_snapshot"] = await write_section(
             section_name="Financial Snapshot",
-            instructions="Summarize the key financial metrics. "
-                         "Highlight revenue trend, profitability, and balance sheet strength.",
+            instructions=(
+                "Summarize the key financial metrics. "
+                "Highlight revenue trend, profitability, and balance sheet strength. "
+                "SOURCE RULES: (1) Cite source and date for every number — "
+                "e.g. 'Revenue $19.3B (10-K FY2024)' or '$19.8B (Q1 2025 per Reuters)'. "
+                "(2) When numbers conflict across sources, use the most recent. "
+                "(3) Trust hierarchy: live earnings > analyst consensus > 10-K guidance > 10-K historical. "
+                "(4) If guidance differs from actuals, note the beat/miss explicitly."
+            ),
             context=fin_context,
             client=client,
         )
