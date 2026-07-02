@@ -212,7 +212,6 @@ async def research_node(state: WealthOSState) -> dict:
 
 # ── Risk Node ──────────────────────────────────────────────────────────────────
 
-@trace_node("risk_node")
 async def _fetch_user_risk_profile(user_id: str) -> dict | None:
     db_url = os.getenv("WEALTHOS_DB_URL", "")
     if not db_url:
@@ -231,6 +230,7 @@ async def _fetch_user_risk_profile(user_id: str) -> dict | None:
         return None
 
 
+@trace_node("risk_node")
 async def risk_node(state: WealthOSState) -> dict:
     print("\n[Graph] Risk Node running...")
     ticker   = state["tickers"][0] if state.get("tickers") else None
@@ -340,6 +340,9 @@ async def writer_node(state: WealthOSState) -> dict:
     print("\n[Graph] Writer Node running...")
     ticker = state["tickers"][0] if state.get("tickers") else "Unknown"
     try:
+        _writer_uid         = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
+        _user_risk_profile  = await _fetch_user_risk_profile(_writer_uid)
+
         memo = await run_writer_agent(
             ticker=ticker,
             financial_snapshot=state.get("financial_snapshot"),
@@ -351,6 +354,7 @@ async def writer_node(state: WealthOSState) -> dict:
             user_memory=state.get("user_memory", ""),
             investment_horizon=state.get("investment_horizon", "long"),
             past_decisions_ctx=state.get("past_decisions_ctx", ""),
+            user_risk_profile=_user_risk_profile,
         )
 
         valid, error = validate_memo(memo.full_memo)

@@ -16,11 +16,14 @@ Produces RiskReport.
 import os
 import json
 import asyncio
+import logging
 import httpx
 from datetime import datetime, timezone
 from typing import Optional, Literal
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -62,9 +65,63 @@ class RiskReport(BaseModel):
 
 from services.llm_client import call_llm
 
+# ── Live macro data helper ────────────────────────────────────────────────────
+
+async def _get_macro_context() -> str:
+    """Fetch VIX, 10Y yield, S&P 500 via yfinance; Fed Funds Rate via FRED if key set.
+    Returns a formatted string injected into the MacroAnalyst prompt."""
+    try:
+        import yfinance as yf
+
+        def _fetch() -> dict:
+            out: dict = {}
+            for label, sym in [("VIX", "^VIX"), ("TNX", "^TNX"), ("GSPC", "^GSPC")]:
+                try:
+                    info  = yf.Ticker(sym).fast_info
+                    price = getattr(info, "last_price", None) or getattr(info, "regularMarketPrice", None)
+                    out[label] = round(float(price), 2) if price else None
+                except Exception:
+                    out[label] = None
+
+            fred_key = os.getenv("FRED_API_KEY", "")
+            if fred_key:
+                try:
+                    import fredapi
+                    series = fredapi.Fred(api_key=fred_key).get_series("FEDFUNDS", limit=1)
+                    out["FedFunds"] = round(float(series.iloc[-1]), 2) if len(series) else None
+                except Exception:
+                    out["FedFunds"] = None
+            return out
+
+        data = await asyncio.to_thread(_fetch)
+
+        lines = ["**Live Macro Data:**"]
+        vix = data.get("VIX")
+        if vix is not None:
+            regime = "high fear — risk-off" if vix > 25 else "elevated" if vix > 18 else "low volatility — risk-on"
+            lines.append(f"- VIX: **{vix:.1f}** ({regime})")
+        tnx = data.get("TNX")
+        if tnx is not None:
+            env = "high rates — cost of capital elevated" if tnx > 4.0 else "moderate rates"
+            lines.append(f"- 10Y Treasury Yield: **{tnx:.2f}%** ({env})")
+        gspc = data.get("GSPC")
+        if gspc is not None:
+            lines.append(f"- S&P 500: **{gspc:,.0f}**")
+        fed = data.get("FedFunds")
+        if fed is not None:
+            lines.append(f"- Fed Funds Rate: **{fed:.2f}%** (FRED)")
+
+        return "\n".join(lines) if len(lines) > 1 else ""
+
+    except Exception as e:
+        logger.warning("[risk] macro context fetch failed: %s", e)
+        return ""
+
+
 # ── Node 1 — MacroAnalyst ─────────────────────────────────────────────────────
 
-async def macro_analyst_node(ticker: str, sector: str, snapshot_context: str) -> str:
+async def macro_analyst_node(ticker: str, sector: str, snapshot_context: str,
+                             macro_context: str = "") -> str:
     """
     Analyzes macro environment and sector-level risks.
     Uses fast model — macro context is well-known to the LLM.
@@ -73,16 +130,19 @@ async def macro_analyst_node(ticker: str, sector: str, snapshot_context: str) ->
 
     system = """You are a macro economist analyzing investment risk.
 Assess the macro and sector environment for the given stock.
-Be specific and concise. Focus on:
-- Current interest rate environment impact
+Be specific and concise. Use the live macro data provided — cite actual VIX, yield, and Fed rate figures.
+Focus on:
+- Current interest rate environment impact (use the 10Y yield provided)
+- VIX regime — what does the fear index say about market risk appetite?
 - Sector-specific tailwinds and headwinds
 - Regulatory risks
 - Global macro risks (inflation, recession probability, currency)
 Return a structured analysis in 200 words max."""
 
+    macro_block = f"\n\n{macro_context}" if macro_context else ""
     user = f"""Stock: {ticker}
 Sector: {sector}
-Financial context: {snapshot_context}
+Financial context: {snapshot_context}{macro_block}
 
 Provide your macro and sector risk analysis."""
 
@@ -340,11 +400,13 @@ async def run_risk_agent(
         elif isinstance(financial_snapshot, dict):
             sector = financial_snapshot.get("sector", "Unknown")
 
-    # ── Run the 3-node debate (macro + stock in parallel, scorer after) ────────
-    macro_task = macro_analyst_node(ticker, sector, snapshot_context)
-    stock_task = stock_analyst_node(ticker, snapshot_context)
-
-    macro_analysis, stock_analysis = await asyncio.gather(macro_task, stock_task)
+    # ── Run the 3-node debate: macro context + stock analysis in parallel,
+    # then macro LLM call with live data, then scorer ─────────────────────────
+    macro_context, stock_analysis = await asyncio.gather(
+        _get_macro_context(),
+        stock_analyst_node(ticker, snapshot_context),
+    )
+    macro_analysis = await macro_analyst_node(ticker, sector, snapshot_context, macro_context)
 
     print(f"  [Debate] MacroAnalyst ✅ | StockAnalyst ✅")
     print(f"  [Debate] RiskScorer synthesizing...")
