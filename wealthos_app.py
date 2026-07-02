@@ -46,9 +46,9 @@ section[data-testid="stSidebar"] {
 [data-testid="collapsedControl"] { display: none !important; }
 
 /* ── Typography ── */
-h1 { color: #f9fafb !important; font-size: 1.4rem !important; font-weight: 700 !important; margin: 0 0 0.15rem !important; }
-h2 { color: #f9fafb !important; font-size: 1rem !important; font-weight: 600 !important; margin: 0 0 0.6rem !important; }
-h3 { color: #e5e7eb !important; font-size: 0.9rem !important; font-weight: 600 !important; }
+h1 { color: #f9fafb !important; font-size: 2rem !important; font-weight: 700 !important; margin: 0 0 0.25rem !important; letter-spacing: -0.02em !important; }
+h2 { color: #f9fafb !important; font-size: 1.35rem !important; font-weight: 600 !important; margin: 0 0 0.6rem !important; }
+h3 { color: #e5e7eb !important; font-size: 1.05rem !important; font-weight: 600 !important; margin: 0 0 0.4rem !important; }
 p, li { color: #d1d5db !important; }
 label { color: #d1d5db !important; }
 
@@ -187,9 +187,9 @@ hr { border-color: #21262d !important; margin: 1.25rem 0 !important; }
 }
 [data-testid="stSidebar"] [data-testid="stRadio"] input[type="radio"] { display: none !important; }
 
-/* ── Fix file uploader duplicate button text ── */
-[data-testid="stFileUploaderDropzone"] button { font-size: 0 !important; }
-[data-testid="stFileUploaderDropzone"] button::after { content: "Browse files"; font-size: 0.875rem !important; color: #3b82f6 !important; font-weight: 500 !important; }
+/* ── File uploader ── */
+[data-testid="stFileUploaderDropzone"] { background: #161b22 !important; border-color: #30363d !important; }
+[data-testid="stFileUploaderDropzone"] small { color: #6b7280 !important; }
 
 /* ── Checkbox / Radio ── */
 [data-testid="stCheckbox"] label { color: #9ca3af !important; }
@@ -368,7 +368,7 @@ st.session_state.setdefault("viewing_memo", None)
 with st.sidebar:
     st.markdown(
         '<div style="padding:1.25rem 0 0.5rem;">'
-        '<span style="font-size:1.35rem;font-weight:700;color:#f9fafb;letter-spacing:-0.02em;">Wealth<span style="color:#3b82f6;">OS</span></span>'
+        '<span style="font-size:1.6rem;font-weight:700;color:#f9fafb;letter-spacing:-0.03em;">Wealth<span style="color:#3b82f6;">OS</span></span>'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -455,7 +455,7 @@ if page == "Analyze":
     st.markdown(
         '<span style="font-size:0.875rem;font-weight:500;color:#d1d5db;">Attach documents</span>'
         '<span style="font-size:0.78rem;color:#6b7280;margin-left:0.5rem;">'
-        'salary slips, bank statements, loan docs (PDF)</span>',
+        'Upload salary slips, bank statements, or loan docs so WealthOS can give you truly personalised advice based on your actual financial situation (PDF)</span>',
         unsafe_allow_html=True,
     )
     uploaded = st.file_uploader(
@@ -812,12 +812,13 @@ elif page == "History":
 # ══════════════════════════════════════════════════════════════════════════════
 
 elif page == "Settings":
-    st.markdown("<div style='height:0.25rem'></div>", unsafe_allow_html=True)
-
     st.markdown(
-        '<span style="font-size:0.875rem;font-weight:600;color:#111827;">Portfolio</span>',
+        '<h1 style="font-size:1.6rem;font-weight:700;color:#f9fafb;margin-bottom:0.25rem;">Settings</h1>'
+        '<p style="font-size:0.875rem;color:#6b7280;margin-top:0;margin-bottom:1.5rem;">Manage your portfolio and preferences.</p>',
         unsafe_allow_html=True,
     )
+
+    st.markdown('<h2 style="font-size:1.1rem;font-weight:600;color:#f9fafb;margin-bottom:0.75rem;">Portfolio</h2>', unsafe_allow_html=True)
     portfolio_data = _api("get", f"/portfolio/{USER_ID}")
     holdings       = (portfolio_data or {}).get("holdings", [])
 
@@ -845,8 +846,8 @@ elif page == "Settings":
     if res and res.get("rebalance_suggestion"):
         st.divider()
         st.markdown(
-            '<span style="font-size:0.875rem;font-weight:600;color:#f9fafb;">'
-            'Last rebalancing suggestion</span>',
+            '<h2 style="font-size:1.1rem;font-weight:600;color:#f9fafb;margin-bottom:0.75rem;">'
+            'Last rebalancing suggestion</h2>',
             unsafe_allow_html=True,
         )
         actions = (res["rebalance_suggestion"] or {}).get("actions", [])
@@ -871,7 +872,7 @@ elif page == "Settings":
     # Risk tolerance
     st.divider()
     st.markdown(
-        '<span style="font-size:0.875rem;font-weight:600;color:#111827;">Risk tolerance</span>',
+        '<h2 style="font-size:1.1rem;font-weight:600;color:#f9fafb;margin-bottom:0.75rem;">Risk tolerance</h2>',
         unsafe_allow_html=True,
     )
     st.radio(
