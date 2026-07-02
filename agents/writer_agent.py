@@ -528,9 +528,18 @@ async def run_writer_agent(
             print(f"  Writing: Valuation Analysis...")
             sections["valuation_analysis"] = await write_section(
                 section_name="Valuation Analysis",
-                instructions="Interpret the DCF and Monte Carlo results. "
-                             "Is the stock overvalued or undervalued? What does the probability distribution tell us?",
-                context=code_context,
+                instructions=(
+                    "Interpret the DCF and Monte Carlo results if available. "
+                    "Is the stock overvalued or undervalued? What does the probability distribution tell us? "
+                    "If DCF or Monte Carlo data is NOT available, do NOT say the models failed — "
+                    "instead perform a relative valuation using the Financial Snapshot data: "
+                    "compare the P/E ratio to the sector median "
+                    "(banks/financials: 12-15x; tech: 25-35x; consumer staples: 18-22x; market average: 20x), "
+                    "comment on whether the current valuation looks stretched, fair, or cheap, "
+                    "and give an implied fair-value range using P/E ± 20% as a sensitivity band. "
+                    "Always cite the current price and P/E."
+                ),
+                context=f"{code_context}\n\nFinancial Snapshot (use for fallback valuation):\n{fin_context}",
                 client=client,
             )
 
@@ -585,7 +594,9 @@ async def run_writer_agent(
             sections["final_verdict"] = await write_section(
                 section_name="Final Verdict",
                 instructions=f"Give a clear {verdict} recommendation with 2-3 specific reasons. "
-                              "If the user has analysed stocks before, reference relevant past decisions. "
+                              "IMPORTANT: only reference past decisions if they are explicitly listed in the "
+                              "provided context — do NOT invent, assume, or fabricate any past analyses, "
+                              "prior tickers, or prior verdicts that are not in the data. "
                               "End with one actionable next step for the investor.",
                 context=f"Verdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}{docs_ctx}{memory_ctx}{past_ctx_block}",
                 client=client,
