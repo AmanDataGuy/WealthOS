@@ -375,6 +375,26 @@ def format_technicals(code_output, ticker: str = "") -> str:
     return "\n".join(lines) if lines else "Technical data incomplete."
 
 
+def format_user_profile(profile: Optional[dict]) -> str:
+    """Format user_risk_profiles row into a concise string for the LLM."""
+    if not profile:
+        return ""
+    total = profile.get("total_analyses", 0)
+    if not total:
+        return ""
+    buy   = profile.get("buy_count", 0)
+    hold  = profile.get("hold_count", 0)
+    avoid = profile.get("avoid_count", 0)
+    avg_r = profile.get("avg_risk_score")
+    secs  = profile.get("preferred_sectors") or []
+    lines = [f"- Past analyses: {total} (Buy {buy}, Hold {hold}, Avoid {avoid})"]
+    if avg_r is not None:
+        lines.append(f"- Avg risk score accepted: {float(avg_r):.1f}/10")
+    if secs:
+        lines.append(f"- Sectors tracked: {', '.join(secs[:5])}")
+    return "\n".join(lines)
+
+
 async def run_writer_agent(
     ticker:             str,
     financial_snapshot  = None,
@@ -386,6 +406,7 @@ async def run_writer_agent(
     user_memory:  str   = "",
     investment_horizon: Optional[str] = None,
     past_decisions_ctx: Optional[str] = None,
+    user_risk_profile:  Optional[dict] = None,
 ) -> InvestmentMemo:
     """
     Main entry point. Called by LangGraph in Phase 4.
@@ -405,6 +426,8 @@ async def run_writer_agent(
     rebal_context = format_rebalancing(rebalance_suggestion, ticker)
     personal_ctx  = format_personal_finance(personal_finance)
     tech_context  = format_technicals(code_output, ticker)
+
+    profile_ctx = format_user_profile(user_risk_profile)
 
     # Past decisions context block for LLM injection
     past_ctx_block = ""
@@ -535,12 +558,14 @@ async def run_writer_agent(
         print(f"  Writing: Personal Finance Fit...")
         memory_ctx   = f"\n\nUser's past analysis history:\n{user_memory}" if user_memory else ""
         docs_ctx     = f"\n\nUser's uploaded financial documents:\n{personal_docs_ctx}" if personal_docs_ctx else ""
+        profile_block = f"\n\nUser's Investment Profile:\n{profile_ctx}" if profile_ctx else ""
         sections["personal_fit"] = await write_section(
             section_name="Personal Finance Fit",
             instructions="Assess whether this investment fits the user's personal financial situation. "
                          "Reference their surplus, health score, risk capacity, and any past decisions directly. "
+                         "If the user's investment profile is provided, note their historical buy/hold/avoid pattern. "
                          "If uploaded documents are present, mention specific figures (EMI amount, loan balance, etc.).",
-            context=f"{personal_ctx}\n\nRisk Assessment:\n{risk_context}{docs_ctx}{memory_ctx}{past_ctx_block}",
+            context=f"{personal_ctx}{profile_block}\n\nRisk Assessment:\n{risk_context}{docs_ctx}{memory_ctx}{past_ctx_block}",
             client=client,
         )
 
