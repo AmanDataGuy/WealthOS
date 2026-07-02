@@ -168,19 +168,28 @@ hr { border-color: #21262d !important; margin: 1.25rem 0 !important; }
 [data-baseweb="option"]:hover { background: #1f2937 !important; }
 
 /* ── Sidebar nav ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] > label:first-child { display: none !important; }
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] { gap: 0.15rem !important; }
 [data-testid="stSidebar"] [data-testid="stRadio"] label {
-    padding: 0.45rem 0.75rem !important;
+    padding: 0.5rem 0.75rem !important;
     border-radius: 6px !important;
     font-size: 0.875rem !important;
     font-weight: 500 !important;
     color: #9ca3af !important;
-    display: block;
+    display: flex !important;
+    align-items: center !important;
     cursor: pointer;
+    width: 100% !important;
 }
 [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
     background: rgba(59,130,246,0.1) !important;
     color: #3b82f6 !important;
 }
+[data-testid="stSidebar"] [data-testid="stRadio"] input[type="radio"] { display: none !important; }
+
+/* ── Fix file uploader duplicate button text ── */
+[data-testid="stFileUploaderDropzone"] button { font-size: 0 !important; }
+[data-testid="stFileUploaderDropzone"] button::after { content: "Browse files"; font-size: 0.875rem !important; color: #3b82f6 !important; font-weight: 500 !important; }
 
 /* ── Checkbox / Radio ── */
 [data-testid="stCheckbox"] label { color: #9ca3af !important; }
@@ -359,7 +368,7 @@ st.session_state.setdefault("viewing_memo", None)
 with st.sidebar:
     st.markdown(
         '<div style="padding:1.25rem 0 0.5rem;">'
-        '<span style="font-size:1.05rem;font-weight:700;color:#f9fafb;letter-spacing:-0.01em;">Wealth<span style="color:#3b82f6;">OS</span></span>'
+        '<span style="font-size:1.35rem;font-weight:700;color:#f9fafb;letter-spacing:-0.02em;">Wealth<span style="color:#3b82f6;">OS</span></span>'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -399,6 +408,12 @@ with st.sidebar:
 
 if page == "Analyze":
 
+    st.markdown(
+        '<h1 style="font-size:1.6rem;font-weight:700;color:#f9fafb;margin-bottom:0.25rem;">Analyze</h1>'
+        '<p style="font-size:0.875rem;color:#6b7280;margin-top:0;margin-bottom:1.25rem;">Get a personalized investment memo powered by 8 AI agents.</p>',
+        unsafe_allow_html=True,
+    )
+
     # Memory banner — one line, only if memory exists
     mem_data = _api("get", f"/memory/{USER_ID}")
     if mem_data and mem_data.get("has_memory"):
@@ -411,10 +426,35 @@ if page == "Analyze":
             unsafe_allow_html=True,
         )
 
-    # File uploader — outside form so indexing fires immediately on drop
+    # Analysis form
+    with st.form("analyze_form"):
+        query = st.text_area(
+            "What do you want to know?",
+            placeholder=(
+                "e.g. I have around ₹30k–50k to invest and I'm fairly conservative. "
+                "Should I add AAPL to my portfolio right now, or wait?"
+            ),
+            height=115,
+        )
+
+        fc1, fc2 = st.columns([1, 2])
+        ticker  = fc1.text_input("Ticker", placeholder="AAPL")
+        horizon = fc2.radio(
+            "Horizon",
+            ["Short-term", "Mid-term", "Long-term", "Let AI decide"],
+            horizontal=True,
+            index=2,
+        )
+        mock = st.checkbox("Mock mode (no backend needed)", value=False)
+        submitted = st.form_submit_button(
+            "Run analysis", use_container_width=True, type="primary"
+        )
+
+    # File uploader — below form, outside it so indexing fires immediately
+    st.markdown("<div style='height:0.75rem'></div>", unsafe_allow_html=True)
     st.markdown(
         '<span style="font-size:0.875rem;font-weight:500;color:#d1d5db;">Attach documents</span>'
-        '<span style="font-size:0.78rem;color:#9ca3af;margin-left:0.5rem;">'
+        '<span style="font-size:0.78rem;color:#6b7280;margin-left:0.5rem;">'
         'salary slips, bank statements, loan docs (PDF)</span>',
         unsafe_allow_html=True,
     )
@@ -446,33 +486,9 @@ if page == "Analyze":
         parts = []
         for name, status in st.session_state.doc_status.items():
             icon  = "✓" if status == "ready" else "×" if status == "error" else "…"
-            color = "#16a34a" if status == "ready" else "#dc2626" if status == "error" else "#6b7280"
+            color = "#22c55e" if status == "ready" else "#ef4444" if status == "error" else "#6b7280"
             parts.append(f'<span style="color:{color};font-size:0.8rem;">{icon} {name}</span>')
         st.markdown("&nbsp;&nbsp;".join(parts) + "<br>", unsafe_allow_html=True)
-
-    # Analysis form
-    with st.form("analyze_form"):
-        query = st.text_area(
-            "What do you want to know?",
-            placeholder=(
-                "e.g. I have around ₹30k–50k to invest and I'm fairly conservative. "
-                "Should I add AAPL to my portfolio right now, or wait?"
-            ),
-            height=115,
-        )
-
-        fc1, fc2 = st.columns([1, 2])
-        ticker  = fc1.text_input("Ticker", placeholder="AAPL")
-        horizon = fc2.radio(
-            "Horizon",
-            ["Short-term", "Mid-term", "Long-term", "Let AI decide"],
-            horizontal=True,
-            index=2,
-        )
-        mock = st.checkbox("Mock mode (no backend needed)", value=False)
-        submitted = st.form_submit_button(
-            "Run analysis", use_container_width=True, type="primary"
-        )
 
     if submitted:
         if not mock and not ticker:
