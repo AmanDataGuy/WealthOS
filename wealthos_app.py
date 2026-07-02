@@ -21,18 +21,21 @@ html, body, [class*="css"], * {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
+/* ── Base background ── */
 [data-testid="stAppViewContainer"],
 [data-testid="stMain"],
-section.main { background: #ffffff !important; }
+section.main,
+.stApp { background: #0d1117 !important; }
 .main .block-container { padding: 2rem 2.5rem 3rem; max-width: 1080px; }
 
 #MainMenu, footer,
 [data-testid="stToolbar"],
 [data-testid="stDecoration"] { display: none !important; }
 
+/* ── Sidebar ── */
 [data-testid="stSidebar"] {
-    background: #f8fafc !important;
-    border-right: 1px solid #e5e7eb !important;
+    background: #161b22 !important;
+    border-right: 1px solid #21262d !important;
 }
 section[data-testid="stSidebar"] {
     transform: none !important;
@@ -42,54 +45,60 @@ section[data-testid="stSidebar"] {
 [data-testid="stSidebarCollapseButton"],
 [data-testid="collapsedControl"] { display: none !important; }
 
-h1 { color: #111827 !important; font-size: 1.4rem !important; font-weight: 700 !important; margin: 0 0 0.15rem !important; }
-h2 { color: #111827 !important; font-size: 1rem !important; font-weight: 600 !important; margin: 0 0 0.6rem !important; }
-h3 { color: #374151 !important; font-size: 0.9rem !important; font-weight: 600 !important; }
-p, li { color: #374151 !important; }
+/* ── Typography ── */
+h1 { color: #f9fafb !important; font-size: 1.4rem !important; font-weight: 700 !important; margin: 0 0 0.15rem !important; }
+h2 { color: #f9fafb !important; font-size: 1rem !important; font-weight: 600 !important; margin: 0 0 0.6rem !important; }
+h3 { color: #e5e7eb !important; font-size: 0.9rem !important; font-weight: 600 !important; }
+p, li { color: #d1d5db !important; }
+label { color: #d1d5db !important; }
 
+/* ── Inputs ── */
 [data-testid="stTextInput"] input,
 [data-testid="stTextArea"] textarea,
 [data-testid="stNumberInput"] input {
-    background: #ffffff !important;
-    border: 1px solid #d1d5db !important;
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
     border-radius: 6px !important;
-    color: #111827 !important;
+    color: #f9fafb !important;
     font-size: 0.9rem !important;
 }
+[data-testid="stTextInput"] input::placeholder,
+[data-testid="stTextArea"] textarea::placeholder { color: #6b7280 !important; }
 [data-testid="stTextInput"] input:focus,
 [data-testid="stTextArea"] textarea:focus {
-    border-color: #2563eb !important;
-    box-shadow: 0 0 0 3px #dbeafe !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.2) !important;
 }
 
+/* ── Buttons ── */
 [data-testid="stButton"] button,
 [data-testid="stFormSubmitButton"] button {
-    border-radius: 6px !important;
-    font-weight: 500 !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
     font-size: 0.875rem !important;
     transition: all 0.15s !important;
 }
 [data-testid="stButton"] button[kind="primary"],
 [data-testid="stFormSubmitButton"] button {
-    background: #2563eb !important;
+    background: #3b82f6 !important;
     border: none !important;
     color: #ffffff !important;
-    font-weight: 600 !important;
 }
 [data-testid="stButton"] button[kind="primary"]:hover,
-[data-testid="stFormSubmitButton"] button:hover { background: #1d4ed8 !important; }
+[data-testid="stFormSubmitButton"] button:hover { background: #2563eb !important; }
 [data-testid="stButton"] button[kind="secondary"] {
-    background: #ffffff !important;
-    border: 1px solid #d1d5db !important;
-    color: #374151 !important;
+    background: transparent !important;
+    border: 1px solid #30363d !important;
+    color: #d1d5db !important;
 }
 [data-testid="stButton"] button[kind="secondary"]:hover {
-    border-color: #2563eb !important;
-    color: #2563eb !important;
+    border-color: #3b82f6 !important;
+    color: #3b82f6 !important;
 }
 
+/* ── Tabs ── */
 [data-baseweb="tab-list"] {
-    border-bottom: 1px solid #e5e7eb !important;
+    border-bottom: 1px solid #21262d !important;
     background: transparent !important;
     gap: 0 !important;
 }
@@ -101,66 +110,93 @@ p, li { color: #374151 !important; }
     border-bottom: 2px solid transparent !important;
     background: transparent !important;
 }
-[data-baseweb="tab"]:hover { color: #374151 !important; background: transparent !important; }
+[data-baseweb="tab"]:hover { color: #d1d5db !important; background: transparent !important; }
 [aria-selected="true"][data-baseweb="tab"] {
-    color: #2563eb !important;
-    border-bottom: 2px solid #2563eb !important;
+    color: #3b82f6 !important;
+    border-bottom: 2px solid #3b82f6 !important;
 }
 
+/* ── Metrics ── */
 [data-testid="stMetric"] {
-    background: #f8fafc !important;
-    border: 1px solid #e5e7eb !important;
+    background: #161b22 !important;
+    border: 1px solid #21262d !important;
     border-radius: 8px !important;
     padding: 1rem 1.25rem !important;
 }
 [data-testid="stMetricLabel"] { color: #6b7280 !important; font-size: 0.72rem !important; text-transform: uppercase; letter-spacing: 0.05em; }
-[data-testid="stMetricValue"] { color: #111827 !important; font-size: 1.3rem !important; font-weight: 700 !important; }
+[data-testid="stMetricValue"] { color: #f9fafb !important; font-size: 1.3rem !important; font-weight: 700 !important; }
 
+/* ── Dataframe ── */
 [data-testid="stDataFrame"] {
-    border: 1px solid #e5e7eb !important;
+    border: 1px solid #21262d !important;
     border-radius: 8px !important;
     overflow: hidden !important;
 }
+[data-testid="stDataFrame"] * { color: #d1d5db !important; background: #161b22 !important; }
 
+/* ── File uploader ── */
 [data-testid="stFileUploader"] section {
-    border: 1.5px dashed #d1d5db !important;
+    border: 1.5px dashed #30363d !important;
     border-radius: 8px !important;
-    background: #f8fafc !important;
+    background: #161b22 !important;
 }
+[data-testid="stFileUploader"] * { color: #9ca3af !important; }
 
+/* ── Expander ── */
 [data-testid="stExpander"] {
-    border: 1px solid #e5e7eb !important;
+    border: 1px solid #21262d !important;
     border-radius: 8px !important;
-    background: #ffffff !important;
+    background: #161b22 !important;
 }
+[data-testid="stExpander"] summary { color: #d1d5db !important; }
 
+/* ── Alerts ── */
 [data-testid="stAlert"] { border-radius: 6px !important; font-size: 0.875rem !important; }
-hr { border-color: #e5e7eb !important; margin: 1.25rem 0 !important; }
 
+/* ── Divider ── */
+hr { border-color: #21262d !important; margin: 1.25rem 0 !important; }
+
+/* ── Select / Dropdown ── */
 [data-baseweb="select"] > div {
-    background: #ffffff !important;
-    border: 1px solid #d1d5db !important;
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
     border-radius: 6px !important;
+    color: #f9fafb !important;
 }
+[data-baseweb="menu"] { background: #161b22 !important; border: 1px solid #30363d !important; }
+[data-baseweb="option"] { background: #161b22 !important; color: #d1d5db !important; }
+[data-baseweb="option"]:hover { background: #1f2937 !important; }
 
+/* ── Sidebar nav ── */
 [data-testid="stSidebar"] [data-testid="stRadio"] label {
     padding: 0.45rem 0.75rem !important;
     border-radius: 6px !important;
     font-size: 0.875rem !important;
     font-weight: 500 !important;
-    color: #374151 !important;
+    color: #9ca3af !important;
     display: block;
     cursor: pointer;
 }
 [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-    background: #eff6ff !important;
-    color: #2563eb !important;
+    background: rgba(59,130,246,0.1) !important;
+    color: #3b82f6 !important;
 }
 
+/* ── Checkbox / Radio ── */
+[data-testid="stCheckbox"] label { color: #9ca3af !important; }
+[data-testid="stRadio"] label { color: #d1d5db !important; }
+
+/* ── Caption ── */
 small, .stCaptionContainer, [data-testid="stCaptionContainer"] {
-    color: #9ca3af !important;
+    color: #6b7280 !important;
     font-size: 0.78rem !important;
 }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0d1117; }
+::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -179,12 +215,12 @@ def _api(method: str, path: str, **kwargs):
 
 def verdict_pill(v: str) -> str:
     cfg = {
-        "buy":   ("background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;", "Buy"),
-        "hold":  ("background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db;", "Hold"),
-        "avoid": ("background:#111827;color:#ffffff;border:1px solid #111827;", "Avoid"),
+        "buy":   ("background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.4);", "Buy"),
+        "hold":  ("background:#1f2937;color:#9ca3af;border:1px solid #374151;", "Hold"),
+        "avoid": ("background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.4);", "Avoid"),
     }
     style, label = cfg.get((v or "").lower(),
-                           ("background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db;", v or "—"))
+                           ("background:#1f2937;color:#9ca3af;border:1px solid #374151;", v or "—"))
     return (
         f'<span style="{style}font-size:0.75rem;font-weight:600;'
         f'padding:0.2rem 0.6rem;border-radius:999px;letter-spacing:0.03em;">'
@@ -194,14 +230,14 @@ def verdict_pill(v: str) -> str:
 
 def risk_bar_html(score) -> str:
     if not score:
-        return '<span style="color:#9ca3af;font-size:0.82rem;">—</span>'
+        return '<span style="color:#6b7280;font-size:0.82rem;">—</span>'
     pct   = int(score) * 10
-    color = "#2563eb" if pct <= 40 else "#6b7280" if pct <= 60 else "#111827"
+    color = "#3b82f6" if pct <= 40 else "#9ca3af" if pct <= 60 else "#ef4444"
     return (
         f'<div style="display:flex;align-items:center;gap:0.6rem;">'
-        f'<div style="flex:1;background:#e5e7eb;border-radius:4px;height:5px;">'
+        f'<div style="flex:1;background:#21262d;border-radius:4px;height:5px;">'
         f'<div style="background:{color};width:{pct}%;height:5px;border-radius:4px;"></div></div>'
-        f'<span style="font-size:0.82rem;color:#374151;font-weight:600;white-space:nowrap;">{score}/10</span>'
+        f'<span style="font-size:0.82rem;color:#d1d5db;font-weight:600;white-space:nowrap;">{score}/10</span>'
         f'</div>'
     )
 
@@ -211,10 +247,10 @@ def alloc_bar_html(ticker: str, weight: float, max_w: float) -> str:
     return (
         f'<div style="margin-bottom:0.55rem;">'
         f'<div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem;">'
-        f'<span style="color:#111827;font-weight:500;">{ticker}</span>'
+        f'<span style="color:#f9fafb;font-weight:500;">{ticker}</span>'
         f'<span style="color:#6b7280;">{weight:.1f}%</span></div>'
-        f'<div style="background:#e5e7eb;border-radius:4px;height:6px;">'
-        f'<div style="background:#2563eb;width:{min(pct,100):.0f}%;height:6px;border-radius:4px;"></div>'
+        f'<div style="background:#21262d;border-radius:4px;height:6px;">'
+        f'<div style="background:#3b82f6;width:{min(pct,100):.0f}%;height:6px;border-radius:4px;"></div>'
         f'</div></div>'
     )
 
@@ -244,7 +280,7 @@ if not st.session_state.logged_in:
     with col:
         st.markdown(
             '<div style="text-align:center;padding:2.5rem 0 1.75rem;">'
-            '<div style="font-size:1.75rem;font-weight:700;color:#111827;letter-spacing:-0.02em;">WealthOS</div>'
+            '<div style="font-size:1.75rem;font-weight:700;color:#f9fafb;letter-spacing:-0.02em;">Wealth<span style="color:#3b82f6;">OS</span></div>'
             '<div style="font-size:0.85rem;color:#6b7280;margin-top:0.35rem;">Personal financial intelligence</div>'
             '</div>',
             unsafe_allow_html=True,
@@ -323,17 +359,17 @@ st.session_state.setdefault("viewing_memo", None)
 with st.sidebar:
     st.markdown(
         '<div style="padding:1.25rem 0 0.5rem;">'
-        '<span style="font-size:1.05rem;font-weight:700;color:#111827;letter-spacing:-0.01em;">WealthOS</span>'
+        '<span style="font-size:1.05rem;font-weight:700;color:#f9fafb;letter-spacing:-0.01em;">Wealth<span style="color:#3b82f6;">OS</span></span>'
         '</div>',
         unsafe_allow_html=True,
     )
     initial = st.session_state.username[:1].upper()
     st.markdown(
         f'<div style="display:flex;align-items:center;gap:0.5rem;padding:0 0 0.75rem;">'
-        f'<div style="width:24px;height:24px;border-radius:50%;background:#dbeafe;'
+        f'<div style="width:24px;height:24px;border-radius:50%;background:rgba(59,130,246,0.2);'
         f'display:flex;align-items:center;justify-content:center;'
-        f'font-size:0.7rem;font-weight:700;color:#2563eb;flex-shrink:0;">{initial}</div>'
-        f'<span style="font-size:0.82rem;color:#374151;font-weight:500;">{st.session_state.username}</span>'
+        f'font-size:0.7rem;font-weight:700;color:#3b82f6;flex-shrink:0;">{initial}</div>'
+        f'<span style="font-size:0.82rem;color:#9ca3af;font-weight:500;">{st.session_state.username}</span>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -344,7 +380,7 @@ with st.sidebar:
 
     st.markdown(
         '<div style="font-size:0.77rem;color:#6b7280;display:flex;align-items:center;gap:0.4rem;">'
-        '<span style="width:6px;height:6px;border-radius:50%;background:#16a34a;'
+        '<span style="width:6px;height:6px;border-radius:50%;background:#22c55e;'
         'display:inline-block;flex-shrink:0;"></span>8 agents active</div>',
         unsafe_allow_html=True,
     )
@@ -369,15 +405,15 @@ if page == "Analyze":
         raw     = (mem_data["memory"] or "").replace("\n", " · ").strip()
         preview = raw[:160] + "…" if len(raw) > 160 else raw
         st.markdown(
-            f'<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;'
-            f'padding:0.45rem 0.85rem;font-size:0.82rem;color:#1d4ed8;margin-bottom:1rem;">'
+            f'<div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;'
+            f'padding:0.45rem 0.85rem;font-size:0.82rem;color:#93c5fd;margin-bottom:1rem;">'
             f'<strong>Memory</strong>&nbsp;&nbsp;{preview}</div>',
             unsafe_allow_html=True,
         )
 
     # File uploader — outside form so indexing fires immediately on drop
     st.markdown(
-        '<span style="font-size:0.875rem;font-weight:500;color:#374151;">Attach documents</span>'
+        '<span style="font-size:0.875rem;font-weight:500;color:#d1d5db;">Attach documents</span>'
         '<span style="font-size:0.78rem;color:#9ca3af;margin-left:0.5rem;">'
         'salary slips, bank statements, loan docs (PDF)</span>',
         unsafe_allow_html=True,
@@ -544,15 +580,15 @@ if page == "Analyze":
                 f'<div style="padding:0.75rem 0 0.25rem;">'
                 f'<div style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;'
                 f'letter-spacing:0.06em;margin-bottom:0.35rem;">DCF value</div>'
-                f'<div style="font-size:1.3rem;font-weight:700;color:#111827;">{dcf_str}</div>'
+                f'<div style="font-size:1.3rem;font-weight:700;color:#f9fafb;">{dcf_str}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
 
         if memo:
             st.markdown(
-                '<div style="border:1px solid #e5e7eb;border-radius:8px;'
-                'padding:1.5rem 1.75rem;background:#ffffff;margin-top:0.75rem;">',
+                '<div style="border:1px solid #21262d;border-radius:8px;'
+                'padding:1.5rem 1.75rem;background:#161b22;margin-top:0.75rem;">',
                 unsafe_allow_html=True,
             )
             st.markdown(memo.replace("$", "\\$"))
@@ -618,11 +654,11 @@ elif page == "History":
                 c_info, c_btn = st.columns([6, 1])
                 with c_info:
                     st.markdown(
-                        f'<div style="padding:0.55rem 0;border-bottom:1px solid #f3f4f6;">'
+                        f'<div style="padding:0.55rem 0;border-bottom:1px solid #21262d;">'
                         f'<div style="display:flex;align-items:center;gap:0.55rem;">'
-                        f'<span style="font-weight:600;color:#111827;font-size:0.9rem;">{ticker_h}</span>'
+                        f'<span style="font-weight:600;color:#f9fafb;font-size:0.9rem;">{ticker_h}</span>'
                         f'{verdict_pill(verdict)}</div>'
-                        f'<div style="font-size:0.77rem;color:#9ca3af;margin-top:0.15rem;">{meta}</div>'
+                        f'<div style="font-size:0.77rem;color:#6b7280;margin-top:0.15rem;">{meta}</div>'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
@@ -664,7 +700,7 @@ elif page == "History":
 
         # Mem0
         st.markdown(
-            '<span style="font-size:0.875rem;font-weight:600;color:#111827;">'
+            '<span style="font-size:0.875rem;font-weight:600;color:#f9fafb;">'
             'What WealthOS knows about you</span>',
             unsafe_allow_html=True,
         )
@@ -673,8 +709,8 @@ elif page == "History":
         if mem_text:
             for s in [ln.strip().lstrip("- ") for ln in mem_text.split("\n") if ln.strip()][:6]:
                 st.markdown(
-                    f'<div style="padding:0.4rem 0;font-size:0.875rem;color:#374151;'
-                    f'border-bottom:1px solid #f3f4f6;">{s}</div>',
+                    f'<div style="padding:0.4rem 0;font-size:0.875rem;color:#d1d5db;'
+                    f'border-bottom:1px solid #21262d;">{s}</div>',
                     unsafe_allow_html=True,
                 )
             st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
@@ -692,7 +728,7 @@ elif page == "History":
 
         # Investor profile
         st.markdown(
-            '<span style="font-size:0.875rem;font-weight:600;color:#111827;">Your investor profile</span>',
+            '<span style="font-size:0.875rem;font-weight:600;color:#f9fafb;">Your investor profile</span>',
             unsafe_allow_html=True,
         )
         profile_data = _api("get", f"/user-profile/{USER_ID}")
@@ -712,9 +748,9 @@ elif page == "History":
 
             if sectors:
                 tags = "".join(
-                    f'<span style="background:#eff6ff;color:#2563eb;font-size:0.75rem;'
+                    f'<span style="background:rgba(59,130,246,0.15);color:#3b82f6;font-size:0.75rem;'
                     f'font-weight:500;padding:0.18rem 0.5rem;border-radius:999px;'
-                    f'margin-right:0.3rem;border:1px solid #bfdbfe;">{s}</span>'
+                    f'margin-right:0.3rem;border:1px solid rgba(59,130,246,0.3);">{s}</span>'
                     for s in sectors
                 )
                 st.markdown(
@@ -730,7 +766,7 @@ elif page == "History":
 
         # Past decisions
         st.markdown(
-            '<span style="font-size:0.875rem;font-weight:600;color:#111827;">'
+            '<span style="font-size:0.875rem;font-weight:600;color:#f9fafb;">'
             'Past decisions</span>',
             unsafe_allow_html=True,
         )
@@ -793,7 +829,7 @@ elif page == "Settings":
     if res and res.get("rebalance_suggestion"):
         st.divider()
         st.markdown(
-            '<span style="font-size:0.875rem;font-weight:600;color:#111827;">'
+            '<span style="font-size:0.875rem;font-weight:600;color:#f9fafb;">'
             'Last rebalancing suggestion</span>',
             unsafe_allow_html=True,
         )
@@ -803,8 +839,8 @@ elif page == "Settings":
                 urg   = (a.get("urgency") or "").capitalize()
                 u_col = "#dc2626" if a.get("urgency") == "high" else "#6b7280"
                 st.markdown(
-                    f'<div style="padding:0.4rem 0;border-bottom:1px solid #f3f4f6;font-size:0.875rem;">'
-                    f'<span style="color:#374151;">'
+                    f'<div style="padding:0.4rem 0;border-bottom:1px solid #21262d;font-size:0.875rem;">'
+                    f'<span style="color:#d1d5db;">'
                     f'{a.get("action","").capitalize()} <strong>{a.get("ticker","")}</strong> '
                     f'{a.get("from_weight","")}% → {a.get("to_weight","")}%</span>'
                     f'<span style="float:right;font-size:0.75rem;color:{u_col};">{urg}</span>'
