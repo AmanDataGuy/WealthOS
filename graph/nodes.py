@@ -102,6 +102,32 @@ def log(state: WealthOSState, msg: str) -> list[str]:
     return messages
 
 
+# ── Router Node ───────────────────────────────────────────────────────────────
+
+@trace_node("router_node")
+async def router_node(state: WealthOSState) -> dict:
+    print("\n[Graph] Router Node running...")
+    ticker  = state["tickers"][0] if state.get("tickers") else "UNKNOWN"
+    user_id = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
+    try:
+        from agents.router_agent import run_router_agent
+        result = await run_router_agent(
+            query=state.get("query", ""),
+            ticker=ticker,
+            user_id=user_id,
+            investment_horizon=state.get("investment_horizon"),
+        )
+        return {
+            **result,
+            "messages": log(state, f"Router Node ✅ horizon={result.get('investment_horizon')} tier={result.get('company_tier')}"),
+        }
+    except Exception as e:
+        return {
+            "investment_horizon": "long",
+            "messages": log(state, f"Router Node ⚠️ {e} (defaulting to long)"),
+        }
+
+
 # ── Finance Node ───────────────────────────────────────────────────────────────
 # Phase 6: reads Mem0 memory before doing anything else.
 # The user_memory string flows into every downstream agent via state.
