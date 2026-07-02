@@ -27,3 +27,4 @@ jobs:
           WEALTHOS_DB_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/wealthos_test
           REDIS_URL: redis://localhost:6379
           SKIP_E2E: "1"
+          PYTHONPATH: "."
