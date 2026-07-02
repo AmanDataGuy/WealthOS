@@ -80,10 +80,10 @@ flowchart LR
 | Finance Agent | Pure Python + asyncpg | z-score anomaly detection (σ = 2.0), 5-dim health score | Health Score 0–100, surplus, risk capacity |
 | Research Agent | asyncio + RAG | Qdrant hybrid search on SEC 10-K filings, news fetch | Qualitative context, sentiment |
 | Data Agent | asyncpg + MCPClient | Schema-validated numbers, Redis 15-min TTL, MCP fallback | `FinancialSnapshot` with confidence flag |
-| Risk Agent | LangGraph 3-node debate | Macro analyst + Stock analyst run in parallel → Scorer; injects past decisions (Qdrant) + user risk profile (Postgres) | Risk score 1–10 + Buy/Hold/Avoid |
+| Risk Agent | LangGraph 3-node debate | `_get_macro_context()` fetches live VIX / 10Y yield / S&P 500 / Fed Funds Rate; Stock analyst runs in parallel; Scorer injects past decisions (Qdrant) + user risk profile (Postgres); MacroAnalyst cites actual live figures | Risk score 1–10 + Buy/Hold/Avoid |
 | Code Agent | E2B sandbox | Real Python execution — DCF, Monte Carlo (1 000 paths), sensitivity table | Intrinsic value, upside probability |
 | Rebalancing Agent | Pure Python | 5% drift threshold, sector concentration warning | Rebalance actions with urgency |
-| Writer Agent | DSPy BootstrapFewShot | Compiled few-shot prompt (28 golden examples); source citation trust hierarchy; Final Verdict indexed to Qdrant `user_analyses` after each run | 7-section investment memo |
+| Writer Agent | DSPy BootstrapFewShot | Compiled few-shot prompt (28 golden examples); source citation trust hierarchy; injects user risk profile (buy/hold/avoid history) into Personal Finance Fit section; Final Verdict indexed to Qdrant `user_analyses` after each run | 7-section investment memo |
 
 </div>
 
@@ -195,6 +195,9 @@ flowchart LR
 | LangSmith custom evaluators (section completeness, verdict consistency, number grounding) | ✅ Done |
 | E2E test suite (pytest · 7 assertions · AAPL full pipeline) | ✅ Done |
 | PII masking in LangSmith traces | ✅ Done |
+| Chunk staleness tracking (info\_type + half\_life\_days + confidence degradation at retrieval) | ✅ Done |
+| Input sanitization + prompt injection guard on `/analyze` | ✅ Done |
+| User risk profile injected into Writer Agent (Personal Finance Fit section) | ✅ Done |
 | Indian stock BSE PDF indexer (30 companies) | 🔄 Planned |
 | Earnings call transcript indexing | 🔄 Planned |
 
