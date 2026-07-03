@@ -1,23 +1,49 @@
 #!/usr/bin/env python
 # eval/ragas_eval.py
 """
-RAGAS evaluation of the WealthOS RAG pipeline.
+## RAGAS Evaluation — WealthOS Phase 1
 
-Measures how well the Qdrant hybrid search + Cohere reranking actually
-retrieves relevant context for financial questions.
+Measures retrieval quality for the filing RAG pipeline (Qdrant → Cohere → LLM).
 
-Metrics:
-  - Context Precision:  are the retrieved chunks relevant to the question?
-  - Context Recall:     does the retrieved set cover the ground-truth answer?
-  - Faithfulness:       is the final answer grounded in retrieved context?
-  - Answer Relevancy:   does the answer address the question?
+---
 
-Usage:
+### Metrics (7 total)
+
+| Metric                  | What it checks                                              |
+|-------------------------|-------------------------------------------------------------|
+| `context_precision`     | Are retrieved chunks actually relevant to the question?     |
+| `context_recall`        | Did retrieval miss information needed for the answer?       |
+| `faithfulness`          | Does the answer use ONLY what was in the retrieved chunks?  |
+| `answer_relevancy`      | Does the answer actually address the question asked?        |
+| `context_entity_recall` | Are key entities (ticker, metric name) in retrieved text?   |
+| `noise_sensitivity`     | Does the model get confused by irrelevant chunks mixed in?  |
+| `answer_correctness`    | Does the generated answer match the reference answer?       |
+
+---
+
+### Two modes
+
+| Mode           | Command                                  | When to use                      |
+|----------------|------------------------------------------|----------------------------------|
+| `--generate`   | `python eval/ragas_eval.py --generate`   | Once, after indexing new filings |
+| eval (default) | `python eval/ragas_eval.py`              | Every time you change the RAG    |
+
+---
+
+### Usage
+
+    # Step 1 — generate testset from Qdrant corpus (one-time, ~5 min)
+    python eval/ragas_eval.py --generate --size 30
+
+    # Step 2 — run full eval
     python eval/ragas_eval.py
-    python eval/ragas_eval.py --ticker AAPL MSFT   # limit to specific tickers
+
+    # Limit to specific tickers or cap questions to save cost
+    python eval/ragas_eval.py --ticker AAPL NVDA --limit 10
 """
 
 import sys
+import os
 import json
 import asyncio
 import argparse
@@ -26,131 +52,35 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-RESULTS_DIR = Path(__file__).parent / "results"
+# ── Paths ──────────────────────────────────────────────────────────────────────
+
+RESULTS_DIR  = Path(__file__).parent / "results"
+TESTSET_PATH = Path(__file__).parent / "testset.json"
 RESULTS_DIR.mkdir(exist_ok=True)
 
-# Evaluation questions with human-written ground truth answers.
+# ── Pass/fail thresholds ──────────────────────────────────────────────────────
+# A metric below its threshold means the RAG pipeline needs work there.
+
+THRESHOLDS = {
+    "context_precision":     0.70,
+    "context_recall":        0.60,
+    "faithfulness":          0.75,
+    "answer_relevancy":      0.70,
+    "context_entity_recall": 0.60,
+    "noise_sensitivity":     0.60,
+    "answer_correctness":    0.60,
+}
+
+
+# ── LLM + Embeddings ──────────────────────────────────────────────────────────
 #
-# Ground truths written for tickers with strong Qdrant coverage (180+ chunks).
-# Indian tickers (TCS, INFY) have ~8 chunks from yfinance HTML —
-# context_recall will be low there by design; they're included to surface that gap.
-#
-# Qdrant chunk counts (approx): NVDA=287, GOOGL=260, MSFT=252, TSLA=282,
-#                                AMZN=184, AAPL=181, Indian stocks ~8 each
-EVAL_QUESTIONS = [
-    # ── US tickers — well-indexed, expect reasonable scores ──────────────────
-    {
-        "question": "How does NVIDIA describe the competition risks in its annual filings?",
-        "ticker": "NVDA",
-        "ground_truth": (
-            "NVIDIA cites competition from AMD, Intel, and custom AI chips designed by "
-            "cloud hyperscalers (Google TPUs, Amazon Trainium, Microsoft Maia) as key "
-            "competitive threats. It also notes export restrictions to China as a risk "
-            "to its addressable market, and that customers may shift to alternative "
-            "architectures if NVIDIA's high market share in data center GPUs erodes."
-        ),
-    },
-    {
-        "question": "What is Microsoft's Azure revenue growth and competitive positioning?",
-        "ticker": "MSFT",
-        "ground_truth": (
-            "Microsoft describes Azure as its fastest-growing segment with cloud revenue "
-            "growing over 20% year-over-year. Azure competes primarily with AWS and "
-            "Google Cloud. Microsoft highlights hybrid cloud integration with enterprise "
-            "software (Office 365, Dynamics) as a key differentiator and cites Azure "
-            "OpenAI services as a major growth driver going forward."
-        ),
-    },
-    {
-        "question": "What risks does Apple cite related to China in its 10-K?",
-        "ticker": "AAPL",
-        "ground_truth": (
-            "Apple identifies China as both a key manufacturing location and a major "
-            "revenue market. Risks cited include trade tensions and tariffs, supply chain "
-            "disruption from reliance on Chinese manufacturing partners, regulatory "
-            "restrictions on app distribution in China, and competition from local "
-            "smartphone brands including Huawei."
-        ),
-    },
-    {
-        "question": "What is Amazon's stated strategy for AWS margin expansion?",
-        "ticker": "AMZN",
-        "ground_truth": (
-            "Amazon states AWS margin expansion is driven by custom silicon (Graviton "
-            "processors, Trainium for AI training), economies of scale in infrastructure, "
-            "and a shift toward higher-margin services like AI, databases, and security. "
-            "AWS operating margin is significantly higher than the retail segment and is "
-            "described as the primary profit engine for the company."
-        ),
-    },
-    {
-        "question": "What are the key risks in Google's advertising business per its 10-K?",
-        "ticker": "GOOGL",
-        "ground_truth": (
-            "Google cites advertiser concentration risk, competition from Meta, Amazon, "
-            "and TikTok for digital ad budgets, and regulatory antitrust scrutiny as key "
-            "risks. The shift from desktop to mobile and the rise of AI-powered search "
-            "alternatives are noted as structural risks to traditional search ad revenue."
-        ),
-    },
-    # ── Indian tickers — thin coverage (~8 chunks), expect low recall ─────────
-    {
-        "question": "What is the revenue growth trend for TCS over the past 3 years?",
-        "ticker": "TCS.NS",
-        "ground_truth": (
-            "TCS reported revenue growth of 8-12% annually in INR terms, driven by "
-            "digital transformation deals. Growth slowed in FY2024 due to client budget "
-            "caution in the US and Europe. BFSI and retail verticals were under pressure "
-            "while manufacturing showed resilience."
-        ),
-    },
-    {
-        "question": "What is Infosys's AI strategy according to its management discussion?",
-        "ticker": "INFY.NS",
-        "ground_truth": (
-            "Infosys describes its AI strategy through its Topaz platform for enterprise "
-            "generative AI services. The company targets AI-led cost takeout deals and "
-            "AI-augmented software delivery, with partnerships with major cloud providers "
-            "and LLM vendors to deliver AI transformation programs."
-        ),
-    },
-]
+# Judge LLM : Groq (free tier, no key cost)
+# Embeddings: same all-MiniLM-L6-v2 model used by the Qdrant indexer,
+#             so scores are comparable to what the retriever actually sees.
 
-
-async def retrieve_context(question: str, ticker: str) -> tuple[list[str], str]:
-    """Run the RAG pipeline and return (retrieved_chunks, synthesized_answer)."""
-    from rag.query_engine import FilingQueryEngine
-    engine = FilingQueryEngine()
-
-    try:
-        answer = await engine.search(question, ticker)
-    except Exception as e:
-        answer = f"RAG error: {e}"
-
-    # For RAGAS we need the individual retrieved chunks, not just the synthesized answer.
-    # We re-run the underlying hybrid search to get them.
-    chunks = []
-    try:
-        from rag.query_engine import _hybrid_search_sync, embed_query_dense, embed_query_sparse
-        import asyncio
-
-        raw_hits = await asyncio.to_thread(
-            _hybrid_search_sync, question, ticker, None, 20, 5
-        )
-        chunks = [h.payload.get("content", "") for h in raw_hits if h.payload]
-    except Exception:
-        # If we can't get the raw chunks just use the synthesized answer as a single chunk
-        if answer and not answer.startswith("RAG error"):
-            chunks = [answer]
-
-    return chunks, answer or ""
-
-
-def _get_ragas_llm():
-    """Groq-backed LLM for RAGAS — free, no OpenAI key needed."""
+def _get_llm():
     from langchain_groq import ChatGroq
     from ragas.llms import LangchainLLMWrapper
-    import os
     return LangchainLLMWrapper(ChatGroq(
         model="llama-3.3-70b-versatile",
         api_key=os.getenv("GROQ_API_KEY", ""),
@@ -158,8 +88,7 @@ def _get_ragas_llm():
     ))
 
 
-def _get_ragas_embeddings():
-    """Local HuggingFace embeddings — same model as Qdrant indexer, zero cost."""
+def _get_embeddings():
     from langchain_huggingface import HuggingFaceEmbeddings
     from ragas.embeddings import LangchainEmbeddingsWrapper
     return LangchainEmbeddingsWrapper(
@@ -167,83 +96,316 @@ def _get_ragas_embeddings():
     )
 
 
-async def run_ragas(tickers: list[str] | None = None):
+# ── Pull docs from Qdrant ─────────────────────────────────────────────────────
+#
+# TestsetGenerator needs the raw filing chunks to generate questions FROM.
+# We scroll the Qdrant collection and wrap each chunk as a LangChain Document.
+
+def fetch_qdrant_docs(tickers: list[str] | None = None, max_docs: int = 500) -> list:
+    """
+    Scroll the `wealthos_docs` collection and return LangChain Documents.
+
+    Args:
+        tickers:  Only return chunks for these tickers (cheaper, faster).
+        max_docs: Hard cap to avoid pulling the entire corpus into memory.
+    """
+    from langchain_core.documents import Document
+    from rag.query_engine import get_qdrant_client, COLLECTION_NAME
+
+    client = get_qdrant_client()
+    docs   = []
+    offset = None
+
+    while len(docs) < max_docs:
+        points, offset = client.scroll(
+            collection_name=COLLECTION_NAME,
+            limit=100,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False,
+        )
+        for point in points:
+            payload = point.payload or {}
+            ticker  = payload.get("ticker", "")
+            content = payload.get("content", "")
+
+            # Only level-2 (sentence-level) chunks — richer density for generation
+            if payload.get("chunk_level") != 2:
+                continue
+            if tickers and ticker not in tickers:
+                continue
+            if len(content) < 100:
+                continue
+
+            docs.append(Document(
+                page_content=content,
+                metadata={
+                    "ticker":  ticker,
+                    "section": payload.get("section", ""),
+                    "source":  payload.get("source", ""),
+                },
+            ))
+
+        if offset is None or not points:
+            break
+
+    print(f"  Fetched {len(docs)} chunks from Qdrant (collection: {COLLECTION_NAME})")
+    return docs
+
+
+# ── TestsetGenerator ──────────────────────────────────────────────────────────
+#
+# RAGAS reads the corpus and auto-generates realistic Q&A pairs.
+# This removes the need to hand-write 50 test questions.
+# Output is saved to eval/testset.json and reused in all future eval runs.
+
+def generate_testset(tickers: list[str] | None = None, size: int = 30) -> list[dict]:
+    """
+    Auto-generate Q&A eval pairs from the Qdrant filing corpus.
+    Saves to eval/testset.json. Regenerate only when corpus changes.
+
+    Args:
+        tickers: Limit to specific tickers (e.g. ["AAPL", "NVDA"]).
+        size:    Number of Q&A pairs to generate. 30 is a good start.
+    """
+    print(f"\n## Generating testset — {size} questions")
+    print("Step 1/3: Fetching docs from Qdrant...")
+    docs = fetch_qdrant_docs(tickers=tickers)
+
+    if not docs:
+        raise RuntimeError(
+            "No docs found in Qdrant. Index filings first:\n"
+            "  python rag/pipeline.py local data/filings/AAPL_10-K.pdf AAPL 10-K"
+        )
+
+    print(f"Step 2/3: Running TestsetGenerator on {len(docs)} chunks...")
+
+    # Try RAGAS 0.2.x first, fall back to 0.1.x
     try:
-        from ragas import evaluate
-        from ragas.metrics import (
-            context_precision,
-            context_recall,
-            faithfulness,
-            answer_relevancy,
+        from ragas.testset import TestsetGenerator
+        generator = TestsetGenerator(
+            llm=_get_llm(),
+            embedding_model=_get_embeddings(),
         )
-        from datasets import Dataset
-    except ImportError:
-        raise ImportError(
-            "ragas not installed — run: pip install ragas datasets"
+        testset = generator.generate_with_langchain_docs(docs, testset_size=size)
+
+    except (ImportError, TypeError):
+        # RAGAS 0.1.x API
+        from ragas.testset.generator import TestsetGenerator
+        from ragas.testset.evolutions import simple, reasoning, multi_context
+        from langchain_groq import ChatGroq
+        from langchain_huggingface import HuggingFaceEmbeddings
+
+        llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            api_key=os.getenv("GROQ_API_KEY", ""),
+            temperature=0,
+        )
+        emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+        generator = TestsetGenerator.from_langchain(
+            generator_llm=llm,
+            critic_llm=llm,
+            embeddings=emb,
+        )
+        testset = generator.generate_with_langchain_docs(
+            docs,
+            test_size=size,
+            distributions={simple: 0.5, reasoning: 0.25, multi_context: 0.25},
         )
 
-    questions   = EVAL_QUESTIONS
-    if tickers:
-        questions = [q for q in questions if q["ticker"] in tickers]
+    print("Step 3/3: Saving testset...")
+    df   = testset.to_pandas()
+    rows = df.to_dict(orient="records")
 
-    print(f"\nRAGAS Evaluation — {len(questions)} questions")
-    print("Retrieving contexts (this hits Qdrant and Groq)...\n")
-
-    rows = []
-    for item in questions:
-        q      = item["question"]
-        ticker = item["ticker"]
-        print(f"  [{ticker}] {q[:60]}...")
-        chunks, answer = await retrieve_context(q, ticker)
-        rows.append({
-            "question":     q,
-            "answer":       answer,
-            "contexts":     chunks if chunks else ["(no context retrieved)"],
-            "ground_truth": item["ground_truth"],
+    # Normalise field names — RAGAS uses different names across versions
+    normalised = []
+    for r in rows:
+        normalised.append({
+            "question":     r.get("question") or r.get("user_input", ""),
+            "ground_truth": r.get("ground_truth") or r.get("reference", ""),
+            "metadata":     r.get("metadata", {}),
         })
 
-    dataset = Dataset.from_list(rows)
-    result  = evaluate(
-        dataset,
-        metrics=[context_precision, context_recall, faithfulness, answer_relevancy],
-        llm=_get_ragas_llm(),
-        embeddings=_get_ragas_embeddings(),
+    TESTSET_PATH.write_text(
+        json.dumps(normalised, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    print(f"Saved {len(normalised)} questions → {TESTSET_PATH}\n")
+    return normalised
+
+
+# ── Load saved testset ────────────────────────────────────────────────────────
+
+def load_testset(tickers: list[str] | None = None, limit: int | None = None) -> list[dict]:
+    """Load questions from eval/testset.json (created by --generate)."""
+    if not TESTSET_PATH.exists():
+        raise FileNotFoundError(
+            f"{TESTSET_PATH} not found.\n"
+            "Generate it first:\n"
+            "  python eval/ragas_eval.py --generate"
+        )
+    rows = json.loads(TESTSET_PATH.read_text(encoding="utf-8"))
+    if tickers:
+        rows = [r for r in rows if r.get("metadata", {}).get("ticker") in tickers]
+    if limit:
+        rows = rows[:limit]
+    return rows
+
+
+# ── Retrieval ─────────────────────────────────────────────────────────────────
+#
+# For each question, we run the actual RAG pipeline and capture:
+#   answer   — the synthesized LLM response
+#   contexts — the raw chunks that were retrieved (what RAGAS scores against)
+
+async def retrieve(question: str, ticker: str | None) -> tuple[list[str], str]:
+    """Run one question through the filing RAG pipeline."""
+    from rag.query_engine import FilingQueryEngine, _hybrid_search_sync
+
+    engine = FilingQueryEngine()
+    try:
+        answer = await engine.search(question, ticker or "") or ""
+    except Exception as e:
+        answer = ""
+        print(f"    ⚠️  search() failed: {e}")
+
+    try:
+        hits   = await asyncio.to_thread(_hybrid_search_sync, question, ticker or "", None, 20, 5)
+        chunks = [h.get("content", "") for h in hits if h.get("content")]
+    except Exception:
+        chunks = [answer] if answer else ["(no context retrieved)"]
+
+    return chunks, answer
+
+
+# ── RAGAS metrics ──────────────────────────────────────────────────────────────
+#
+# Each metric is imported individually — if one is missing in an older RAGAS
+# version we skip it gracefully instead of crashing the whole eval.
+
+def _load_metrics() -> dict:
+    """Return all available RAGAS metric instances keyed by name."""
+    from ragas.metrics import context_precision, context_recall, faithfulness, answer_relevancy
+
+    metrics = {
+        "context_precision": context_precision,
+        "context_recall":    context_recall,
+        "faithfulness":      faithfulness,
+        "answer_relevancy":  answer_relevancy,
+    }
+
+    optional = {
+        "context_entity_recall": "ragas.metrics.context_entity_recall",
+        "noise_sensitivity":     "ragas.metrics.noise_sensitivity",
+        "answer_correctness":    "ragas.metrics.answer_correctness",
+    }
+    for name, import_path in optional.items():
+        module, attr = import_path.rsplit(".", 1)
+        try:
+            import importlib
+            metrics[name] = getattr(importlib.import_module(module), attr)
+        except (ImportError, AttributeError):
+            print(f"  ⚠️  {name} not available — update ragas: pip install -U ragas")
+
+    return metrics
+
+
+# ── Main eval loop ────────────────────────────────────────────────────────────
+
+async def run_eval(tickers: list[str] | None = None, limit: int | None = None) -> dict:
+    """
+    Load testset → run RAG pipeline for each question → score with RAGAS.
+    Returns summary: {metric_name: {score, threshold, passed}}.
+    """
+    try:
+        from ragas import evaluate
+        from datasets import Dataset
+    except ImportError:
+        raise ImportError("Run: pip install ragas datasets")
+
+    rows = load_testset(tickers=tickers, limit=limit)
+    print(f"\n## RAGAS Evaluation — {len(rows)} questions\n")
+
+    # Run RAG pipeline for every question
+    eval_rows = []
+    for i, row in enumerate(rows):
+        question = row["question"]
+        ticker   = (row.get("metadata") or {}).get("ticker")
+        print(f"  [{i+1}/{len(rows)}] [{ticker or '—'}] {question[:65]}...")
+
+        chunks, answer = await retrieve(question, ticker)
+        eval_rows.append({
+            "question":     question,
+            "answer":       answer,
+            "contexts":     chunks,
+            "ground_truth": row.get("ground_truth", ""),
+        })
+
+    # Score with RAGAS
+    metrics = _load_metrics()
+    print(f"\nScoring with {len(metrics)} metrics...\n")
+
+    result = evaluate(
+        Dataset.from_list(eval_rows),
+        metrics=list(metrics.values()),
+        llm=_get_llm(),
+        embeddings=_get_embeddings(),
     )
 
-    # Print summary
-    print(f"\n{'─'*60}")
-    print("RAGAS Results:")
-    print(f"  Context Precision:  {result['context_precision']:.4f}")
-    print(f"  Context Recall:     {result['context_recall']:.4f}")
-    print(f"  Faithfulness:       {result['faithfulness']:.4f}")
-    print(f"  Answer Relevancy:   {result['answer_relevancy']:.4f}")
-    print(f"{'─'*60}\n")
+    # Print results table
+    print(f"\n{'─'*65}")
+    print("## Results\n")
+    summary  = {}
+    all_pass = True
 
-    # Per-question detail
-    df = result.to_pandas()
-    print(df[["question", "context_precision", "faithfulness", "answer_relevancy"]].to_string(index=False))
-    print()
+    for name, threshold in THRESHOLDS.items():
+        if name not in result:
+            continue
+        score    = float(result[name])
+        passed   = score >= threshold
+        all_pass = all_pass and passed
+        status   = "✅ PASS" if passed else "❌ FAIL"
+        print(f"  {name:<28}  {score:.4f}  (min {threshold})  {status}")
+        summary[name] = {"score": round(score, 4), "threshold": threshold, "passed": passed}
 
-    # Save
-    out_path = RESULTS_DIR / f"ragas_{date.today().isoformat()}.json"
-    out_data = {
-        "date":     str(date.today()),
-        "summary":  {
-            "context_precision":  result["context_precision"],
-            "context_recall":     result["context_recall"],
-            "faithfulness":       result["faithfulness"],
-            "answer_relevancy":   result["answer_relevancy"],
-        },
-        "rows": rows,
-    }
-    out_path.write_text(json.dumps(out_data, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"Results saved → {out_path}")
+    print(f"\n{'─'*65}")
+    print(f"  Overall: {'✅ ALL PASS' if all_pass else '❌ SOME METRICS BELOW THRESHOLD'}\n")
 
-    return result
+    # Save full results for CI and historical comparison
+    out = RESULTS_DIR / f"ragas_{date.today().isoformat()}.json"
+    out.write_text(
+        json.dumps({"date": str(date.today()), "summary": summary, "rows": eval_rows},
+                   indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    print(f"  Results saved → {out}\n")
+    return summary
 
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ticker", nargs="+", default=None, help="Filter to specific tickers")
+    parser = argparse.ArgumentParser(description="RAGAS evaluation for WealthOS RAG pipeline")
+    parser.add_argument(
+        "--generate", action="store_true",
+        help="Pull docs from Qdrant and auto-generate eval/testset.json (run once per corpus change)",
+    )
+    parser.add_argument(
+        "--size", type=int, default=30,
+        help="Number of Q&A pairs to generate (default: 30)",
+    )
+    parser.add_argument(
+        "--ticker", nargs="+", default=None,
+        help="Limit to specific tickers, e.g. --ticker AAPL NVDA",
+    )
+    parser.add_argument(
+        "--limit", type=int, default=None,
+        help="Cap number of questions during eval to save cost, e.g. --limit 10",
+    )
     args = parser.parse_args()
-    asyncio.run(run_ragas(tickers=args.ticker))
+
+    if args.generate:
+        generate_testset(tickers=args.ticker, size=args.size)
+    else:
+        asyncio.run(run_eval(tickers=args.ticker, limit=args.limit))
