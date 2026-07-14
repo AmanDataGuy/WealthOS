@@ -63,25 +63,35 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 # Temperature=0 ensures reproducible scoring across eval runs.
 
 class GroqJudge(DeepEvalBaseLLM):
-    """DeepEval-compatible judge backed by Groq llama-3.3-70b (free tier)."""
+    """
+    DeepEval-compatible judge backed by Groq llama-3.3-70b (free tier).
+
+    The ChatGroq client is built lazily on first use, not in __init__ — this
+    lets the module (and the deterministic VerdictConsistencyMetric, which
+    never touches an LLM) import cleanly without GROQ_API_KEY set, e.g. in CI
+    jobs that only run the no-API-key test.
+    """
 
     def __init__(self, model: str = "llama-3.3-70b-versatile"):
-        from langchain_groq import ChatGroq
-        self._chat = ChatGroq(
-            model=model,
-            api_key=os.getenv("GROQ_API_KEY", ""),
-            temperature=0,
-        )
+        self._model = model
         self._model_name = f"groq/{model}"
+        self._chat = None
 
     def load_model(self):
+        if self._chat is None:
+            from langchain_groq import ChatGroq
+            self._chat = ChatGroq(
+                model=self._model,
+                api_key=os.getenv("GROQ_API_KEY", ""),
+                temperature=0,
+            )
         return self._chat
 
     def generate(self, prompt: str, schema=None) -> str:
-        return self._chat.invoke(prompt).content
+        return self.load_model().invoke(prompt).content
 
     async def a_generate(self, prompt: str, schema=None) -> str:
-        return (await self._chat.ainvoke(prompt)).content
+        return (await self.load_model().ainvoke(prompt)).content
 
     def get_model_name(self) -> str:
         return self._model_name
