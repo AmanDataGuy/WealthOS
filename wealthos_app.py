@@ -34,7 +34,7 @@ html, body, [class*="css"], * {
 }
 [data-testid="stTextInput"] button::after,
 [data-testid="stTextInputRevealButton"]::after {
-    content: "\1F441" !important;
+    content: "👁" !important;
     font-size: 1.05rem !important;
     color: #9ca3af !important;
     position: absolute !important;
