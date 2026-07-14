@@ -16,9 +16,20 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&display=block');
 
 html, body, [class*="css"], * {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Streamlit's password show/hide toggle renders an icon via ligature text
+   ("visibility" / "visibility_off") in the Material Symbols font — the
+   universal Inter override above breaks that into raw text. Carve it back out. */
+[data-testid="stTextInputRevealButton"],
+[data-testid="stTextInputRevealButton"] * {
+    font-family: 'Material Symbols Rounded' !important;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20 !important;
+    font-size: 1.2rem !important;
 }
 
 /* ── Base background ── */
