@@ -19,5 +19,7 @@ jobs:
             cd ~/WealthOS
             git fetch origin main
             git reset --hard origin/main
-            docker compose up -d --build
+            echo "Deployed commit: $(git log -1 --format='%H %s')"
+            docker compose up -d --build --force-recreate
             docker image prune -f
+            echo "wealthos-frontend created at: $(docker inspect $(docker compose ps -q wealthos-frontend) --format '{{.Created}}')"
