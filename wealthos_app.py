@@ -16,20 +16,32 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&display=block');
 
 html, body, [class*="css"], * {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
-/* Streamlit's password show/hide toggle renders an icon via ligature text
-   ("visibility" / "visibility_off") in the Material Symbols font — the
-   universal Inter override above breaks that into raw text. Carve it back out. */
-[data-testid="stTextInputRevealButton"],
-[data-testid="stTextInputRevealButton"] * {
-    font-family: 'Material Symbols Rounded' !important;
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20 !important;
-    font-size: 1.2rem !important;
+/* Streamlit's password show/hide toggle renders as ligature text
+   ("visibility" / "visibility_off") in an icon font — the universal Inter
+   override above breaks that into raw text. Rather than depend on an
+   external icon font loading correctly, hide the text entirely and draw a
+   plain Unicode eye emoji instead — no font dependency, can't silently fail. */
+[data-testid="stTextInput"] button,
+[data-testid="stTextInputRevealButton"] {
+    font-size: 0 !important;
+    color: transparent !important;
+    position: relative !important;
+}
+[data-testid="stTextInput"] button::after,
+[data-testid="stTextInputRevealButton"]::after {
+    content: "\1F441" !important;
+    font-size: 1.05rem !important;
+    color: #9ca3af !important;
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 /* ── Base background ── */
