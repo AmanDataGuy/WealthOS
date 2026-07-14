@@ -86,42 +86,6 @@ def trace_node(node_name: str):
     return decorator
 
 
-def trace_agent(agent_name: str, model: str = ""):
-    """
-    Same idea as trace_node but for individual agent calls
-    (run_risk_agent, run_writer_agent, etc.)
-
-    Usage:
-        @trace_agent("writer_agent", model="llama-3.3-70b")
-        async def run_writer_agent(...):
-            ...
-    """
-    def decorator(fn):
-        @functools.wraps(fn)
-        async def wrapper(*args, **kwargs):
-            if not LANGSMITH_ENABLED:
-                return await fn(*args, **kwargs)
-
-            try:
-                from langsmith import traceable
-            except ImportError:
-                return await fn(*args, **kwargs)
-
-            @traceable(
-                name=agent_name,
-                project_name=LANGSMITH_PROJECT,
-                tags=["agent", agent_name],
-                metadata={"model": model},
-            )
-            async def _run(*a, **kw):
-                return await fn(*a, **kw)
-
-            return await _run(*args, **kwargs)
-
-        return wrapper
-    return decorator
-
-
 # ── Startup check ─────────────────────────────────────────────────────────────
 
 def verify_langsmith():

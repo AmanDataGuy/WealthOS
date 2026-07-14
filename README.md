@@ -11,7 +11,7 @@
 [![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
 
-*8 specialized agents × 7 MCP servers × 42 tools → one personalized investment memo in under 90 seconds.*
+*8 specialized agents × 7 MCP servers × 45 tools → one personalized investment memo in under 90 seconds.*
 
 </div>
 
@@ -95,15 +95,15 @@ flowchart LR
 
 | Server | Tools | Data Source |
 |:---:|:---:|:---:|
-| `market_server` | 11 | yfinance — price, P/E, market cap, historical, sector, competitors, options, technicals; FRED — 10Y yield, VIX, fed funds rate |
-| `sec_edgar_server` | 4 | SEC EDGAR — 10-K / 10-Q filing URLs + XBRL facts |
+| `market_server` | 13 | yfinance — price, P/E, market cap, historical, sector, competitors, options, technicals; FRED — 10Y yield, VIX, fed funds rate |
+| `sec_edgar_server` | 5 | SEC EDGAR — 10-K / 10-Q filing URLs + XBRL facts |
 | `news_server` | 4 | NewsAPI + Firecrawl + newspaper3k — headlines, full article body, sentiment, Reddit |
 | `finance_server` | 6 | PostgreSQL — transactions, anomalies, subscriptions, EMIs, goals |
 | `calculator_server` | 7 | XIRR (scipy brentq), SIP, EMI, FIRE, compound interest, goal savings |
 | `tax_server` | 4 | Old vs new regime, STCG/LTCG (Budget 2024 rates), advance tax, 80C suggestions |
 | `portfolio_server` | 6 | PostgreSQL + yfinance — holdings, P&L, allocation, add/remove holding |
 
-**42 tools · stdio transport via MCPClient subprocess**
+**45 tools · stdio transport via MCPClient subprocess**
 
 </div>
 
@@ -122,7 +122,7 @@ flowchart LR
 | **RAG** | Qdrant hybrid search + Cohere reranking | `all-MiniLM-L6-v2` 384-dim dense (local CPU, no API key) + BM25 sparse; RRF fusion; 725+ points indexed (AAPL/MSFT/NVDA/GOOGL/TSLA/AMZN 10-K) |
 | **Embeddings** | sentence-transformers/all-MiniLM-L6-v2 | 384-dim, runs on CPU, no API key required |
 | **Memory** | Three-layer | (1) Mem0 — 2-line cross-session signal injected at pipeline start; (2) Qdrant `user_analyses` — Final Verdict embedded and written after every run, semantic past-decision retrieval; (3) Postgres `user_risk_profiles` — buy/hold/avoid counts, avg risk score, preferred sectors, updated per run |
-| **Macro Data** | FRED + yfinance fallback | `get_macro_data()` returns 10Y treasury yield, VIX, S&P 500, fed funds rate, plus derived `vix_regime` and `rate_environment` labels; cached 1 hour |
+| **Macro Data** | FRED + yfinance fallback | `_get_macro_context()` returns 10Y treasury yield, VIX, S&P 500, fed funds rate, plus derived `vix_regime` and `rate_environment` labels; cached 1 hour |
 | **Prompt Optimization** | DSPy BootstrapFewShot | 28 golden examples; compiled to `eval/compiled_writer.json`; structural quality metric (7 sections + verdict) |
 | **Observability** | LangSmith + W&B Weave | `@trace_node` on all 8 nodes; `user_id` masked to first 8 chars in trace metadata (PII); custom evaluators in `langsmith_evaluators.py` (section completeness, verdict consistency, number grounding) |
 | **Rate Limiting** | In-memory sliding window | 10 req/min per `user_id` on `/analyze`; configurable via `ANALYZE_RATE_LIMIT` env var; returns HTTP 429 |
@@ -235,7 +235,7 @@ python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
 streamlit run wealthos_app.py --server.port 8501
 ```
 
-Open **http://localhost:8501** — sign up or use `admin / wealthos123`.
+Open **http://localhost:8501** — sign up, or use demo accounts: `admin / wealthos123` · `demo / demo123`.
 
 **Index SEC filings for RAG (first time only):**
 ```bash
@@ -266,17 +266,17 @@ See `.env.example` for the full list.
 
 **Suggested tickers for a live walkthrough:**
 
-| Market | Tickers | Coverage |
+| Market | Tickers | RAG Coverage |
 |--------|---------|----------|
-| US | `NVDA` `MSFT` `AAPL` `AMZN` `GOOGL` `TSLA` | Full SEC 10-K indexed |
-| India | `SBIN` `RELIANCE` `TCS` `INFY` `WIPRO` `HCLTECH` `ICICIBANK` `HDFCBANK` | yfinance annual report indexed |
+| US | `NVDA` `MSFT` `AAPL` `AMZN` `GOOGL` `TSLA` | Full SEC 10-K indexed in Qdrant |
+| India | `SBIN` `RELIANCE` `TCS` `INFY` `WIPRO` `HCLTECH` `ICICIBANK` `HDFCBANK` | Live via yfinance (no pre-indexed filing) |
 
 **3-minute script:**
 
-1. Enter `NVDA` with a sample financial profile → watch the 8-node graph execute → point out DCF intrinsic value, Monte Carlo P10/P50/P90, and personalized risk score adjusted to user's past behaviour
-2. Switch to `SBIN` → same pipeline, currency auto-switches to `₹`, RAG pulls from Indian market data
-3. Open the **Memory** tab → show what the system has learned about this user across sessions (past verdicts, preferred sectors, risk profile from Postgres)
-4. Open `/docs` → show the REST API schema and rate-limited `/analyze` endpoint
+1. **Analyze page** — In the query box write e.g. *"I have ₹30k–50k to invest and I'm fairly conservative. Should I add NVDA to my portfolio right now?"* · set Ticker to `NVDA` · pick **Long-term** horizon · hit **Run analysis** (~60 s) → results show Verdict pill, Risk score bar, DCF intrinsic value, and the full 7-section memo with a Download button
+2. Expand **Agent log** at the bottom → walk through each node: Router → Finance → Data → Research → Risk → Code → Rebalancing → Writer
+3. Switch to **History** page → open the **Memory** sub-tab → show the investor profile (total analyses, Buy/Hold/Avoid counts, avg risk score, tracked sectors) and the past-decisions table that feeds every new risk analysis
+4. Open **`http://<host>:8000/docs`** → show the rate-limited `/analyze` endpoint (10 req/min per user), `/upload-personal-doc`, and A2A agent cards at `/agents`
 
 Any ticker works — live data via yfinance even without a pre-indexed filing; unknown tickers trigger on-demand 10-K download and Qdrant indexing in the background.
 
