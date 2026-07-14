@@ -17,31 +17,14 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-html, body, [class*="css"], * {
+/* Excludes Streamlit's own icon elements (data-testid starting "stIcon") —
+   those render icons as ligature text (e.g. "upload", "visibility") in a
+   bundled icon font. Forcing Inter on them turns every native icon in the
+   app into raw overlapping text (file uploader, password toggle, etc).
+   Leaving them out lets Streamlit's own icon font apply as designed. */
+html, body, [class*="css"],
+*:not([data-testid^="stIcon"]):not([data-testid^="stIcon"] *) {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-}
-
-/* Streamlit's password show/hide toggle renders as ligature text
-   ("visibility" / "visibility_off") in an icon font — the universal Inter
-   override above breaks that into raw text. Rather than depend on an
-   external icon font loading correctly, hide the text entirely and draw a
-   plain Unicode eye emoji instead — no font dependency, can't silently fail. */
-[data-testid="stTextInput"] button,
-[data-testid="stTextInputRevealButton"] {
-    font-size: 0 !important;
-    color: transparent !important;
-    position: relative !important;
-}
-[data-testid="stTextInput"] button::after,
-[data-testid="stTextInputRevealButton"]::after {
-    content: "👁" !important;
-    font-size: 1.05rem !important;
-    color: #9ca3af !important;
-    position: absolute !important;
-    inset: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
 }
 
 /* ── Base background ── */
