@@ -289,15 +289,15 @@ if not st.session_state.logged_in:
     with col:
         st.markdown(
             '<div style="text-align:center;padding:2.5rem 0 1.75rem;">'
-            '<div style="font-size:1.75rem;font-weight:700;color:#f9fafb;letter-spacing:-0.02em;">Wealth<span style="color:#3b82f6;">OS</span></div>'
-            '<div style="font-size:0.85rem;color:#6b7280;margin-top:0.35rem;">Personal financial intelligence</div>'
+            '<div style="font-size:2.5rem;font-weight:700;color:#f9fafb;letter-spacing:-0.02em;">Wealth<span style="color:#3b82f6;">OS</span></div>'
+            '<div style="font-size:0.85rem;color:#6b7280;margin-top:0.4rem;">Personal financial intelligence</div>'
             '</div>',
             unsafe_allow_html=True,
         )
 
-        t_in, t_up = st.tabs(["Sign in", "Create account"])
+        st.session_state.setdefault("auth_mode", "signin")
 
-        with t_in:
+        if st.session_state.auth_mode == "signin":
             with st.form("login"):
                 u  = st.text_input("Username")
                 p  = st.text_input("Password", type="password")
@@ -325,7 +325,11 @@ if not st.session_state.logged_in:
                         st.error("Cannot reach backend at localhost:8000.")
             st.caption("Demo: `admin / wealthos123` · `demo / demo123`")
 
-        with t_up:
+            if st.button("New here? Create an account", use_container_width=True, type="secondary"):
+                st.session_state.auth_mode = "signup"
+                st.rerun()
+
+        else:
             with st.form("signup"):
                 su  = st.text_input("Username")
                 sp  = st.text_input("Password", type="password")
@@ -345,13 +349,18 @@ if not st.session_state.logged_in:
                         r = requests.post(f"{API_URL}/auth/signup",
                                           json={"username": su.strip(), "password": sp}, timeout=10)
                         if r.status_code == 200:
-                            st.success("Account created. Sign in above.")
+                            st.success("Account created — sign in below.")
+                            st.session_state.auth_mode = "signin"
                         elif r.status_code == 409:
                             st.error("Username taken — try another.")
                         else:
                             st.error(r.json().get("detail", "Signup failed."))
                     except Exception:
                         st.error("Cannot reach backend.")
+
+            if st.button("Already have an account? Sign in", use_container_width=True, type="secondary"):
+                st.session_state.auth_mode = "signin"
+                st.rerun()
     st.stop()
 
 
