@@ -707,7 +707,7 @@ async def get_user_analyses(user_id: str, limit: int = 8):
         results, _ = qc.scroll(
             collection_name="user_analyses",
             scroll_filter=Filter(must=[
-                FieldCondition("user_id", match=MatchValue(value=user_id))
+                FieldCondition(key="user_id", match=MatchValue(value=user_id))
             ]),
             limit=limit,
             with_payload=True,

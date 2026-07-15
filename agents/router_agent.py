@@ -89,7 +89,7 @@ def _get_company_tier(ticker: str) -> str:
         qc  = QdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
         res = qc.count(
             "wealthos_docs",
-            count_filter=Filter(must=[FieldCondition("ticker", match=MatchValue(value=ticker))]),
+            count_filter=Filter(must=[FieldCondition(key="ticker", match=MatchValue(value=ticker))]),
         )
         count = res.count
         if count >= 100:
