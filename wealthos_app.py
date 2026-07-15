@@ -452,9 +452,12 @@ if page == "Analyze":
             height=115,
         )
 
-        fc1, fc2 = st.columns([1, 2])
+        fc1, fc2, fc3 = st.columns([1, 1, 2])
         ticker  = fc1.text_input("Ticker", placeholder="AAPL")
-        horizon = fc2.radio(
+        amount  = fc2.number_input(
+            "Investment amount (₹)", min_value=0, value=20000, step=5000,
+        )
+        horizon = fc3.radio(
             "Horizon",
             ["Short-term", "Mid-term", "Long-term", "Let AI decide"],
             horizontal=True,
@@ -550,9 +553,10 @@ if page == "Analyze":
             }
         else:
             payload = {
-                "query":   query or f"Analyze {ticker}",
-                "ticker":  ticker,
-                "user_id": USER_ID,
+                "query":         query or f"Analyze {ticker}",
+                "ticker":        ticker,
+                "user_id":       USER_ID,
+                "invest_amount": float(amount),
             }
             if sel_horizon:
                 payload["investment_horizon"] = sel_horizon
