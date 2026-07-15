@@ -87,11 +87,44 @@ async def _ensure_users_table():
         logger.warning("[startup] Could not ensure users table: %s", e)
 
 
+async def _ensure_analysis_history_table():
+    if not DB_URL:
+        return
+    try:
+        conn = await asyncpg.connect(DB_URL)
+        try:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS analysis_history (
+                    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id        UUID NOT NULL,
+                    ticker         TEXT NOT NULL,
+                    query          TEXT,
+                    verdict        TEXT,
+                    risk_score     INTEGER,
+                    memo           TEXT,
+                    dcf_value      DOUBLE PRECISION,
+                    latency_ms     INTEGER,
+                    cost_usd       NUMERIC,
+                    total_tokens   INTEGER,
+                    agents_invoked TEXT[],
+                    created_at     TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_analysis_history_user_id ON analysis_history (user_id, created_at DESC);"
+            )
+        finally:
+            await conn.close()
+    except Exception as e:
+        logger.warning("[startup] Could not ensure analysis_history table: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     verify_langsmith()
     init_weave()
     await _ensure_users_table()
+    await _ensure_analysis_history_table()
     yield
 
 
