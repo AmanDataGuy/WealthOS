@@ -340,7 +340,8 @@ async def rebalancing_node(state: WealthOSState) -> dict:
     snapshot = state.get("financial_snapshot")
     if ticker and snapshot:
         sector  = snapshot.get("sector") or "Technology"
-        new_inv = NewInvestment(ticker=ticker, amount=20000.0, sector=sector)
+        amount  = state.get("invest_amount") or 20000.0
+        new_inv = NewInvestment(ticker=ticker, amount=amount, sector=sector)
 
     try:
         suggestion = await run_rebalancing_agent(

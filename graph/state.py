@@ -12,6 +12,7 @@ class WealthOSState(TypedDict):
     query:          str
     tickers:        list[str]
     user_id:        str
+    invest_amount:  Optional[float]  # amount the user wants to invest, INR
 
     # ── Router classifications ─────────────────────────────
     investment_horizon: Optional[str]   # "short" | "mid" | "long" — set by router
