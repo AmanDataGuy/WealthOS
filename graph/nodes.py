@@ -42,7 +42,7 @@ async def _get_past_decisions(user_id: str, ticker: str) -> str:
         results = qc.search(
             collection_name="user_analyses",
             query_vector={"name": "dense", "vector": vec},
-            query_filter=Filter(must=[FieldCondition("user_id", match=MatchValue(value=user_id))]),
+            query_filter=Filter(must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]),
             limit=3,
             with_payload=True,
         )
