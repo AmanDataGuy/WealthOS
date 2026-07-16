@@ -812,16 +812,33 @@ elif page == "History":
         analyses_data = _api("get", f"/user-analyses/{USER_ID}?limit=8")
         analyses      = (analyses_data or {}).get("analyses", [])
         if analyses:
-            rows = [
-                {
-                    "Ticker":  a.get("ticker", "—"),
-                    "Date":    fmt_date(a.get("analysis_date", "")),
-                    "Verdict": a.get("verdict", "—"),
-                    "Excerpt": (a.get("verdict_text") or "")[:100],
-                }
-                for a in analyses
-            ]
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            # st.dataframe renders inside a sandboxed iframe that page-level CSS
+            # injection can't theme — hand-built HTML table stays consistent
+            # with the rest of the dark UI instead.
+            verdict_color = {"Buy": "#22c55e", "Hold": "#eab308", "Avoid": "#ef4444"}
+            rows_html = ""
+            for a in analyses:
+                v     = a.get("verdict", "—")
+                color = verdict_color.get(v, "#9ca3af")
+                rows_html += (
+                    '<tr style="border-bottom:1px solid #21262d;">'
+                    f'<td style="padding:0.5rem 0.75rem;color:#f9fafb;font-weight:600;">{a.get("ticker","—")}</td>'
+                    f'<td style="padding:0.5rem 0.75rem;color:#9ca3af;">{fmt_date(a.get("analysis_date",""))}</td>'
+                    f'<td style="padding:0.5rem 0.75rem;color:{color};font-weight:600;">{v}</td>'
+                    f'<td style="padding:0.5rem 0.75rem;color:#d1d5db;font-size:0.82rem;">{(a.get("verdict_text") or "")[:100]}</td>'
+                    '</tr>'
+                )
+            st.markdown(
+                '<table style="width:100%;border-collapse:collapse;background:#161b22;'
+                'border:1px solid #21262d;border-radius:8px;overflow:hidden;">'
+                '<thead><tr style="border-bottom:1px solid #30363d;">'
+                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-size:0.78rem;">Ticker</th>'
+                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-size:0.78rem;">Date</th>'
+                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-size:0.78rem;">Verdict</th>'
+                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-size:0.78rem;">Excerpt</th>'
+                f'</tr></thead><tbody>{rows_html}</tbody></table>',
+                unsafe_allow_html=True,
+            )
         else:
             st.caption("No past decisions stored yet.")
 
