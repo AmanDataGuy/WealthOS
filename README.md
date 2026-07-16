@@ -264,6 +264,12 @@ See `.env.example` for the full list.
 
 ## Demo
 
+![WealthOS Analyze page — ticker, amount, horizon, and document upload inputs](docs/screenshots/analyze-input.png)
+*The Analyze page — set a ticker, investment amount, horizon, and optionally attach loan/EMI documents for personalised context.*
+
+![WealthOS generated investment memo — verdict, risk score, DCF value, and full analysis](docs/screenshots/analyze-result.png)
+*A completed memo — verdict, risk score, and DCF intrinsic value up top, followed by the full 7-section analysis.*
+
 **Suggested tickers for a live walkthrough:**
 
 | Market | Tickers | RAG Coverage |
