@@ -106,7 +106,9 @@ CREATE TABLE IF NOT EXISTS financial_facts (
     ticker      TEXT          NOT NULL,
     metric      TEXT          NOT NULL,
     value       NUMERIC(22,4),
+    unit        TEXT,
     fiscal_year INTEGER,
+    period      TEXT,
     source      TEXT          DEFAULT 'yfinance',
     updated_at  TIMESTAMPTZ   DEFAULT NOW(),
     UNIQUE (ticker, metric, fiscal_year)
