@@ -393,6 +393,10 @@ async def analyze(req: AnalyzeRequest):
     dcf_val = None
     if code.get("dcf"):
         dcf_val = code["dcf"].get("intrinsic_value")
+    elif code.get("monte_carlo"):
+        # DCF guard skipped the classic model (no FCF data) — fall back to
+        # the Monte Carlo median so the UI isn't blank when a real number exists.
+        dcf_val = code["monte_carlo"].get("median_price")
 
     try:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
