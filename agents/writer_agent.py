@@ -573,7 +573,11 @@ async def run_writer_agent(
             instructions="Assess whether this investment fits the user's personal financial situation. "
                          "Reference their surplus, health score, risk capacity, and any past decisions directly. "
                          "If the user's investment profile is provided, note their historical buy/hold/avoid pattern. "
-                         "If uploaded documents are present, mention specific figures (EMI amount, loan balance, etc.).",
+                         "If uploaded documents are present, mention specific figures (EMI amount, loan balance, etc.). "
+                         "If 'User's Past Investment Decisions' lists specific tickers and verdicts, and the user's "
+                         "question asks you to recall, compare, or reference other tickers they've analysed, name "
+                         "those tickers and their verdicts explicitly — do not answer with only the aggregate "
+                         "buy/hold/avoid count when a specific comparison was asked for.",
             context=f"{personal_ctx}{profile_block}\n\nRisk Assessment:\n{risk_context}{docs_ctx}{memory_ctx}{past_ctx_block}",
             client=client,
         )
@@ -597,6 +601,9 @@ async def run_writer_agent(
                               "IMPORTANT: only reference past decisions if they are explicitly listed in the "
                               "provided context — do NOT invent, assume, or fabricate any past analyses, "
                               "prior tickers, or prior verdicts that are not in the data. "
+                              "If the user's question names other tickers and those tickers appear in "
+                              "'User's Past Investment Decisions', explicitly state each one's verdict by name "
+                              "rather than only citing an aggregate count. "
                               "End with one actionable next step for the investor.",
                 context=f"Verdict: {verdict}\n\n{risk_context}\n\nValuation:\n{code_context}\n\nPersonal:\n{personal_ctx}{docs_ctx}{memory_ctx}{past_ctx_block}",
                 client=client,
