@@ -32,30 +32,62 @@ def _embed_text(text: str) -> list:
     return m.encode(text, normalize_embeddings=True).tolist()
 
 
-async def _get_past_decisions(user_id: str, ticker: str) -> str:
+async def _get_past_decisions(user_id: str, ticker: str, query: str = "") -> str:
+    """
+    Retrieve relevant past decisions from Qdrant user_analyses.
+
+    Two retrieval paths, merged:
+    1. Semantic search embedding the user's actual QUESTION (not just the
+       current ticker) — so "what did you tell me about GOOGL" while
+       analyzing MSFT searches for GOOGL-relevant history, not MSFT's.
+    2. Exact ticker-filter lookup for any other ticker symbols explicitly
+       named in the question text — semantic search alone isn't reliable
+       enough to guarantee recall when a specific ticker is named outright.
+    """
     try:
-        import os
+        import os, re, asyncio as _asyncio
         from qdrant_client import QdrantClient
         from qdrant_client.models import Filter, FieldCondition, MatchValue
         qc = QdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
-        vec = await __import__("asyncio").to_thread(_embed_text, ticker or "general")
-        results = qc.search(
+
+        search_text = query.strip() or ticker or "general"
+        vec = await _asyncio.to_thread(_embed_text, search_text)
+        semantic_results = qc.search(
             collection_name="user_analyses",
             query_vector={"name": "dense", "vector": vec},
             query_filter=Filter(must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]),
             limit=3,
             with_payload=True,
         )
-        if not results:
-            return ""
+
+        mentioned = set(re.findall(r"\b[A-Z]{2,5}(?:\.[A-Z]{2})?\b", query.upper()))
+        mentioned.discard((ticker or "").upper())
+        exact_results = []
+        for t in list(mentioned)[:3]:
+            hits, _ = qc.scroll(
+                collection_name="user_analyses",
+                scroll_filter=Filter(must=[
+                    FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                    FieldCondition(key="ticker", match=MatchValue(value=t)),
+                ]),
+                limit=2,
+                with_payload=True,
+            )
+            exact_results.extend(hits)
+
+        seen  = set()
         lines = []
-        for r in results:
-            p = r.payload
+        for r in list(exact_results) + list(semantic_results):
+            p   = r.payload
+            key = (p.get("ticker"), p.get("analysis_date"))
+            if key in seen:
+                continue
+            seen.add(key)
             lines.append(
                 f"- {p.get('analysis_date','?')}: {p.get('ticker','?')} "
                 f"→ {p.get('verdict','?')}: {p.get('verdict_text','')[:120]}"
             )
-        return "\n".join(lines)
+        return "\n".join(lines[:5])
     except Exception:
         return ""
 
@@ -175,6 +207,7 @@ async def finance_node(state: WealthOSState) -> dict:
             past_decisions_ctx = await _get_past_decisions(
                 user_id,
                 state["tickers"][0] if state.get("tickers") else "",
+                state.get("query", ""),
             )
             if past_decisions_ctx:
                 print(f"  [past_decisions] Loaded {past_decisions_ctx.count(chr(10)) + 1} past analyses")
