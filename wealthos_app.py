@@ -399,7 +399,7 @@ with st.sidebar:
     )
 
     st.divider()
-    page = st.radio("nav", ["Analyze", "History", "Settings"], label_visibility="collapsed")
+    page = st.radio("nav", ["Analyze", "History"], label_visibility="collapsed")
     st.divider()
 
     st.markdown(
@@ -841,87 +841,3 @@ elif page == "History":
             )
         else:
             st.caption("No past decisions stored yet.")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE — SETTINGS
-# ══════════════════════════════════════════════════════════════════════════════
-
-elif page == "Settings":
-    st.markdown(
-        '<h1 style="font-size:1.6rem;font-weight:700;color:#f9fafb;margin-bottom:0.25rem;">Settings</h1>'
-        '<p style="font-size:0.875rem;color:#6b7280;margin-top:0;margin-bottom:1.5rem;">Manage your portfolio and preferences.</p>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown('<h2 style="font-size:1.1rem;font-weight:600;color:#f9fafb;margin-bottom:0.75rem;">Portfolio</h2>', unsafe_allow_html=True)
-    portfolio_data = _api("get", f"/portfolio/{USER_ID}")
-    holdings       = (portfolio_data or {}).get("holdings", [])
-
-    if not holdings:
-        st.info("No holdings found. Add them via the portfolio MCP server or the API.")
-    else:
-        df = pd.DataFrame(holdings)
-        display_cols = [c for c in ["ticker", "quantity", "avg_buy_price", "target_weight", "sector"]
-                        if c in df.columns]
-
-        col_t, col_c = st.columns([3, 2])
-        with col_t:
-            st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
-        with col_c:
-            if "target_weight" in df.columns:
-                max_w = float(df["target_weight"].max() or 1)
-                for _, row in df.iterrows():
-                    st.markdown(
-                        alloc_bar_html(row["ticker"], float(row.get("target_weight") or 0), max_w),
-                        unsafe_allow_html=True,
-                    )
-
-    # Rebalance suggestion from last analysis
-    res = st.session_state.get("last_result")
-    if res and res.get("rebalance_suggestion"):
-        st.divider()
-        st.markdown(
-            '<h2 style="font-size:1.1rem;font-weight:600;color:#f9fafb;margin-bottom:0.75rem;">'
-            'Last rebalancing suggestion</h2>',
-            unsafe_allow_html=True,
-        )
-        actions = (res["rebalance_suggestion"] or {}).get("actions", [])
-        if actions:
-            for a in actions:
-                urg   = (a.get("urgency") or "").capitalize()
-                u_col = "#dc2626" if a.get("urgency") == "high" else "#6b7280"
-                st.markdown(
-                    f'<div style="padding:0.4rem 0;border-bottom:1px solid #21262d;font-size:0.875rem;">'
-                    f'<span style="color:#d1d5db;">'
-                    f'{a.get("action","").capitalize()} <strong>{a.get("ticker","")}</strong> '
-                    f'{a.get("from_weight","")}% → {a.get("to_weight","")}%</span>'
-                    f'<span style="float:right;font-size:0.75rem;color:{u_col};">{urg}</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.caption("No rebalancing actions needed.")
-    else:
-        st.caption("Run an analysis from the Analyze page to see rebalancing suggestions here.")
-
-    # Risk tolerance
-    st.divider()
-    st.markdown(
-        '<h2 style="font-size:1.1rem;font-weight:600;color:#f9fafb;margin-bottom:0.75rem;">Risk tolerance</h2>',
-        unsafe_allow_html=True,
-    )
-    st.radio(
-        "risk",
-        [
-            "Conservative — capital preservation, low volatility",
-            "Moderate — balanced growth and safety",
-            "Aggressive — maximum growth, volatility is fine",
-        ],
-        label_visibility="collapsed",
-        index=1,
-    )
-    st.caption(
-        "Mention your risk preference in the Analyze message — "
-        "the agent reads it directly from your query."
-    )
