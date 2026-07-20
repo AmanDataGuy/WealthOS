@@ -15,23 +15,22 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-/* Excludes Streamlit's own icon elements (data-testid starting "stIcon") —
+/* Standard native OS font stack — no external font dependency to fail to load.
+   Excludes Streamlit's own icon elements (data-testid starting "stIcon") —
    those render icons as ligature text (e.g. "upload", "visibility") in a
-   bundled icon font. Forcing Inter on them turns every native icon in the
-   app into raw overlapping text (file uploader, password toggle, etc).
+   bundled icon font. Forcing a different font on them turns every native
+   icon in the app into raw overlapping text (file uploader, password toggle).
    Leaving them out lets Streamlit's own icon font apply as designed. */
 html, body, [class*="css"],
 *:not([data-testid^="stIcon"]):not([data-testid^="stIcon"] *) {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
 }
 
 /* ── Base background ── */
 [data-testid="stAppViewContainer"],
 [data-testid="stMain"],
 section.main,
-.stApp { background: #0d1117 !important; }
+.stApp { background: #ffffff !important; }
 .main .block-container { padding: 2rem 2.5rem 3rem; max-width: 1080px; }
 
 #MainMenu, footer,
@@ -40,8 +39,8 @@ section.main,
 
 /* ── Sidebar ── */
 [data-testid="stSidebar"] {
-    background: #161b22 !important;
-    border-right: 1px solid #21262d !important;
+    background: #f6f8fa !important;
+    border-right: 1px solid #d8dee4 !important;
 }
 section[data-testid="stSidebar"] {
     transform: none !important;
@@ -52,24 +51,25 @@ section[data-testid="stSidebar"] {
 [data-testid="collapsedControl"] { display: none !important; }
 
 /* ── Typography ── */
-h1 { color: #f9fafb !important; font-size: 2rem !important; font-weight: 700 !important; margin: 0 0 0.25rem !important; letter-spacing: -0.02em !important; }
-h2 { color: #f9fafb !important; font-size: 1.35rem !important; font-weight: 600 !important; margin: 0 0 0.6rem !important; }
-h3 { color: #e5e7eb !important; font-size: 1.05rem !important; font-weight: 600 !important; margin: 0 0 0.4rem !important; }
-p, li { color: #d1d5db !important; }
-label { color: #d1d5db !important; }
+/* Size hierarchy, deliberately spaced apart: h1 32px > h2 24px > h3 18px > body 16px > caption 13px */
+h1 { color: #1f2328 !important; font-size: 2rem !important; font-weight: 700 !important; margin: 0 0 0.25rem !important; letter-spacing: -0.02em !important; }
+h2 { color: #1f2328 !important; font-size: 1.5rem !important; font-weight: 600 !important; margin: 0 0 0.6rem !important; }
+h3 { color: #24292f !important; font-size: 1.125rem !important; font-weight: 600 !important; margin: 0 0 0.4rem !important; }
+p, li { color: #57606a !important; font-size: 1rem !important; }
+label { color: #57606a !important; font-size: 1rem !important; }
 
 /* ── Inputs ── */
 [data-testid="stTextInput"] input,
 [data-testid="stTextArea"] textarea,
 [data-testid="stNumberInput"] input {
-    background: #161b22 !important;
-    border: 1px solid #30363d !important;
+    background: #f6f8fa !important;
+    border: 1px solid #c9d1d9 !important;
     border-radius: 6px !important;
-    color: #f9fafb !important;
+    color: #1f2328 !important;
     font-size: 0.9rem !important;
 }
 [data-testid="stTextInput"] input::placeholder,
-[data-testid="stTextArea"] textarea::placeholder { color: #6b7280 !important; }
+[data-testid="stTextArea"] textarea::placeholder { color: #8c959f !important; }
 [data-testid="stTextInput"] input:focus,
 [data-testid="stTextArea"] textarea:focus {
     border-color: #3b82f6 !important;
@@ -94,8 +94,8 @@ label { color: #d1d5db !important; }
 [data-testid="stFormSubmitButton"] button:hover { background: #2563eb !important; }
 [data-testid="stButton"] button[kind="secondary"] {
     background: transparent !important;
-    border: 1px solid #30363d !important;
-    color: #d1d5db !important;
+    border: 1px solid #c9d1d9 !important;
+    color: #57606a !important;
 }
 [data-testid="stButton"] button[kind="secondary"]:hover {
     border-color: #3b82f6 !important;
@@ -104,19 +104,19 @@ label { color: #d1d5db !important; }
 
 /* ── Tabs ── */
 [data-baseweb="tab-list"] {
-    border-bottom: 1px solid #21262d !important;
+    border-bottom: 1px solid #d8dee4 !important;
     background: transparent !important;
     gap: 0 !important;
 }
 [data-baseweb="tab"] {
-    color: #6b7280 !important;
+    color: #8c959f !important;
     font-size: 0.875rem !important;
     font-weight: 500 !important;
     padding: 0.6rem 1.25rem !important;
     border-bottom: 2px solid transparent !important;
     background: transparent !important;
 }
-[data-baseweb="tab"]:hover { color: #d1d5db !important; background: transparent !important; }
+[data-baseweb="tab"]:hover { color: #57606a !important; background: transparent !important; }
 [aria-selected="true"][data-baseweb="tab"] {
     color: #3b82f6 !important;
     border-bottom: 2px solid #3b82f6 !important;
@@ -124,54 +124,54 @@ label { color: #d1d5db !important; }
 
 /* ── Metrics ── */
 [data-testid="stMetric"] {
-    background: #161b22 !important;
-    border: 1px solid #21262d !important;
+    background: #f6f8fa !important;
+    border: 1px solid #d8dee4 !important;
     border-radius: 8px !important;
     padding: 1rem 1.25rem !important;
 }
-[data-testid="stMetricLabel"] { color: #6b7280 !important; font-size: 0.72rem !important; text-transform: uppercase; letter-spacing: 0.05em; }
-[data-testid="stMetricValue"] { color: #f9fafb !important; font-size: 1.3rem !important; font-weight: 700 !important; }
+[data-testid="stMetricLabel"] { color: #8c959f !important; font-size: 0.72rem !important; text-transform: uppercase; letter-spacing: 0.05em; }
+[data-testid="stMetricValue"] { color: #1f2328 !important; font-size: 1.3rem !important; font-weight: 700 !important; }
 
 /* ── Dataframe ── */
 [data-testid="stDataFrame"] {
-    border: 1px solid #21262d !important;
+    border: 1px solid #d8dee4 !important;
     border-radius: 8px !important;
     overflow: hidden !important;
 }
-[data-testid="stDataFrame"] * { color: #d1d5db !important; background: #161b22 !important; }
+[data-testid="stDataFrame"] * { color: #57606a !important; background: #f6f8fa !important; }
 
 /* ── File uploader ── */
 [data-testid="stFileUploader"] section {
-    border: 1.5px dashed #30363d !important;
+    border: 1.5px dashed #c9d1d9 !important;
     border-radius: 8px !important;
-    background: #161b22 !important;
+    background: #f6f8fa !important;
 }
-[data-testid="stFileUploader"] * { color: #9ca3af !important; }
+[data-testid="stFileUploader"] * { color: #6e7781 !important; }
 
 /* ── Expander ── */
 [data-testid="stExpander"] {
-    border: 1px solid #21262d !important;
+    border: 1px solid #d8dee4 !important;
     border-radius: 8px !important;
-    background: #161b22 !important;
+    background: #f6f8fa !important;
 }
-[data-testid="stExpander"] summary { color: #d1d5db !important; }
+[data-testid="stExpander"] summary { color: #57606a !important; }
 
 /* ── Alerts ── */
 [data-testid="stAlert"] { border-radius: 6px !important; font-size: 0.875rem !important; }
 
 /* ── Divider ── */
-hr { border-color: #21262d !important; margin: 1.25rem 0 !important; }
+hr { border-color: #d8dee4 !important; margin: 1.25rem 0 !important; }
 
 /* ── Select / Dropdown ── */
 [data-baseweb="select"] > div {
-    background: #161b22 !important;
-    border: 1px solid #30363d !important;
+    background: #f6f8fa !important;
+    border: 1px solid #c9d1d9 !important;
     border-radius: 6px !important;
-    color: #f9fafb !important;
+    color: #1f2328 !important;
 }
-[data-baseweb="menu"] { background: #161b22 !important; border: 1px solid #30363d !important; }
-[data-baseweb="option"] { background: #161b22 !important; color: #d1d5db !important; }
-[data-baseweb="option"]:hover { background: #1f2937 !important; }
+[data-baseweb="menu"] { background: #f6f8fa !important; border: 1px solid #c9d1d9 !important; }
+[data-baseweb="option"] { background: #f6f8fa !important; color: #57606a !important; }
+[data-baseweb="option"]:hover { background: #eaeef2 !important; }
 
 /* ── Sidebar nav ── */
 [data-testid="stSidebar"] [data-testid="stRadio"] > label:first-child { display: none !important; }
@@ -181,7 +181,7 @@ hr { border-color: #21262d !important; margin: 1.25rem 0 !important; }
     border-radius: 6px !important;
     font-size: 0.875rem !important;
     font-weight: 500 !important;
-    color: #9ca3af !important;
+    color: #6e7781 !important;
     display: flex !important;
     align-items: center !important;
     cursor: pointer;
@@ -194,23 +194,23 @@ hr { border-color: #21262d !important; margin: 1.25rem 0 !important; }
 [data-testid="stSidebar"] [data-testid="stRadio"] input[type="radio"] { display: none !important; }
 
 /* ── File uploader ── */
-[data-testid="stFileUploaderDropzone"] { background: #161b22 !important; border-color: #30363d !important; }
-[data-testid="stFileUploaderDropzone"] small { color: #6b7280 !important; }
+[data-testid="stFileUploaderDropzone"] { background: #f6f8fa !important; border-color: #c9d1d9 !important; }
+[data-testid="stFileUploaderDropzone"] small { color: #8c959f !important; }
 
 /* ── Checkbox / Radio ── */
-[data-testid="stCheckbox"] label { color: #9ca3af !important; }
-[data-testid="stRadio"] label { color: #d1d5db !important; }
+[data-testid="stCheckbox"] label { color: #6e7781 !important; }
+[data-testid="stRadio"] label { color: #57606a !important; }
 
 /* ── Caption ── */
 small, .stCaptionContainer, [data-testid="stCaptionContainer"] {
-    color: #6b7280 !important;
-    font-size: 0.78rem !important;
+    color: #8c959f !important;
+    font-size: 0.8125rem !important;
 }
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0d1117; }
-::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+::-webkit-scrollbar-track { background: #f6f8fa; }
+::-webkit-scrollbar-thumb { background: #c9d1d9; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
 </style>
 """, unsafe_allow_html=True)
@@ -231,11 +231,11 @@ def _api(method: str, path: str, **kwargs):
 def verdict_pill(v: str) -> str:
     cfg = {
         "buy":   ("background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.4);", "Buy"),
-        "hold":  ("background:#1f2937;color:#9ca3af;border:1px solid #374151;", "Hold"),
+        "hold":  ("background:#eaeef2;color:#6e7781;border:1px solid #d0d7de;", "Hold"),
         "avoid": ("background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.4);", "Avoid"),
     }
     style, label = cfg.get((v or "").lower(),
-                           ("background:#1f2937;color:#9ca3af;border:1px solid #374151;", v or "—"))
+                           ("background:#eaeef2;color:#6e7781;border:1px solid #d0d7de;", v or "—"))
     return (
         f'<span style="{style}font-size:0.75rem;font-weight:600;'
         f'padding:0.2rem 0.6rem;border-radius:999px;letter-spacing:0.03em;">'
@@ -245,14 +245,14 @@ def verdict_pill(v: str) -> str:
 
 def risk_bar_html(score) -> str:
     if not score:
-        return '<span style="color:#6b7280;font-size:0.82rem;">—</span>'
+        return '<span style="color:#8c959f;font-size:0.82rem;">—</span>'
     pct   = int(score) * 10
-    color = "#3b82f6" if pct <= 40 else "#9ca3af" if pct <= 60 else "#ef4444"
+    color = "#3b82f6" if pct <= 40 else "#6e7781" if pct <= 60 else "#ef4444"
     return (
         f'<div style="display:flex;align-items:center;gap:0.6rem;">'
-        f'<div style="flex:1;background:#21262d;border-radius:4px;height:5px;">'
+        f'<div style="flex:1;background:#d8dee4;border-radius:4px;height:5px;">'
         f'<div style="background:{color};width:{pct}%;height:5px;border-radius:4px;"></div></div>'
-        f'<span style="font-size:0.82rem;color:#d1d5db;font-weight:600;white-space:nowrap;">{score}/10</span>'
+        f'<span style="font-size:0.82rem;color:#57606a;font-weight:600;white-space:nowrap;">{score}/10</span>'
         f'</div>'
     )
 
@@ -262,9 +262,9 @@ def alloc_bar_html(ticker: str, weight: float, max_w: float) -> str:
     return (
         f'<div style="margin-bottom:0.55rem;">'
         f'<div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem;">'
-        f'<span style="color:#f9fafb;font-weight:500;">{ticker}</span>'
-        f'<span style="color:#6b7280;">{weight:.1f}%</span></div>'
-        f'<div style="background:#21262d;border-radius:4px;height:6px;">'
+        f'<span style="color:#1f2328;font-weight:500;">{ticker}</span>'
+        f'<span style="color:#8c959f;">{weight:.1f}%</span></div>'
+        f'<div style="background:#d8dee4;border-radius:4px;height:6px;">'
         f'<div style="background:#3b82f6;width:{min(pct,100):.0f}%;height:6px;border-radius:4px;"></div>'
         f'</div></div>'
     )
@@ -295,8 +295,8 @@ if not st.session_state.logged_in:
     with col:
         st.markdown(
             '<div style="text-align:center;padding:2.5rem 0 1.75rem;">'
-            '<div style="font-size:2.5rem;font-weight:700;color:#f9fafb;letter-spacing:-0.02em;">Wealth<span style="color:#3b82f6;">OS</span></div>'
-            '<div style="font-size:0.85rem;color:#6b7280;margin-top:0.4rem;">Personal financial intelligence</div>'
+            '<div style="font-size:2.5rem;font-weight:700;color:#1f2328;letter-spacing:-0.02em;">Wealth<span style="color:#3b82f6;">OS</span></div>'
+            '<div style="font-size:0.85rem;color:#8c959f;margin-top:0.4rem;">Personal financial intelligence</div>'
             '</div>',
             unsafe_allow_html=True,
         )
@@ -383,7 +383,7 @@ st.session_state.setdefault("viewing_memo", None)
 with st.sidebar:
     st.markdown(
         '<div style="padding:1.25rem 0 0.5rem;">'
-        '<span style="font-size:1.6rem;font-weight:700;color:#f9fafb;letter-spacing:-0.03em;">Wealth<span style="color:#3b82f6;">OS</span></span>'
+        '<span style="font-size:1.6rem;font-weight:700;color:#1f2328;letter-spacing:-0.03em;">Wealth<span style="color:#3b82f6;">OS</span></span>'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -393,7 +393,7 @@ with st.sidebar:
         f'<div style="width:24px;height:24px;border-radius:50%;background:rgba(59,130,246,0.2);'
         f'display:flex;align-items:center;justify-content:center;'
         f'font-size:0.7rem;font-weight:700;color:#3b82f6;flex-shrink:0;">{initial}</div>'
-        f'<span style="font-size:0.82rem;color:#9ca3af;font-weight:500;">{st.session_state.username}</span>'
+        f'<span style="font-size:0.82rem;color:#6e7781;font-weight:500;">{st.session_state.username}</span>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -403,7 +403,7 @@ with st.sidebar:
     st.divider()
 
     st.markdown(
-        '<div style="font-size:0.77rem;color:#6b7280;display:flex;align-items:center;gap:0.4rem;">'
+        '<div style="font-size:0.77rem;color:#8c959f;display:flex;align-items:center;gap:0.4rem;">'
         '<span style="width:6px;height:6px;border-radius:50%;background:#22c55e;'
         'display:inline-block;flex-shrink:0;"></span>8 agents active</div>',
         unsafe_allow_html=True,
@@ -424,8 +424,8 @@ with st.sidebar:
 if page == "Analyze":
 
     st.markdown(
-        '<h1 style="font-size:1.6rem;font-weight:700;color:#f9fafb;margin-bottom:0.25rem;">Analyze</h1>'
-        '<p style="font-size:0.875rem;color:#6b7280;margin-top:0;margin-bottom:1.25rem;">Get a personalized investment memo powered by 8 AI agents.</p>',
+        '<h1 style="font-size:1.6rem;font-weight:700;color:#1f2328;margin-bottom:0.25rem;">Analyze</h1>'
+        '<p style="font-size:0.875rem;color:#8c959f;margin-top:0;margin-bottom:1.25rem;">Get a personalized investment memo powered by 8 AI agents.</p>',
         unsafe_allow_html=True,
     )
 
@@ -436,7 +436,7 @@ if page == "Analyze":
         preview = raw[:160] + "…" if len(raw) > 160 else raw
         st.markdown(
             f'<div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;'
-            f'padding:0.45rem 0.85rem;font-size:0.82rem;color:#93c5fd;margin-bottom:1rem;">'
+            f'padding:0.45rem 0.85rem;font-size:0.82rem;color:#2563eb;margin-bottom:1rem;">'
             f'<strong>Memory</strong>&nbsp;&nbsp;{preview}</div>',
             unsafe_allow_html=True,
         )
@@ -471,8 +471,8 @@ if page == "Analyze":
     # File uploader — below form, outside it so indexing fires immediately
     st.markdown("<div style='height:0.75rem'></div>", unsafe_allow_html=True)
     st.markdown(
-        '<span style="font-size:0.875rem;font-weight:500;color:#d1d5db;">Attach documents</span>'
-        '<span style="font-size:0.78rem;color:#6b7280;margin-left:0.5rem;">'
+        '<span style="font-size:0.875rem;font-weight:500;color:#57606a;">Attach documents</span>'
+        '<span style="font-size:0.78rem;color:#8c959f;margin-left:0.5rem;">'
         'Upload salary slips, bank statements, or loan docs so WealthOS can give you truly personalised advice based on your actual financial situation (PDF)</span>',
         unsafe_allow_html=True,
     )
@@ -504,7 +504,7 @@ if page == "Analyze":
         parts = []
         for name, status in st.session_state.doc_status.items():
             icon  = "✓" if status == "ready" else "×" if status == "error" else "…"
-            color = "#22c55e" if status == "ready" else "#ef4444" if status == "error" else "#6b7280"
+            color = "#22c55e" if status == "ready" else "#ef4444" if status == "error" else "#8c959f"
             parts.append(f'<span style="color:{color};font-size:0.8rem;">{icon} {name}</span>')
         st.markdown("&nbsp;&nbsp;".join(parts) + "<br>", unsafe_allow_html=True)
 
@@ -596,7 +596,7 @@ if page == "Analyze":
         with col_v:
             st.markdown(
                 f'<div style="padding:0.75rem 0 0.25rem;">'
-                f'<div style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;'
+                f'<div style="font-size:0.7rem;color:#8c959f;text-transform:uppercase;'
                 f'letter-spacing:0.06em;margin-bottom:0.45rem;">Verdict</div>'
                 f'{verdict_pill(verdict)}</div>',
                 unsafe_allow_html=True,
@@ -604,7 +604,7 @@ if page == "Analyze":
         with col_r:
             st.markdown(
                 f'<div style="padding:0.75rem 0 0.25rem;">'
-                f'<div style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;'
+                f'<div style="font-size:0.7rem;color:#8c959f;text-transform:uppercase;'
                 f'letter-spacing:0.06em;margin-bottom:0.55rem;">Risk</div>'
                 f'{risk_bar_html(risk_score)}</div>',
                 unsafe_allow_html=True,
@@ -613,17 +613,17 @@ if page == "Analyze":
             dcf_str = f"${dcf:,.2f}" if dcf else "—"
             st.markdown(
                 f'<div style="padding:0.75rem 0 0.25rem;">'
-                f'<div style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;'
+                f'<div style="font-size:0.7rem;color:#8c959f;text-transform:uppercase;'
                 f'letter-spacing:0.06em;margin-bottom:0.35rem;">DCF value</div>'
-                f'<div style="font-size:1.3rem;font-weight:700;color:#f9fafb;">{dcf_str}</div>'
+                f'<div style="font-size:1.3rem;font-weight:700;color:#1f2328;">{dcf_str}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
 
         if memo:
             st.markdown(
-                '<div style="border:1px solid #21262d;border-radius:8px;'
-                'padding:1.5rem 1.75rem;background:#161b22;margin-top:0.75rem;">',
+                '<div style="border:1px solid #d8dee4;border-radius:8px;'
+                'padding:1.5rem 1.75rem;background:#f6f8fa;margin-top:0.75rem;">',
                 unsafe_allow_html=True,
             )
             st.markdown(memo.replace("$", "\\$"))
@@ -689,11 +689,11 @@ elif page == "History":
                 c_info, c_btn = st.columns([6, 1])
                 with c_info:
                     st.markdown(
-                        f'<div style="padding:0.55rem 0;border-bottom:1px solid #21262d;">'
+                        f'<div style="padding:0.55rem 0;border-bottom:1px solid #d8dee4;">'
                         f'<div style="display:flex;align-items:center;gap:0.55rem;">'
-                        f'<span style="font-weight:600;color:#f9fafb;font-size:0.9rem;">{ticker_h}</span>'
+                        f'<span style="font-weight:600;color:#1f2328;font-size:0.9rem;">{ticker_h}</span>'
                         f'{verdict_pill(verdict)}</div>'
-                        f'<div style="font-size:0.77rem;color:#6b7280;margin-top:0.15rem;">{meta}</div>'
+                        f'<div style="font-size:0.77rem;color:#8c959f;margin-top:0.15rem;">{meta}</div>'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
@@ -735,7 +735,7 @@ elif page == "History":
 
         # Mem0
         st.markdown(
-            '<span style="font-size:0.875rem;font-weight:600;color:#f9fafb;">'
+            '<span style="font-size:0.875rem;font-weight:600;color:#1f2328;">'
             'What WealthOS knows about you</span>',
             unsafe_allow_html=True,
         )
@@ -744,8 +744,8 @@ elif page == "History":
         if mem_text:
             for s in [ln.strip().lstrip("- ") for ln in mem_text.split("\n") if ln.strip()][:6]:
                 st.markdown(
-                    f'<div style="padding:0.4rem 0;font-size:0.875rem;color:#d1d5db;'
-                    f'border-bottom:1px solid #21262d;">{s}</div>',
+                    f'<div style="padding:0.4rem 0;font-size:0.875rem;color:#57606a;'
+                    f'border-bottom:1px solid #d8dee4;">{s}</div>',
                     unsafe_allow_html=True,
                 )
             st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
@@ -763,7 +763,7 @@ elif page == "History":
 
         # Investor profile
         st.markdown(
-            '<span style="font-size:0.875rem;font-weight:600;color:#f9fafb;">Your investor profile</span>',
+            '<span style="font-size:0.875rem;font-weight:600;color:#1f2328;">Your investor profile</span>',
             unsafe_allow_html=True,
         )
         profile_data = _api("get", f"/user-profile/{USER_ID}")
@@ -790,7 +790,7 @@ elif page == "History":
                 )
                 st.markdown(
                     f'<div style="margin-top:0.6rem;">'
-                    f'<span style="font-size:0.78rem;color:#6b7280;margin-right:0.5rem;">Sectors</span>'
+                    f'<span style="font-size:0.78rem;color:#8c959f;margin-right:0.5rem;">Sectors</span>'
                     f'{tags}</div>',
                     unsafe_allow_html=True,
                 )
@@ -801,7 +801,7 @@ elif page == "History":
 
         # Past decisions
         st.markdown(
-            '<span style="font-size:0.875rem;font-weight:600;color:#f9fafb;">'
+            '<span style="font-size:0.875rem;font-weight:600;color:#1f2328;">'
             'Past decisions</span>',
             unsafe_allow_html=True,
         )
@@ -819,23 +819,23 @@ elif page == "History":
             rows_html = ""
             for a in analyses:
                 v     = a.get("verdict", "—")
-                color = verdict_color.get(v, "#9ca3af")
+                color = verdict_color.get(v, "#6e7781")
                 rows_html += (
-                    '<tr style="border-bottom:1px solid #21262d;">'
-                    f'<td style="padding:0.5rem 0.75rem;color:#f9fafb;font-weight:600;">{a.get("ticker","—")}</td>'
-                    f'<td style="padding:0.5rem 0.75rem;color:#9ca3af;">{fmt_date(a.get("analysis_date",""))}</td>'
+                    '<tr style="border-bottom:1px solid #d8dee4;">'
+                    f'<td style="padding:0.5rem 0.75rem;color:#1f2328;font-weight:600;">{a.get("ticker","—")}</td>'
+                    f'<td style="padding:0.5rem 0.75rem;color:#6e7781;">{fmt_date(a.get("analysis_date",""))}</td>'
                     f'<td style="padding:0.5rem 0.75rem;color:{color};font-weight:600;">{v}</td>'
-                    f'<td style="padding:0.5rem 0.75rem;color:#d1d5db;font-size:0.82rem;">{(a.get("verdict_text") or "")[:100]}</td>'
+                    f'<td style="padding:0.5rem 0.75rem;color:#57606a;font-size:0.82rem;">{(a.get("verdict_text") or "")[:100]}</td>'
                     '</tr>'
                 )
             st.markdown(
-                '<table style="width:100%;border-collapse:collapse;background:#161b22;'
-                'border:1px solid #21262d;border-radius:8px;overflow:hidden;">'
-                '<thead><tr style="border-bottom:1px solid #30363d;">'
-                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-size:0.78rem;">Ticker</th>'
-                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-size:0.78rem;">Date</th>'
-                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-size:0.78rem;">Verdict</th>'
-                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-size:0.78rem;">Excerpt</th>'
+                '<table style="width:100%;border-collapse:collapse;background:#f6f8fa;'
+                'border:1px solid #d8dee4;border-radius:8px;overflow:hidden;">'
+                '<thead><tr style="border-bottom:1px solid #c9d1d9;">'
+                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#8c959f;font-size:0.78rem;">Ticker</th>'
+                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#8c959f;font-size:0.78rem;">Date</th>'
+                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#8c959f;font-size:0.78rem;">Verdict</th>'
+                '<th style="text-align:left;padding:0.5rem 0.75rem;color:#8c959f;font-size:0.78rem;">Excerpt</th>'
                 f'</tr></thead><tbody>{rows_html}</tbody></table>',
                 unsafe_allow_html=True,
             )
