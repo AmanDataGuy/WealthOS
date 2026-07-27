@@ -57,6 +57,14 @@ h2 { color: #1f2328 !important; font-size: 1.5rem !important; font-weight: 600 !
 h3 { color: #24292f !important; font-size: 1.125rem !important; font-weight: 600 !important; margin: 0 0 0.4rem !important; }
 p, li { color: #57606a !important; font-size: 1rem !important; }
 label { color: #57606a !important; font-size: 1rem !important; }
+/* Button label text is wrapped in a <p> — the rule above would otherwise
+   grey it out even on a blue primary button. Force it back to white. */
+[data-testid="stButton"] button[kind="primary"] p,
+[data-testid="stFormSubmitButton"] button p { color: #ffffff !important; }
+
+/* Streamlit's own header bar auto-follows browser dark-mode preference
+   when nothing overrides it — force it to match the light page. */
+[data-testid="stHeader"] { background: #ffffff !important; }
 
 /* ── Inputs ── */
 [data-testid="stTextInput"] input,
