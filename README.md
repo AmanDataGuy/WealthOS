@@ -27,46 +27,38 @@ WealthOS knows their monthly surplus is ₹18,000, food spending spiked 35% last
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    classDef input fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
-    classDef interface fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#064e3b
-    classDef mcp fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
-    classDef agent fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
-    classDef orch fill:#f1f5f9,stroke:#f97316,stroke-width:3px,color:#7c2d12
-    classDef intel fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
-    classDef data fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
-    classDef output fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
-
-    Input[Text / PDF Input]:::input --> FastAPI[FastAPI + Streamlit]:::interface
-
-    FastAPI --> M1[Market Data<br>yfinance · FRED]:::mcp
-    FastAPI --> M2[SEC Filings<br>10-K / 10-Q]:::mcp
-    FastAPI --> M3[News & Sentiment]:::mcp
-    FastAPI --> M4[Finance Calculators<br>DCF / WACC]:::mcp
-    FastAPI --> M5[Tax & Portfolio]:::mcp
-
-    M1 & M2 & M3 & M4 & M5 --> A0[Router Agent<br>Horizon · Tier · Fetch Plan]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A1[Finance Agent<br>Health Score]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A2[Research Agent<br>RAG + News]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A3[Data Agent<br>asyncpg + Redis]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A4[Risk Agent<br>Debate Pattern]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A5[Code Agent<br>E2B Sandbox]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A6[Rebalancing Agent<br>Drift Analysis]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A7[Writer Agent<br>DSPy Compiled]:::agent
-
-    A0 & A1 & A2 & A3 & A4 & A5 & A6 & A7 --> Orchestrator[LangGraph Orchestrator<br>8 Nodes · asyncio.gather parallelism]:::orch
-
-    Orchestrator --> RAG[RAG Pipeline<br>all-MiniLM-L6-v2 · Qdrant hybrid]:::intel
-    Orchestrator --> Mem0[Three-Layer Memory<br>Mem0 · Qdrant · Postgres]:::intel
-    Orchestrator --> Temporal[Temporal<br>Morning briefing cron]:::intel
-
-    Orchestrator --> DB[(PostgreSQL 16<br>11 tables)]:::data
-    Orchestrator --> Cache[(Redis Cache<br>5–15 min TTL)]:::data
-    Orchestrator --> Sandbox[E2B Sandbox<br>DCF / Monte Carlo]:::data
-
-    Orchestrator --> Output[Investment Memo<br>Buy / Hold / Avoid]:::output
+```text
+ User (Streamlit UI)
+        │
+        ▼
+ FastAPI Backend
+        │
+        ▼
+ LangGraph Orchestrator  (8 nodes, parallel where possible)
+        │
+        ├── Router        → picks horizon, company tier, fetch plan
+        ├── Finance        ┐
+        ├── Data           │  run in parallel
+        ├── Research       │  (asyncio.gather)
+        ├── Risk           │
+        ├── Code           │
+        ├── Rebalancing    ┘
+        └── Writer        → compiles the final memo
+        │
+        ▼
+ 7 MCP Servers (45 tools)
+   market · sec_edgar · news · finance · calculator · tax · portfolio
+        │
+        ▼
+ Storage & Services
+   Postgres (facts) · Redis (cache) · Qdrant (RAG + memory)
+   E2B (DCF / Monte Carlo sandbox) · Temporal (morning cron)
+        │
+        ▼
+ Investment Memo  (Buy / Hold / Avoid)
 ```
+
+Each of the 8 orchestrator nodes is an agent that calls into the MCP servers for data, then the storage layer for context (past decisions, cached prices, indexed filings).
 
 ---
 
