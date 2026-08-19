@@ -87,6 +87,66 @@ def engine():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Layer 0 — Earnings call transcript extraction (deterministic, no network/LLM)
+#
+# Fixture markdown mirrors the real structure of a scraped fool.com transcript
+# page (verified live 2026-08-19): site chrome, then a metadata section, then
+# "## Full Conference Call Transcript", then the real dialogue, then a
+# "## Read Next" related-content footer.
+# ══════════════════════════════════════════════════════════════════════════════
+
+_FOOL_PAGE_FIXTURE = """[Accessibility Menu](https://www.fool.com/#)
+
+[Arrow-Thin-Down\\\\\\nNVDA\\\\\\n$219.99](https://www.fool.com/quote/nasdaq/nvda/)
+
+## DATE
+2026-05-20
+
+## CALL PARTICIPANTS
+Jensen Huang — CEO
+
+## TAKEAWAYS
+- Revenue up 85% year over year.
+
+## Full Conference Call Transcript
+**Operator:** Good afternoon, welcome to the earnings call.
+
+**Jensen Huang:** Thank you. We delivered an exceptional quarter with record revenue.
+
+**Operator:** This concludes today's conference call. You may now disconnect.
+
+## Read Next
+### Stocks Mentioned
+[Nvidia Stock Quote](https://www.fool.com/quote/nasdaq/nvda/)
+
+## Premium Investing Services
+Sign up for Stock Advisor today.
+"""
+
+
+def test_extract_transcript_body_isolates_real_content():
+    """Extraction must return only the dialogue, not chrome/nav or the footer."""
+    from rag.earnings_indexer import _extract_transcript_body
+    body = _extract_transcript_body(_FOOL_PAGE_FIXTURE)
+
+    assert "Jensen Huang:" in body
+    assert "record revenue" in body
+    # Chrome/nav content before the transcript marker must be excluded
+    assert "Accessibility Menu" not in body
+    assert "TAKEAWAYS" not in body
+    # Footer boilerplate after "## Read Next" must be excluded
+    assert "Stocks Mentioned" not in body
+    assert "Premium Investing Services" not in body
+
+
+def test_extract_transcript_body_falls_back_when_markers_missing():
+    """If the page structure changes and markers aren't found, return the raw text rather than empty."""
+    from rag.earnings_indexer import _extract_transcript_body
+    raw = "Some unexpected page content with no known markers."
+    assert _extract_transcript_body(raw) == raw
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Layer 1 — Sanity tests (no LLM calls, always run in CI)
 # ══════════════════════════════════════════════════════════════════════════════
 

@@ -310,6 +310,43 @@ async def summarize_with_llm(text: str, instruction: str) -> str:
     return ""
 
 
+# ── Tool 6b ───────────────────────────────────────────────────────────────────
+
+async def ensure_earnings_transcripts_indexed(symbols: list[str]) -> None:
+    """
+    For short/mid-horizon queries (fetch_plan["use_earnings_transcript"]), make
+    sure each symbol has an earnings call transcript indexed in Qdrant. Fires
+    on-demand indexing as a background task for anything missing — mirrors
+    router_agent.py's _on_demand_index pattern: never blocks the current
+    request, just pre-warms the RAG index for next time.
+    """
+    try:
+        from qdrant_client import QdrantClient
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        qc = QdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+    except Exception as e:
+        logger.warning("[research_agent] Qdrant unavailable — skipping earnings transcript check: %s", e)
+        return
+
+    for symbol in symbols:
+        try:
+            count = qc.count(
+                "wealthos_docs",
+                count_filter=Filter(must=[
+                    FieldCondition(key="ticker",    match=MatchValue(value=symbol)),
+                    FieldCondition(key="form_type", match=MatchValue(value="EARNINGS_CALL")),
+                ]),
+            ).count
+        except Exception as e:
+            logger.warning("[research_agent] Earnings transcript count check failed for %s: %s", symbol, e)
+            continue
+
+        if count == 0:
+            logger.info("[research_agent] No earnings transcript indexed for %s — indexing in background", symbol)
+            from rag.earnings_indexer import index_earnings_call
+            asyncio.create_task(index_earnings_call(symbol))
+
+
 # ── Tool 6 ────────────────────────────────────────────────────────────────────
 
 async def query_rag(question: str, user_id: str, symbols: list[str] | None = None) -> str:
@@ -360,6 +397,7 @@ async def run_research_agent(
     user_id        : str,
     custom_symbols : list[str] | None = None,   # override tracked symbols
     custom_query   : str | None       = None,   # research a specific topic
+    fetch_plan     : dict | None      = None,   # from router_agent — controls optional fetches
 ) -> ResearchSnapshot:
     """
     Main entry point for the Research Agent.
@@ -368,6 +406,9 @@ async def run_research_agent(
         user_id:        The user's UUID — used for DB lookups and RAG
         custom_symbols: Override the DB symbols (useful for testing)
         custom_query:   Research a specific question instead of portfolio news
+        fetch_plan:     Router's fetch_plan dict; if use_earnings_transcript is
+                         set, ensures each symbol has an earnings call transcript
+                         indexed (background task, never blocks this request)
 
     Returns:
         ResearchSnapshot — always returns something, never crashes
@@ -419,6 +460,9 @@ async def run_research_agent(
         )
 
     logger.info("Symbols to research: %s", symbols)
+
+    if fetch_plan and fetch_plan.get("use_earnings_transcript"):
+        await ensure_earnings_transcripts_indexed(symbols)
 
     # ── Step 2 — Fetch all data in parallel ───────────────────────────────────
     #
