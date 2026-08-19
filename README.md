@@ -199,7 +199,7 @@ flowchart LR
 | Input sanitization + prompt injection guard on `/analyze` | ✅ Done |
 | User risk profile injected into Writer Agent (Personal Finance Fit section) | ✅ Done |
 | Indian stock BSE annual-report indexer (29 companies) | ✅ Done |
-| Earnings call transcript indexing | 🔄 Planned |
+| Earnings call transcript indexing (fool.com via Firecrawl, on-demand) | ✅ Done |
 
 </div>
 
@@ -256,6 +256,7 @@ python -m rag.indexer batch AAPL MSFT NVDA GOOGL TSLA AMZN
 | `WANDB_API_KEY` | W&B Weave eval tracking |
 | `COHERE_API_KEY` | RAG reranking |
 | `FRED_API_KEY` | Macro data — 10Y yield, fed funds rate (optional; yfinance fallback) |
+| `FIRECRAWL_API_KEY` | News/Reddit full-article scraping; earnings call transcript indexing |
 
 See `.env.example` for the full list. `GROQ_API_KEY` also needs to be set as a **GitHub Actions repo secret** for the DeepEval CI gate (`.github/workflows/eval.yml`) to run.
 

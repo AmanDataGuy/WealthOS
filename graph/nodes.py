@@ -257,7 +257,7 @@ async def research_node(state: WealthOSState) -> dict:
     try:
         from agents.research_agent import run_research_agent
         user_id = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
-        snapshot = await run_research_agent(user_id, [ticker])
+        snapshot = await run_research_agent(user_id, [ticker], fetch_plan=state.get("fetch_plan"))
         return {
             "research_output": snapshot.model_dump() if hasattr(snapshot, "model_dump") else {"summary": str(snapshot)},
             "messages": log(state, f"Research Node ✅ {ticker}"),

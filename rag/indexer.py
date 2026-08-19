@@ -358,11 +358,48 @@ class FilingIndexer:
             build_hierarchical_chunks, elements, ticker, filing_type,
             filing_date, Path(file_path).name,
         )
+        result = await self._embed_and_upsert(chunks, ticker, filing_type, user_id)
+        result["elements_extracted"] = n_elements
+        return result
+
+    async def index_text(
+        self,
+        text: str,
+        ticker: str,
+        filing_type: str,
+        filing_date: str = "",
+        source_file: str = "",
+    ) -> dict:
+        """
+        Index raw text directly (no file on disk) through the same hierarchical
+        chunker + embed/upsert pipeline as index_filing. Used for content that
+        arrives as a string — e.g. a scraped earnings call transcript — rather
+        than a downloaded PDF/HTML file.
+        """
+        print(f"[indexer] {ticker} {filing_type} — indexing {len(text.split())} words of text")
+
+        elements = [{"type": "prose", "content": text, "page_number": 0, "table_json": None}]
+        chunks = await asyncio.to_thread(
+            build_hierarchical_chunks, elements, ticker, filing_type,
+            filing_date, source_file,
+        )
+        result = await self._embed_and_upsert(chunks, ticker, filing_type)
+        result["elements_extracted"] = 1
+        return result
+
+    async def _embed_and_upsert(
+        self,
+        chunks: list[dict],
+        ticker: str,
+        filing_type: str,
+        user_id: str = "",
+    ) -> dict:
+        """Shared tail for index_filing/index_text: clear old version, embed, upsert."""
         parents  = [c for c in chunks if c["chunk_level"] == 1]
         children = [c for c in chunks if c["chunk_level"] == 2]
         print(f"[indexer] {len(parents)} section chunks + {len(children)} child chunks")
 
-        # Clear previous version of this filing
+        # Clear previous version of this content
         try:
             from qdrant_client.models import Filter, FieldCondition, MatchValue
             self.qdrant.delete(
@@ -420,7 +457,6 @@ class FilingIndexer:
 
         return {
             "ticker": ticker, "filing_type": filing_type,
-            "elements_extracted": n_elements,
             "parent_chunks": len(parents), "child_chunks": len(children),
             "total_points": len(points), "status": "success",
         }
