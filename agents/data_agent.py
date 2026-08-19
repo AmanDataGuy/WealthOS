@@ -35,7 +35,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 REDIS_URL    = os.getenv("REDIS_URL", "redis://localhost:6379")
 CACHE_TTL    = 60 * 15   # 15 minutes
 
-GEN_MODEL    = "llama-3.3-70b-versatile"
+GEN_MODEL    = "openai/gpt-oss-120b"
 
 
 def clean_db_url(url: str) -> str:

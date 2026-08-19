@@ -7,7 +7,7 @@ Three-node internal debate before producing final risk score:
   Node 2 — StockAnalyst   : company-specific financial risks
   Node 3 — RiskScorer     : synthesizes both + personal finance context → final score
 
-All LLM calls via Groq (DeepSeek R1 for reasoning).
+All LLM calls via Groq (openai/gpt-oss-120b for reasoning).
 Receives FinancialSnapshot from Data Agent.
 Receives PersonalFinanceSnapshot from Finance Agent.
 Produces RiskReport.
@@ -30,9 +30,9 @@ load_dotenv()
 # ── Config ────────────────────────────────────────────────────────────────────
 GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "")
 
-# DeepSeek R1 on Groq for reasoning tasks
-REASONING_MODEL = "llama-3.3-70b-versatile"
-FAST_MODEL      = "llama-3.3-70b-versatile"
+# openai/gpt-oss-120b on Groq for reasoning tasks
+REASONING_MODEL = "openai/gpt-oss-120b"
+FAST_MODEL      = "openai/gpt-oss-120b"
 
 
 # ── Pydantic Schemas ───────────────────────────────────────────────────────────
@@ -154,9 +154,8 @@ Provide your macro and sector risk analysis."""
 async def stock_analyst_node(ticker: str, snapshot_context: str) -> str:
     """
     Analyzes company-specific financial risks.
-    Uses DeepSeek R1 for deeper reasoning on financial metrics.
     """
-    print(f"  [Node 2] StockAnalyst running (DeepSeek R1)...")
+    print(f"  [Node 2] StockAnalyst running ({REASONING_MODEL})...")
 
     system = """You are a financial analyst specializing in stock risk assessment.
 Analyze the company's financial health and identify specific risks.

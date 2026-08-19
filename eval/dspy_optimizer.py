@@ -118,17 +118,16 @@ def load_dataset():
 def main():
     print("\n## WealthOS — DSPy Prompt Optimizer\n")
 
-    # llama-3.1-8b-instant has 30k TPM on Groq free tier vs 12k for the 70b model.
-    # Good enough for optimization — the compiled few-shot examples are what matter,
-    # not the model used during compilation.
+    # Cheaper/faster model for compilation — good enough for optimization, since the
+    # compiled few-shot examples are what matter, not the model used during compilation.
     lm = dspy.LM(
-        "groq/llama-3.1-8b-instant",
+        "groq/openai/gpt-oss-20b",
         api_key=GROQ_API_KEY,
         max_tokens=1500,
         temperature=0.3,
     )
     dspy.configure(lm=lm)
-    print("✅ DSPy configured — groq/llama-3.1-8b-instant (30k TPM)")
+    print("✅ DSPy configured — groq/openai/gpt-oss-20b")
 
     trainset, devset = load_dataset()
     print(f"✅ Dataset loaded — {len(trainset)} train, {len(devset)} dev examples")

@@ -125,7 +125,7 @@ Return exactly this JSON:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "llama-3.3-70b-versatile",
+                    "model": "openai/gpt-oss-120b",
                     "messages": [{"role": "user", "content": judge_prompt}],
                     "max_tokens": 100,
                     "temperature": 0.0,   # deterministic scoring
