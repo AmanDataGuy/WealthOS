@@ -118,7 +118,7 @@ flowchart LR
 | **Orchestration** | LangGraph 8-node state machine | `asyncio.gather` for parallel data+research and parallel risk+code — ~2× speedup |
 | **Routing** | Router Agent (node 0) | LLM classifies investment horizon; Qdrant chunk-count sets company tier (`well_indexed` / `thin_indexed` / `not_indexed`); fires `_on_demand_index()` as background task for unknown tickers |
 | **MCP Transport** | MCPClient stdio subprocess | Each agent spawns the MCP server as a subprocess; JSON-RPC over stdin/stdout; retry-on-crash |
-| **LLM** | Groq `llama-3.3-70b-versatile` | Key rotation across up to 3 Groq keys to stay under 12k TPM free tier limit |
+| **LLM** | Groq `openai/gpt-oss-120b` | Key rotation across up to 3 Groq keys to stay under free-tier TPM limits |
 | **RAG** | Qdrant hybrid search + Cohere reranking | `all-MiniLM-L6-v2` 384-dim dense (local CPU, no API key) + BM25 sparse; RRF fusion; SEC 10-K filings indexed for AAPL/MSFT/NVDA/GOOGL/TSLA/AMZN |
 | **Embeddings** | sentence-transformers/all-MiniLM-L6-v2 | 384-dim, runs on CPU, no API key required |
 | **Memory** | Three-layer | (1) Mem0 — 2-line cross-session signal injected at pipeline start; (2) Qdrant `user_analyses` — Final Verdict embedded and written after every run, semantic past-decision retrieval; (3) Postgres `user_risk_profiles` — buy/hold/avoid counts, avg risk score, preferred sectors, updated per run |
@@ -145,7 +145,7 @@ flowchart LR
 | Layer | Technologies |
 |:---:|:---|
 | **Orchestration** | LangGraph (8-node StateGraph) · Temporal (durable workflows) |
-| **LLM** | Groq `llama-3.3-70b-versatile` with 3-key rotation |
+| **LLM** | Groq `openai/gpt-oss-120b` with 3-key rotation |
 | **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` (384-dim, local CPU) |
 | **RAG** | Qdrant local (hybrid dense + BM25 sparse · RRF fusion) · Cohere reranking |
 | **Memory** | Mem0 (signal) · Qdrant `user_analyses` (semantic past verdicts) · Postgres `user_risk_profiles` (quantitative profile) |
@@ -185,7 +185,7 @@ flowchart LR
 | Dockerfiles (api / frontend / mcp) | ✅ Done |
 | Investment horizon routing (short / mid / long-term) | ✅ Done |
 | API key auth + rate limiting on `/analyze` (10 req/min) | ✅ Done |
-| DeepEval CI gate (Gemini judge, path-triggered on writer/eval changes) | 🔄 Workflow defined, entry script pending |
+| DeepEval CI gate (Groq judge, path-triggered on writer/eval changes) | ✅ Done |
 | Full news article body fetch (newspaper3k) | ✅ Done |
 | `user_analyses` Qdrant collection — per-user verdict vectors (read + write) | ✅ Done |
 | Three-layer memory (Mem0 signal + Qdrant semantic + Postgres quantitative) | ✅ Done |
@@ -256,9 +256,8 @@ python -m rag.indexer batch AAPL MSFT NVDA GOOGL TSLA AMZN
 | `WANDB_API_KEY` | W&B Weave eval tracking |
 | `COHERE_API_KEY` | RAG reranking |
 | `FRED_API_KEY` | Macro data — 10Y yield, fed funds rate (optional; yfinance fallback) |
-| `GEMINI_API_KEY` | DeepEval CI judge |
 
-See `.env.example` for the full list.
+See `.env.example` for the full list. `GROQ_API_KEY` also needs to be set as a **GitHub Actions repo secret** for the DeepEval CI gate (`.github/workflows/eval.yml`) to run.
 
 ---
 
