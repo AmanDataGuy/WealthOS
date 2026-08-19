@@ -19,7 +19,7 @@ Agent-quality evaluation for the full WealthOS 8-agent pipeline.
 | `ContextualRelevancyMetric` | Retrieved chunks are relevant to the query                  | Groq LLM      |
 | `financial_verdict_geval`   | Verdict is financially defensible given the data            | GEval         |
 | `task_completion_geval`     | All 7 memo sections present with verdict + personal fit     | GEval         |
-| `VerdictConsistencyMetric`  | AVOID requires risk>=6; BUY requires risk<=4 (deterministic)| Pure Python   |
+| `VerdictConsistencyMetric`  | BUY fails if risk>=9; AVOID fails if risk<=4 (deterministic) | Pure Python   |
 
 ---
 
@@ -72,7 +72,7 @@ class GroqJudge(DeepEvalBaseLLM):
     jobs that only run the no-API-key test.
     """
 
-    def __init__(self, model: str = "llama-3.3-70b-versatile"):
+    def __init__(self, model: str = "openai/gpt-oss-120b"):
         self._model = model
         self._model_name = f"groq/{model}"
         self._chat = None

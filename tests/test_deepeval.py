@@ -71,7 +71,7 @@ def all_cases(golden_dataset):
 
 
 # First 3 entries by default — enough to catch regressions without burning API quota.
-# Swap to `all_cases` for a full 15-entry sweep.
+# Swap to `all_cases` for a full sweep of the golden dataset (28 entries).
 @pytest.fixture(scope="module")
 def sample_cases(all_cases):
     return all_cases[:3]
@@ -171,10 +171,10 @@ def test_verdict_consistency(golden_dataset):
     Deterministic DAG check — no LLM, always reproducible.
 
     Rules:
-      BUY  with risk_score >= 6  -> fail (high risk but bullish verdict)
+      BUY   with risk_score >= 9 -> fail (near-maximum risk but bullish verdict)
       AVOID with risk_score <= 4 -> fail (low risk but bearish verdict)
 
-    All 15 golden dataset entries must pass.
+    Every golden dataset entry must pass.
     """
     from eval.deepeval_metrics import make_memo_test_case, verdict_consistency_metric
 

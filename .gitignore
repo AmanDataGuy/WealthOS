@@ -32,6 +32,9 @@ htmlcov/
 eval/compiled_*.json
 !eval/writer_golden_dataset.json
 
+# Eval run outputs — regenerated per run, not source
+eval/results/
+
 # Modal
 .modal/
 

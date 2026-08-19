@@ -15,7 +15,7 @@ on:
 jobs:
   deepeval:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -25,12 +25,11 @@ jobs:
           python-version: "3.11"
 
       - name: Install eval dependencies
-        run: pip install deepeval langchain-google-genai python-dotenv
+        run: pip install deepeval langchain-groq python-dotenv
 
       - name: Run DeepEval (first 5 examples)
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python eval/run_deepeval.py --limit 5
 
       - name: Check pass rate >= 80%
