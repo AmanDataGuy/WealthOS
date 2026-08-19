@@ -1,7 +1,7 @@
 # services/llm_client.py
 """
 Shared LLM client for WealthOS agents.
-Calls Groq API (llama-3.3-70b-versatile). Returns empty string if all keys fail.
+Calls Groq API (openai/gpt-oss-120b). Returns empty string if all keys fail.
 """
 
 import os
@@ -20,11 +20,11 @@ _GROQ_KEYS = [
     ] if k
 ]
 
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 
-# Groq pricing for llama-3.3-70b-versatile (per 1M tokens)
-_COST_INPUT_PER_M  = 0.05
-_COST_OUTPUT_PER_M = 0.08
+# Groq pricing for openai/gpt-oss-120b (per 1M tokens)
+_COST_INPUT_PER_M  = 0.15
+_COST_OUTPUT_PER_M = 0.60
 
 # Session-level running totals — resets on process restart
 _session_cost = {

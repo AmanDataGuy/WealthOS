@@ -72,7 +72,7 @@ def _make_grader(schema):
     """Return a ChatGroq instance with structured output bound to schema."""
     from langchain_groq import ChatGroq
     return ChatGroq(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         temperature=0,
         api_key=GROQ_API_KEY,
     ).with_structured_output(schema, method="json_schema")
@@ -225,7 +225,7 @@ Bold all key numbers."""
         "https://api.groq.com/openai/v1/chat/completions",
         headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
         json={
-            "model": "llama-3.3-70b-versatile",
+            "model": "openai/gpt-oss-120b",
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 1500,
             "temperature": 0.3,
@@ -243,7 +243,7 @@ def _generate_compiled(context: dict) -> str:
 
     program = MemoWriter()
     program.load(str(COMPILED_PATH))
-    lm = dspy.LM("groq/llama-3.3-70b-versatile", api_key=GROQ_API_KEY, max_tokens=1500, temperature=0.3)
+    lm = dspy.LM("groq/openai/gpt-oss-120b", api_key=GROQ_API_KEY, max_tokens=1500, temperature=0.3)
     dspy.configure(lm=lm)
     result = program(
         financial_context = context["financial_snapshot"],

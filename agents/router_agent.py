@@ -23,7 +23,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL   = "llama-3.1-8b-instant"  # small model — just classification
+GROQ_MODEL   = "openai/gpt-oss-20b"  # small model — just classification
 
 HORIZON_PROMPT = """Classify this investment query into one of three horizons.
 

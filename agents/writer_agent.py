@@ -36,7 +36,7 @@ from services.llm_client import call_llm
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL   = "llama-3.3-70b-versatile"
+GROQ_MODEL   = "openai/gpt-oss-120b"
 COMPILED_PROMPT_PATH = "eval/compiled_writer.json"
 
 
@@ -55,7 +55,7 @@ def _load_compiled_program():
         from eval.dspy_optimizer import MemoWriter
         program = MemoWriter()
         program.load(COMPILED_PROMPT_PATH)
-        lm = dspy.LM("groq/llama-3.3-70b-versatile", api_key=GROQ_API_KEY, max_tokens=1500, temperature=0.3)
+        lm = dspy.LM("groq/openai/gpt-oss-120b", api_key=GROQ_API_KEY, max_tokens=1500, temperature=0.3)
         dspy.configure(lm=lm)
         print(f"  [writer] DSPy compiled prompt loaded from {COMPILED_PROMPT_PATH}")
         return program

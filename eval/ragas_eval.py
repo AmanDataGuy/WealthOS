@@ -82,7 +82,7 @@ def _get_llm():
     from langchain_groq import ChatGroq
     from ragas.llms import LangchainLLMWrapper
     return LangchainLLMWrapper(ChatGroq(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         api_key=os.getenv("GROQ_API_KEY", ""),
         temperature=0,
     ))
@@ -197,7 +197,7 @@ def generate_testset(tickers: list[str] | None = None, size: int = 30) -> list[d
         from langchain_huggingface import HuggingFaceEmbeddings
 
         llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             api_key=os.getenv("GROQ_API_KEY", ""),
             temperature=0,
         )
