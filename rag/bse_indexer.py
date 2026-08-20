@@ -1,109 +1,113 @@
 # rag/bse_indexer.py
 """
-BSE India Annual Report Downloader + Indexer.
+Indian Annual Report Downloader + Indexer.
 
-Downloads annual reports from BSE India and indexes them into Qdrant.
+Downloads annual reports for Indian companies and indexes them into Qdrant.
 Fixes the ~8-chunk problem for Indian stocks (vs 180-287 chunks for US).
 
-Target: 30 major Indian companies across 6 sectors.
+Was a hardcoded BSE scrip-ID map + guessed URL pattern with no discovery
+step — broke silently the moment BSE changed its file-naming convention, and
+an NSE "fallback" that found a PDF link but never downloaded it. Replaced
+with search-then-download, the same pattern already proven in
+rag/earnings_indexer.py: Firecrawl /v1/search finds the real, current PDF
+URL (usually on the company's own investor-relations site, not BSE's —
+verified live, e.g. TCS's real annual report lives on tcs.com, not a
+guessable bseindia.com path). No scrip-ID map to maintain.
+
+One thing NOT solved by Firecrawl: some IR sites 403 a bare "requests"
+User-Agent even though the PDF itself is public (verified live on tcs.com).
+A full browser-like header set gets past this — it's basic bot-filtering,
+not real protection — so PDFs are downloaded directly via httpx rather than
+through Firecrawl's own /v1/scrape (which times out on large PDFs anyway).
 
 Usage:
     from rag.bse_indexer import index_indian_company
-    count = await index_indian_company("TCS.NS", year=2024)
+    count = await index_indian_company("TCS.NS", "Tata Consultancy Services")
 
-    # Or index all 30 at once:
+    # Or index a batch:
     python scripts/index_indian_stocks.py
 """
 
-import asyncio
 import logging
+import os
+import tempfile
+from datetime import date
 from pathlib import Path
 
-import requests
+import httpx
 
 logger = logging.getLogger(__name__)
 
-# BSE scrip IDs — map NSE ticker to BSE scrip_id
-# Verify annually: https://www.bseindia.com/corporates/List_Scrips.html
-BSE_SCRIP_MAP: dict[str, str] = {
-    # Large Cap
-    "TCS.NS":        "532540",
-    "INFY.NS":       "500209",
-    "HDFCB.NS":      "500180",
-    "RELIANCE.NS":   "500325",
-    "WIPRO.NS":      "507685",
-    # IT / Tech
-    "TECHM.NS":      "532755",
-    "HCLTECH.NS":    "532281",
-    "LTIM.NS":       "540005",
-    "MPHASIS.NS":    "526299",
-    # Finance
-    "AXISBANK.NS":   "532215",
-    "ICICIBANK.NS":  "532174",
-    "KOTAKBANK.NS":  "500247",
-    "SBIN.NS":       "500112",
-    "BAJFINANCE.NS": "500034",
-    # Consumer
-    "ITC.NS":        "500875",
-    "HINDUNILVR.NS": "500696",
-    "NESTLEIND.NS":  "500790",
-    "MARICO.NS":     "531642",
-    "BRITANNIA.NS":  "500825",
-    # Infra / Energy
-    "NTPC.NS":       "532555",
-    "POWERGRID.NS":  "532898",
-    "ONGC.NS":       "500312",
-    "COALINDIA.NS":  "533278",
-    "BPCL.NS":       "500547",
-    # Auto / Pharma
-    "MARUTI.NS":     "532500",
-    "TATAMOTORS.NS": "500570",
-    "SUNPHARMA.NS":  "524715",
-    "DRREDDY.NS":    "500124",
-    "CIPLA.NS":      "500087",
+# A full browser header set — verified live: a bare "requests"-style
+# User-Agent gets 403'd by some IR sites that serve the exact same PDF at
+# 200 to a normal-looking browser request.
+_DOWNLOAD_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+    ),
+    "Accept": "application/pdf,text/html,*/*",
+    "Accept-Language": "en-US,en;q=0.9",
 }
 
-HEADERS = {"User-Agent": "WealthOS research@wealthos.app"}
 
-
-def get_bse_pdf_url(ticker: str, year: int = 2024) -> str | None:
-    """Return BSE annual report PDF URL or None if ticker not in map."""
-    scrip_id = BSE_SCRIP_MAP.get(ticker)
-    if not scrip_id:
+async def find_annual_report_url(ticker: str, company_name: str = "") -> str | None:
+    """Search for a company's most recent annual report PDF via Firecrawl."""
+    api_key = os.getenv("FIRECRAWL_API_KEY", "")
+    if not api_key:
+        logger.warning("[bse_indexer] FIRECRAWL_API_KEY not set — skipping %s", ticker)
         return None
-    return (
-        f"https://www.bseindia.com/bseplus/AnnualReport/"
-        f"{scrip_id}/{year}/{scrip_id}{year}.pdf"
-    )
+
+    query = f"{company_name or ticker} annual report pdf".strip()
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                "https://api.firecrawl.dev/v1/search",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={"query": query, "limit": 5},
+            )
+            resp.raise_for_status()
+            results = resp.json().get("data", [])
+    except Exception as e:
+        logger.warning("[bse_indexer] Firecrawl search failed for %s: %s", ticker, e)
+        return None
+
+    for r in results:
+        url = r.get("url", "")
+        if url.lower().endswith(".pdf"):
+            return url
+
+    logger.info("[bse_indexer] No direct PDF link found for %s", ticker)
+    return None
 
 
-async def index_indian_company(ticker: str, year: int = 2024) -> int:
+async def index_indian_company(ticker: str, company_name: str = "") -> int:
     """
-    Download the annual report PDF for a BSE-listed company and index it into Qdrant.
+    Find, download, and index the latest annual report for an Indian company.
     Returns the number of chunks indexed (0 on failure).
     """
-    url = get_bse_pdf_url(ticker, year)
+    url = await find_annual_report_url(ticker, company_name)
     if not url:
-        logger.warning("[bse_indexer] %s not in BSE_SCRIP_MAP — skipping", ticker)
         return 0
 
-    logger.info("[bse_indexer] Downloading %s annual report (%d)...", ticker, year)
+    logger.info("[bse_indexer] Downloading %s annual report: %s", ticker, url)
 
     try:
-        resp = requests.get(url, timeout=45, headers=HEADERS)
-        resp.raise_for_status()
+        async with httpx.AsyncClient(timeout=90, follow_redirects=True) as client:
+            resp = await client.get(url, headers=_DOWNLOAD_HEADERS)
+            resp.raise_for_status()
     except Exception as e:
         logger.warning("[bse_indexer] Download failed for %s: %s", ticker, e)
-        # Try NSE fallback
-        return await _try_nse_fallback(ticker, year)
+        return 0
 
     content = resp.content
     if len(content) < 5000:
-        logger.warning("[bse_indexer] PDF too small for %s (%d bytes) — likely error page", ticker, len(content))
-        return await _try_nse_fallback(ticker, year)
+        logger.warning("[bse_indexer] PDF too small for %s (%d bytes) — likely an error page", ticker, len(content))
+        return 0
 
-    # Save to temp path and index
-    tmp_path = Path(f"/tmp/{ticker.replace('.', '_')}_{year}.pdf")
+    # tempfile, not a hardcoded /tmp/ path — the old version was POSIX-only
+    # and broke on Windows.
+    tmp_path = Path(tempfile.gettempdir()) / f"{ticker.replace('.', '_')}_annual_report.pdf"
     tmp_path.write_bytes(content)
     logger.info("[bse_indexer] Downloaded %d bytes — indexing...", len(content))
 
@@ -114,39 +118,17 @@ async def index_indian_company(ticker: str, year: int = 2024) -> int:
             file_path=str(tmp_path),
             ticker=ticker,
             filing_type="annual_report",
-            filing_date=f"{year}-04-01",
+            filing_date=date.today().isoformat(),
         )
         count = result.get("total_points", 0)
         logger.info("[bse_indexer] Indexed %d chunks for %s", count, ticker)
-
-        # Update indexed_tickers table
-        await _update_indexed_tickers(ticker, count, str(year), "bse_pdf")
+        await _update_indexed_tickers(ticker, count, str(date.today().year), "annual_report_pdf")
         return count
     except Exception as e:
         logger.error("[bse_indexer] Indexing failed for %s: %s", ticker, e)
         return 0
     finally:
         tmp_path.unlink(missing_ok=True)
-
-
-async def _try_nse_fallback(ticker: str, year: int) -> int:
-    """Try NSE annual reports API as fallback when BSE URL fails."""
-    symbol = ticker.replace(".NS", "")
-    nse_url = f"https://www.nseindia.com/api/annual-reports?index=equities&symbol={symbol}"
-    try:
-        resp = requests.get(nse_url, timeout=15, headers={**HEADERS, "Referer": "https://www.nseindia.com"})
-        if resp.status_code == 200:
-            data = resp.json()
-            reports = data.get("data", [])
-            if reports:
-                pdf_link = reports[0].get("fileName", "")
-                if pdf_link:
-                    logger.info("[bse_indexer] NSE fallback found PDF for %s", ticker)
-                    return 0  # TODO: download and index NSE PDF
-    except Exception:
-        pass
-    logger.warning("[bse_indexer] No annual report found for %s (BSE + NSE both failed)", ticker)
-    return 0
 
 
 async def _update_indexed_tickers(ticker: str, chunk_count: int, filing_year: str, source: str) -> None:

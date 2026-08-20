@@ -25,19 +25,34 @@ def get_client() -> MemoryClient:
     return _client
 
 
-def read_memory(user_id: str) -> str:
+def read_memory(user_id: str, query: str = "") -> str:
     """
-    Pull everything Mem0 knows about this user.
-    Returns a plain string injected into state as user_memory.
+    Pull what Mem0 knows about this user that's relevant to their current
+    question. Returns a plain string injected into state as user_memory.
     Returns empty string if no memories exist yet (new user).
+
+    Args:
+        user_id: whose memory to search
+        query:   the user's actual current question, if available — searches
+                 for "your history with semiconductor stocks" instead of a
+                 generic finance query when the user is asking about one.
+                 Falls back to a generic query if not provided (e.g. a
+                 cold-start call with no question yet).
     """
     try:
         client = get_client()
-        memories = client.search(
-            query="financial analysis investment risk portfolio",
+        response = client.search(
+            query=query or "financial analysis investment risk portfolio",
             filters={"user_id": user_id},
             limit=10,
         )
+        # client.search() returns {"results": [...]}, not a bare list — this
+        # was previously unwrapped incorrectly (`for m in memories` iterated
+        # over the dict's keys, i.e. the single string "results", so every
+        # real memory call before this fix silently returned garbage instead
+        # of actual content). Handle both shapes defensively in case the SDK
+        # ever reverts to returning a bare list.
+        memories = response.get("results", []) if isinstance(response, dict) else response
         if not memories:
             return ""
 
@@ -69,6 +84,7 @@ def write_memory(user_id: str, state: dict) -> None:
         client = get_client()
 
         ticker   = state.get("tickers", ["Unknown"])[0]
+        query    = state.get("query", "")
         risk     = state.get("risk_report") or {}
         personal = state.get("personal_finance") or {}
         memo     = state.get("final_memo", "")
@@ -83,10 +99,17 @@ def write_memory(user_id: str, state: dict) -> None:
         if "Final Verdict" in memo:
             verdict_excerpt = memo.split("Final Verdict")[-1][:200].strip()
 
+        # Include the actual question asked — real qualitative signal about
+        # stated intent (e.g. "quick trade" vs "10-year hold"), not just the
+        # decision outcome that's already logged in Qdrant's user_analyses.
+        user_content = f"Analyzed {ticker}. My monthly surplus was ₹{surplus}, health score {health}/100."
+        if query:
+            user_content = f'{user_content} I asked: "{query}"'
+
         messages = [
             {
                 "role": "user",
-                "content": f"Analyzed {ticker}. My monthly surplus was ₹{surplus}, health score {health}/100."
+                "content": user_content
             },
             {
                 "role": "assistant",

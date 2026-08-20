@@ -57,7 +57,10 @@ AGENT_CARDS = {
         "output_schema": ["research_output"],
         "mcp_servers": ["market_server", "news_server", "sec_edgar_server"],
         "status": "PARTIAL",
-        # query_rag() still uses dead pgvector path; direct imports not yet migrated to MCP
+        # query_rag() genuinely uses Qdrant hybrid search (not pgvector — that
+        # was an earlier design). Still PARTIAL because fetch_market_data()
+        # imports mcp_servers.market_server directly rather than going
+        # through MCPClient/the MCP protocol like finance_server does.
     },
 
     "risk_agent": {

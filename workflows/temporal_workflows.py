@@ -41,18 +41,9 @@ RETRY = RetryPolicy(
 @activity.defn
 async def finance_activity(user_id: str) -> dict:
     """Returns the personal finance context for this user."""
-    # Stub — same test context as graph/nodes.py finance_node
-    # Swap in run_finance_agent(user_id) in Phase 8
-    return {
-        "monthly_income":     150000,
-        "monthly_surplus":    30000,
-        "debt_burden_ratio":  0.25,
-        "health_score":       {"total": 72, "grade": "Good"},
-        "risk_capacity":      "medium",
-        "investable_monthly": 20000,
-        "goals":              [],
-        "anomalies":          [],
-    }
+    from agents.finance_agent import run_finance_agent
+    snapshot = await run_finance_agent(user_id)
+    return snapshot.model_dump()
 
 
 @activity.defn
