@@ -34,6 +34,7 @@ r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"), decode_resp
 NEWSAPI_KEY       = os.getenv("NEWSAPI_KEY", "")
 NEWSAPI_BASE      = "https://newsapi.org/v2/everything"
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", "")
+GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")
 
 # Cache durations
 TTL_NEWS      = 60 * 30   # 30 minutes
@@ -125,13 +126,11 @@ def _fetch_article_body(url: str) -> str:
     return ""
 
 
-def score_sentiment(articles: list[dict]) -> dict:
+def _keyword_sentiment(articles: list[dict]) -> list[str]:
     """
-    Simple keyword-based sentiment scoring.
-    Returns: positive_count, negative_count, neutral_count, overall score and label.
-
-    NOTE: Lightweight rule-based scorer.
-    In production this gets replaced by a Groq LLM call for better accuracy.
+    Keyword-based sentiment classifier. Used as the fallback when Groq is
+    unavailable or fails — misses negation/sarcasm, but free and instant.
+    Returns one label per article: "positive" | "negative" | "neutral".
     """
     positive_words = [
         "beat", "beats", "record", "growth", "profit", "upgrade", "raised",
@@ -144,19 +143,82 @@ def score_sentiment(articles: list[dict]) -> dict:
         "sell", "bearish", "layoff", "warning", "disappoints", "below"
     ]
 
-    pos = neg = neu = 0
-
+    labels = []
     for article in articles:
         text = (article.get("title", "") + " " + (article.get("description") or "")).lower()
         pos_hits = sum(1 for w in positive_words if w in text)
         neg_hits = sum(1 for w in negative_words if w in text)
-
         if pos_hits > neg_hits:
-            pos += 1
+            labels.append("positive")
         elif neg_hits > pos_hits:
-            neg += 1
+            labels.append("negative")
         else:
-            neu += 1
+            labels.append("neutral")
+    return labels
+
+
+def _llm_sentiment(articles: list[dict]) -> list[str] | None:
+    """
+    Classify each article's sentiment with one batched Groq call — catches
+    negation/sarcasm the keyword list can't ("not a great quarter" no longer
+    scores as positive just because it contains "great"). Returns None on
+    any failure so the caller can fall back to the keyword classifier.
+    """
+    if not GROQ_API_KEY or not articles:
+        return None
+
+    numbered = "\n".join(
+        f"{i+1}. {a.get('title', '')} — {(a.get('description') or '')[:150]}"
+        for i, a in enumerate(articles)
+    )
+    prompt = f"""Classify the sentiment of each numbered financial news headline below
+as exactly one of: positive, negative, neutral (from the perspective of the
+stock/company being discussed).
+
+{numbered}
+
+Reply with ONLY a JSON object: {{"labels": ["positive", "neutral", ...]}}
+— exactly {len(articles)} labels, in the same order as the headlines above."""
+
+    try:
+        resp = httpx.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+            json={
+                "model": "openai/gpt-oss-20b",  # cheap/fast tier — simple classification
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"},
+                "max_tokens": 300,
+                "temperature": 0,
+            },
+            timeout=20.0,
+        )
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"]
+        labels = json.loads(content).get("labels", [])
+        valid = {"positive", "negative", "neutral"}
+        if len(labels) != len(articles) or not all(l in valid for l in labels):
+            return None
+        return labels
+    except Exception as e:
+        logger.warning("LLM sentiment classification failed, using keyword fallback: %s", e)
+        return None
+
+
+def score_sentiment(articles: list[dict]) -> dict:
+    """
+    Score sentiment across a list of articles.
+    Returns: positive_count, negative_count, neutral_count, overall score and label.
+
+    Tries a batched Groq classification first (catches negation/sarcasm the
+    old keyword-only version couldn't); falls back to the keyword classifier
+    if Groq is unavailable or the call fails.
+    """
+    labels = _llm_sentiment(articles) or _keyword_sentiment(articles)
+
+    pos = labels.count("positive")
+    neg = labels.count("negative")
+    neu = labels.count("neutral")
 
     total = pos + neg + neu
     if total == 0:

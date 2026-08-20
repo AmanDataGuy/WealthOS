@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # scripts/index_indian_stocks.py
 """
-Index annual reports for 30 major Indian companies into Qdrant.
+Index annual reports for Indian companies into Qdrant via Firecrawl
+search-then-download (see rag/bse_indexer.py).
 
 Run once on EC2 after Qdrant is live:
     python scripts/index_indian_stocks.py
-    python scripts/index_indian_stocks.py --tickers TCS.NS INFY.NS   # specific tickers
-    python scripts/index_indian_stocks.py --year 2023                 # different year
+    python scripts/index_indian_stocks.py --tickers TCS.NS:"Tata Consultancy Services" INFY.NS:Infosys
 
 Requires: Qdrant running at QDRANT_URL (default localhost:6333)
           PostgreSQL running at WEALTHOS_DB_URL
+          FIRECRAWL_API_KEY set
 """
 
 import asyncio
@@ -19,19 +20,27 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from rag.bse_indexer import BSE_SCRIP_MAP, index_indian_company
+from rag.bse_indexer import index_indian_company
+
+DEFAULT_COMPANIES = {
+    "TCS.NS": "Tata Consultancy Services",
+    "INFY.NS": "Infosys",
+    "HDFCB.NS": "HDFC Bank",
+    "RELIANCE.NS": "Reliance Industries",
+    "WIPRO.NS": "Wipro",
+}
 
 
-async def main(tickers: list[str], year: int) -> None:
-    print(f"\nIndexing {len(tickers)} Indian companies (year={year})\n")
+async def main(companies: dict[str, str]) -> None:
+    print(f"\nIndexing {len(companies)} Indian companies\n")
 
     results = {}
-    for i, ticker in enumerate(tickers, 1):
-        print(f"  [{i}/{len(tickers)}] {ticker}...", end=" ", flush=True)
-        count = await index_indian_company(ticker, year)
+    for i, (ticker, name) in enumerate(companies.items(), 1):
+        print(f"  [{i}/{len(companies)}] {ticker}...", end=" ", flush=True)
+        count = await index_indian_company(ticker, name)
         results[ticker] = count
         print(f"{count} chunks")
-        await asyncio.sleep(2)  # be polite to BSE servers
+        await asyncio.sleep(2)  # be polite to IR servers
 
     print("\n── Summary ──────────────────────────────────")
     success = {t: c for t, c in results.items() if c > 0}
@@ -46,9 +55,11 @@ async def main(tickers: list[str], year: int) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tickers", nargs="+", default=list(BSE_SCRIP_MAP.keys()),
-                        help="Specific tickers to index (default: all 30)")
-    parser.add_argument("--year", type=int, default=2024,
-                        help="Annual report year (default: 2024)")
+    parser.add_argument("--tickers", nargs="+", default=None,
+                        help='Specific tickers as TICKER:"Company Name" (default: 5 built-in)')
     args = parser.parse_args()
-    asyncio.run(main(args.tickers, args.year))
+    if args.tickers:
+        companies = dict(t.split(":", 1) for t in args.tickers)
+    else:
+        companies = DEFAULT_COMPANIES
+    asyncio.run(main(companies))

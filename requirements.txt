@@ -135,7 +135,7 @@ streamlit
 streamlit-cookies-controller
 dspy-ai
 # smolagents  # listed but not imported anywhere in the codebase — keeping for future use
-composio-core
+# composio-core  # removed — morning_briefing.py now uses stdlib smtplib directly
 mem0ai==0.1.113
 # agentops  # removed — replaced by LangSmith for tracing
 graphql-core==3.2.5

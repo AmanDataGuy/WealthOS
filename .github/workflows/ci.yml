@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: postgres:16  # was pgvector/pgvector:pg16 — nothing in the codebase uses the pgvector extension; vector search is Qdrant
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: wealthos_test
@@ -16,6 +16,9 @@ jobs:
       redis:
         image: redis:7-alpine
         ports: ["6379:6379"]
+      qdrant:
+        image: qdrant/qdrant
+        ports: ["6333:6333"]
 
     steps:
       - uses: actions/checkout@v4
@@ -27,4 +30,15 @@ jobs:
           WEALTHOS_DB_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/wealthos_test
           REDIS_URL: redis://localhost:6379
           SKIP_E2E: "1"
+          PYTHONPATH: "."
+      # Promotes the RAG sanity tests that are actually CI-safe: no LLM call,
+      # no pre-indexed filing data required. The rest of test_rag_pipeline.py
+      # (test_rag_returns_answer, etc.) parametrizes over real SEC-filing
+      # content that isn't indexed in a fresh CI Qdrant, so it stays excluded
+      # above rather than failing on missing data — not the same thing as
+      # "too expensive for CI," just not runnable without an indexing step
+      # this job doesn't do.
+      - run: pytest tests/test_rag_pipeline.py -v --tb=short -k "unknown_ticker_fails_gracefully or extract_transcript_body"
+        env:
+          QDRANT_URL: http://localhost:6333
           PYTHONPATH: "."

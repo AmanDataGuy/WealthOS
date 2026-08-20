@@ -23,16 +23,14 @@ from typing import Optional, Literal
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
+from services.llm_client import GROQ_MODEL as REASONING_MODEL, GROQ_MODEL_FAST as FAST_MODEL
+
 logger = logging.getLogger(__name__)
 
 load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "")
-
-# openai/gpt-oss-120b on Groq for reasoning tasks
-REASONING_MODEL = "openai/gpt-oss-120b"
-FAST_MODEL      = "openai/gpt-oss-120b"
 
 
 # ── Pydantic Schemas ───────────────────────────────────────────────────────────

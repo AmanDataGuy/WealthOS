@@ -11,7 +11,7 @@
 [![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
 
-*8 specialized agents × 7 MCP servers × 45 tools → one personalized investment memo, grounded in real filings and computed math.*
+*8 specialized agents × 5 MCP servers × 45 tools → one personalized investment memo, grounded in real filings and computed math.*
 
 </div>
 
@@ -98,10 +98,8 @@ flowchart LR
 | `market_server` | 13 | yfinance — price, P/E, market cap, historical, sector, competitors, options, technicals, VIX; FRED — 10Y yield, fed funds rate (yfinance fallback if no key) |
 | `sec_edgar_server` | 5 | SEC EDGAR — 10-K / 10-Q filing URLs + XBRL facts |
 | `news_server` | 4 | NewsAPI + Firecrawl + newspaper3k — headlines, full article body, sentiment, Reddit |
-| `finance_server` | 6 | PostgreSQL — transactions, anomalies, subscriptions, EMIs, goals |
-| `calculator_server` | 7 | XIRR (scipy brentq), SIP, EMI, FIRE, compound interest, goal savings |
+| `finance_server` | 19 | PostgreSQL + yfinance — transactions, EMIs, goals, portfolio holdings/P&L/allocation, plus pure financial math (XIRR, EMI, FIRE, SIP). Merged from 3 servers — 2 of the 3 weren't spawned via MCP by any live caller before the merge |
 | `tax_server` | 4 | Old vs new regime, STCG/LTCG (Budget 2024 rates), advance tax, 80C suggestions |
-| `portfolio_server` | 6 | PostgreSQL + yfinance — holdings, P&L, allocation, add/remove holding |
 
 **45 tools · stdio transport via MCPClient subprocess**
 
@@ -118,20 +116,20 @@ flowchart LR
 | **Orchestration** | LangGraph 8-node state machine | `asyncio.gather` for parallel data+research and parallel risk+code — ~2× speedup |
 | **Routing** | Router Agent (node 0) | LLM classifies investment horizon; Qdrant chunk-count sets company tier (`well_indexed` / `thin_indexed` / `not_indexed`); fires `_on_demand_index()` as background task for unknown tickers |
 | **MCP Transport** | MCPClient stdio subprocess | Each agent spawns the MCP server as a subprocess; JSON-RPC over stdin/stdout; retry-on-crash |
-| **LLM** | Groq `openai/gpt-oss-120b` | Key rotation across up to 3 Groq keys to stay under free-tier TPM limits |
+| **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | Key rotation across up to 3 Groq keys; if all fail, falls back to OpenRouter's free `openai/gpt-oss-20b:free` |
 | **RAG** | Qdrant hybrid search + Cohere reranking | `all-MiniLM-L6-v2` 384-dim dense (local CPU, no API key) + BM25 sparse; RRF fusion; SEC 10-K filings indexed for AAPL/MSFT/NVDA/GOOGL/TSLA/AMZN |
 | **Embeddings** | sentence-transformers/all-MiniLM-L6-v2 | 384-dim, runs on CPU, no API key required |
 | **Memory** | Three-layer | (1) Mem0 — 2-line cross-session signal injected at pipeline start; (2) Qdrant `user_analyses` — Final Verdict embedded and written after every run, semantic past-decision retrieval; (3) Postgres `user_risk_profiles` — buy/hold/avoid counts, avg risk score, preferred sectors, updated per run |
 | **Macro Data** | FRED + yfinance fallback | `_get_macro_context()` returns 10Y treasury yield, VIX, S&P 500, fed funds rate, plus derived `vix_regime` and `rate_environment` labels; FRED supplies 10Y yield + fed funds rate when a key is set, VIX and S&P 500 always come from yfinance; macro cache TTL is 15 minutes |
 | **Prompt Optimization** | DSPy BootstrapFewShot | 28 golden examples; compiled to `eval/compiled_writer.json`; structural quality metric (7 sections + verdict) |
 | **Observability** | LangSmith (primary) + W&B Weave (init hook) | `@trace_node` on all 8 nodes; `user_id` masked to first 8 chars in trace metadata (PII); 4-dimension LLM-as-judge scoring (correctness, groundedness, relevance, structure) in `eval/evaluate.py` |
-| **Rate Limiting** | In-memory sliding window | 10 req/min per `user_id` on `/analyze`; configurable via `ANALYZE_RATE_LIMIT` env var; returns HTTP 429 |
+| **Rate Limiting** | Redis sliding-window log | 10 req/min per `user_id` on `/analyze`; configurable via `ANALYZE_RATE_LIMIT` env var; returns HTTP 429 + `Retry-After`; fails open if Redis is unreachable |
 | **Personal Docs** | Permanent storage | Uploaded PDFs saved to `data/personal_docs/{user_id}/{filename}`; re-indexed on re-upload without duplication (delete-before-upsert in Qdrant) |
 | **Code Execution** | E2B cloud sandbox | Isolated Docker container per run; DCF, Monte Carlo (1 000 paths), sensitivity grid |
-| **Validation** | Custom Pydantic v2 validators | `guardrails/validators.py` — risk score 1–10, verdict in {Buy, Hold, Avoid}, memo section presence |
-| **Auth** | bcrypt 5.x direct + PostgreSQL `users` table | passlib removed (incompatible with bcrypt 5.x); 72-byte UTF-8 cap before hash and verify |
+| **Validation** | Custom Pydantic v2 validators | `validation/validators.py` — risk score 1–10, verdict in {Buy, Hold, Avoid}, memo section presence |
+| **Auth** | bcrypt 5.x + PostgreSQL `users` table + JWT | passlib removed (incompatible with bcrypt 5.x); 72-byte UTF-8 cap before hash/verify; `/auth/login` and `/auth/signup` issue an HS256 JWT (30-day expiry) that every `{user_id}`-scoped endpoint verifies against the requested `user_id` |
 | **Session** | streamlit-cookies-controller | 30-day browser cookies; restored on every refresh; cleared on sign-out |
-| **Notifications** | Composio | Gmail + WhatsApp delivery without OAuth boilerplate |
+| **Notifications** | stdlib `smtplib` | Morning briefing email; optional, skips delivery if `SMTP_HOST`/`NOTIFY_EMAIL` unset |
 | **Durability** | Temporal | Morning briefing cron at 08:00; crash-safe with automatic retry |
 
 </div>
@@ -157,49 +155,10 @@ flowchart LR
 | **Cache** | Redis (5-min market data TTL · 15-min snapshot TTL · 15-min macro TTL · 30-min sector TTL · 1-hour financials/info/recommendations TTL) |
 | **MCP Transport** | MCPClient stdio subprocess (services/mcp\_client.py) |
 | **Macro Data** | FRED API (`fredapi`) · yfinance fallback (^TNX, ^VIX, ^GSPC) |
-| **Notifications** | Composio (Gmail + WhatsApp) |
+| **Notifications** | stdlib `smtplib` (email only) |
 | **Observability** | LangSmith (pipeline traces · PII-masked user\_id) · W&B Weave (eval quality) |
 | **Backend** | FastAPI (rate-limited · permanent doc storage) |
 | **Frontend** | Streamlit (light theme · cookie sessions · session memory view) |
-
-</div>
-
----
-
-<div align="center">
-
-## Roadmap
-
-| Feature | Status |
-|:---:|:---:|
-| Multi-user auth — signup / login / bcrypt / cookie sessions | ✅ Done |
-| Full 8-agent pipeline end-to-end | ✅ Done |
-| MCP stdio transport via MCPClient | ✅ Done |
-| LangSmith tracing on all 8 nodes | ✅ Done |
-| RAG — SEC 10-K filings indexed in Qdrant (AAPL / MSFT / NVDA / GOOGL / TSLA / AMZN) | ✅ Done |
-| DSPy BootstrapFewShot compiled writer (28 golden examples) | ✅ Done |
-| W&B Weave LLM-as-judge eval (4-dimension scoring) | ✅ Done |
-| Analysis history — full memo stored, Reports page | ✅ Done |
-| Personal document RAG (salary slips, bank statements via OCR) | ✅ Done |
-| A2A agent cards at `/agents` endpoint | ✅ Done |
-| Dockerfiles (api / frontend / mcp) | ✅ Done |
-| Investment horizon routing (short / mid / long-term) | ✅ Done |
-| API key auth + rate limiting on `/analyze` (10 req/min) | ✅ Done |
-| DeepEval CI gate (Groq judge, path-triggered on writer/eval changes) | ✅ Done |
-| Full news article body fetch (newspaper3k) | ✅ Done |
-| `user_analyses` Qdrant collection — per-user verdict vectors (read + write) | ✅ Done |
-| Three-layer memory (Mem0 signal + Qdrant semantic + Postgres quantitative) | ✅ Done |
-| On-demand SEC EDGAR indexing for unknown tickers | ✅ Done |
-| FRED macro data (10Y yield, VIX, fed funds rate) | ✅ Done |
-| Permanent personal doc storage | ✅ Done |
-| Structured LLM-as-judge eval — correctness, groundedness, relevance, structure (`eval/evaluate.py`) | ✅ Done |
-| E2E test suite (pytest · 7 tests · AAPL full pipeline) | ✅ Done |
-| PII masking in LangSmith traces | ✅ Done |
-| Chunk staleness tracking (info\_type + half\_life\_days + confidence degradation at retrieval) | ✅ Done |
-| Input sanitization + prompt injection guard on `/analyze` | ✅ Done |
-| User risk profile injected into Writer Agent (Personal Finance Fit section) | ✅ Done |
-| Indian stock BSE annual-report indexer (29 companies) | ✅ Done |
-| Earnings call transcript indexing (fool.com via Firecrawl, on-demand) | ✅ Done |
 
 </div>
 
@@ -257,6 +216,7 @@ python -m rag.indexer batch AAPL MSFT NVDA GOOGL TSLA AMZN
 | `COHERE_API_KEY` | RAG reranking |
 | `FRED_API_KEY` | Macro data — 10Y yield, fed funds rate (optional; yfinance fallback) |
 | `FIRECRAWL_API_KEY` | News/Reddit full-article scraping; earnings call transcript indexing |
+| `WEALTHOS_JWT_SECRET` | Signs the JWTs that protect every `{user_id}`-scoped endpoint — recommended, fails open (no auth) if unset |
 
 See `.env.example` for the full list. `GROQ_API_KEY` also needs to be set as a **GitHub Actions repo secret** for the DeepEval CI gate (`.github/workflows/eval.yml`) to run.
 

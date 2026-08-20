@@ -25,6 +25,7 @@ DENSE_DIMS       = 384
 
 # Module-level model cache — shared with indexer.py when running in-process
 _dense_model = None
+_sparse_model = None
 
 
 def _get_dense_model():
@@ -43,9 +44,11 @@ def embed_query_dense(text: str) -> list[float]:
 
 
 def embed_query_sparse(text: str):
-    from fastembed import SparseTextEmbedding
-    model = SparseTextEmbedding(model_name="Qdrant/bm25")
-    return list(model.embed([text]))[0]
+    global _sparse_model
+    if _sparse_model is None:
+        from fastembed import SparseTextEmbedding
+        _sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25")
+    return list(_sparse_model.embed([text]))[0]
 
 
 # ── Qdrant client ─────────────────────────────────────────────────────────────
@@ -295,67 +298,89 @@ class FilingQueryEngine:
 
     async def query(self, question: str, ticker: str) -> str:
         """
-        Full ReAct agentic loop. Runs up to 4 reasoning steps.
-        Returns final answer string.
+        Structured function-calling agentic loop. Runs up to 4 tool-call
+        rounds using Groq's native `tools` param (was a hand-parsed
+        `ACTION:`/`INPUT:` text protocol — silently broke whenever the model
+        phrased its action line even slightly differently). Returns final
+        answer string.
         """
+        from services.llm_client import call_llm, GROQ_MODEL
+
         MAX_STEPS = 4
-        TOOL_DEFINITIONS = [
+        TOOLS = [
             {
-                "name": "financial_facts_sql",
-                "description": "Query structured financial metrics (revenue, earnings, ratios) from the financial_facts table.",
-                "parameters": {"query_type": "string (e.g. 'revenue growth', 'profit margins')"},
+                "type": "function",
+                "function": {
+                    "name": "financial_facts_sql",
+                    "description": "Query structured financial metrics (revenue, earnings, ratios) from the financial_facts table.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query_type": {"type": "string", "description": "e.g. 'revenue growth', 'profit margins'"},
+                        },
+                        "required": ["query_type"],
+                    },
+                },
             },
             {
-                "name": "hybrid_search",
-                "description": "Semantic + keyword hybrid search over SEC filing chunks. Returns relevant prose and table excerpts.",
-                "parameters": {"search_query": "string", "section": "optional string (e.g. risk_factors, md_and_a, income_statement)"},
+                "type": "function",
+                "function": {
+                    "name": "hybrid_search",
+                    "description": "Semantic + keyword hybrid search over SEC filing chunks. Returns relevant prose and table excerpts.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "search_query": {"type": "string"},
+                            "section": {"type": "string", "description": "optional, e.g. risk_factors, md_and_a, income_statement"},
+                        },
+                        "required": ["search_query"],
+                    },
+                },
             },
         ]
 
-        system_prompt = f"""You are a financial analyst with access to SEC filing data for {ticker}.
-
-Available tools:
-{json.dumps(TOOL_DEFINITIONS, indent=2)}
-
-To use a tool respond with:
-ACTION: <tool_name>
-INPUT: <json input>
-
-When you have enough information respond with:
-FINAL ANSWER: <your answer>
-
-Be methodical. Use tools to gather evidence before concluding."""
-
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": f"You are a financial analyst with access to SEC filing data for {ticker}. Use tools to gather evidence before concluding."},
             {"role": "user",   "content": question},
         ]
 
         for _ in range(MAX_STEPS):
-            response = await _call_llm(messages)
-            messages.append({"role": "assistant", "content": response})
+            message = await call_llm(system="", user="", messages=messages, tools=TOOLS, model=GROQ_MODEL, max_tokens=800)
+            tool_calls = message.get("tool_calls") if message else None
 
-            if "FINAL ANSWER:" in response:
-                return response.split("FINAL ANSWER:", 1)[1].strip()
+            if not tool_calls:
+                return (message or {}).get("content", "") or ""
 
-            if "ACTION:" not in response:
-                return response
+            messages.append({
+                "role": "assistant",
+                "content": message.get("content"),
+                "tool_calls": tool_calls,
+            })
+            for call in tool_calls:
+                result = await self._dispatch_tool(call["function"]["name"], call["function"]["arguments"], ticker)
+                messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
 
-            tool_result = await self._dispatch_tool(response, ticker)
-            messages.append({"role": "user", "content": f"Tool result:\n{tool_result}"})
+        # Fallback — model didn't converge in MAX_STEPS rounds. Keep the same
+        # `tools` schema on this call too: gpt-oss models on Groq have a
+        # built-in "browser.search" tool that can fire even with no `tools`
+        # param sent, and dropping to a bare system/user call here (as the
+        # old ReAct fallback did) triggered a 400 "Tool choice is none, but
+        # model called a tool" — verified live. If it still won't give a
+        # plain answer, synthesize one from the tool results directly rather
+        # than making another round-trip.
+        final_messages = messages + [{"role": "user", "content": "Based on all information gathered, provide your final answer now. Do not call any more tools."}]
+        message = await call_llm(system="", user="", messages=final_messages, tools=TOOLS, model=GROQ_MODEL, max_tokens=800)
+        content = (message or {}).get("content")
+        if content:
+            return content
+        tool_results = [m["content"] for m in messages if m.get("role") == "tool"]
+        return "\n\n".join(tool_results) if tool_results else "Unable to reach a conclusion."
 
-        # Fallback — ask for synthesis from accumulated context
-        messages.append({"role": "user", "content": "Based on all information gathered, provide your final answer now."})
-        return await _call_llm(messages)
-
-    async def _dispatch_tool(self, llm_response: str, ticker: str) -> str:
+    async def _dispatch_tool(self, tool_name: str, arguments_json: str, ticker: str) -> str:
         try:
-            action_line = [l for l in llm_response.splitlines() if l.strip().startswith("ACTION:")][0]
-            tool_name   = action_line.split("ACTION:", 1)[1].strip()
-            input_line  = [l for l in llm_response.splitlines() if l.strip().startswith("INPUT:")][0]
-            tool_input  = json.loads(input_line.split("INPUT:", 1)[1].strip())
+            tool_input = json.loads(arguments_json)
         except Exception:
-            return "Could not parse tool call. Respond with FINAL ANSWER or try again."
+            return f"Could not parse arguments for {tool_name}."
 
         if tool_name == "financial_facts_sql":
             return await _tool_sql(ticker, tool_input.get("query_type", ""))

@@ -20,7 +20,7 @@ from agents.code_agent        import run_code_agent
 from agents.rebalancing_agent import run_rebalancing_agent, NewInvestment
 from agents.writer_agent      import run_writer_agent
 from graph.state              import WealthOSState
-from guardrails.validators    import validate_all, validate_memo
+from validation.validators     import validate_all, validate_memo
 from observability.langsmith_config import trace_node
 
 
@@ -173,7 +173,7 @@ async def finance_node(state: WealthOSState) -> dict:
         user_memory = ""
         try:
             from memory.mem0_client import read_memory
-            user_memory = read_memory(user_id)
+            user_memory = read_memory(user_id, query=state.get("query", ""))
             if user_memory:
                 print(f"  [mem0] Loaded memory for {user_id}")
         except Exception as e:

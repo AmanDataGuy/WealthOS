@@ -19,11 +19,12 @@ import logging
 
 from dotenv import load_dotenv
 
+from services.llm_client import GROQ_MODEL_FAST as GROQ_MODEL
+
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL   = "openai/gpt-oss-20b"  # small model — just classification
 
 HORIZON_PROMPT = """Classify this investment query into one of three horizons.
 

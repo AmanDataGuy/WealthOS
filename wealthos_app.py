@@ -226,10 +226,18 @@ small, .stCaptionContainer, [data-testid="stCaptionContainer"] {
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _auth_headers() -> dict:
+    """Bearer token for {user_id}-scoped endpoints — no-op if the backend
+    has no WEALTHOS_JWT_SECRET configured, since those endpoints fail open."""
+    token = st.session_state.get("token", "")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def _api(method: str, path: str, **kwargs):
     try:
+        headers = {**_auth_headers(), **kwargs.pop("headers", {})}
         r = getattr(requests, method)(
-            f"{API_URL}{path}", timeout=kwargs.pop("timeout", 12), **kwargs
+            f"{API_URL}{path}", timeout=kwargs.pop("timeout", 12), headers=headers, **kwargs
         )
         return r.json() if r.ok else None
     except Exception:
@@ -287,16 +295,19 @@ def fmt_date(ts: str) -> str:
 _cookies = CookieController()
 
 if not st.session_state.get("logged_in"):
-    uid  = _cookies.get("wo_user_id")
-    user = _cookies.get("wo_username")
+    uid   = _cookies.get("wo_user_id")
+    user  = _cookies.get("wo_username")
+    token = _cookies.get("wo_token")
     if uid and user:
         st.session_state.logged_in = True
         st.session_state.username  = user
         st.session_state.user_id   = uid
+        st.session_state.token     = token or ""
     else:
         st.session_state.setdefault("logged_in", False)
         st.session_state.setdefault("username",  "")
         st.session_state.setdefault("user_id",   "")
+        st.session_state.setdefault("token",     "")
 
 if not st.session_state.logged_in:
     _, col, _ = st.columns([1, 1.1, 1])
@@ -328,8 +339,10 @@ if not st.session_state.logged_in:
                             st.session_state.logged_in = True
                             st.session_state.username  = d["username"]
                             st.session_state.user_id   = d["user_id"]
+                            st.session_state.token     = d.get("token", "")
                             _cookies.set("wo_user_id",  d["user_id"],  max_age=30 * 24 * 3600)
                             _cookies.set("wo_username", d["username"], max_age=30 * 24 * 3600)
+                            _cookies.set("wo_token",    d.get("token", ""), max_age=30 * 24 * 3600)
                             st.rerun()
                         elif r.status_code == 503:
                             st.error("Backend offline — start the API server first.")
@@ -420,7 +433,8 @@ with st.sidebar:
     if st.button("Sign out", use_container_width=True):
         _cookies.remove("wo_user_id")
         _cookies.remove("wo_username")
-        for k in ("logged_in", "username", "user_id", "doc_status", "last_result", "viewing_memo"):
+        _cookies.remove("wo_token")
+        for k in ("logged_in", "username", "user_id", "token", "doc_status", "last_result", "viewing_memo"):
             st.session_state.pop(k, None)
         st.rerun()
 
@@ -758,7 +772,7 @@ elif page == "History":
                 )
             st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
             if st.button("Clear memory", type="secondary"):
-                r = requests.delete(f"{API_URL}/memory/{USER_ID}", timeout=10)
+                r = requests.delete(f"{API_URL}/memory/{USER_ID}", headers=_auth_headers(), timeout=10)
                 if r.ok:
                     st.success("Memory cleared.")
                     st.rerun()

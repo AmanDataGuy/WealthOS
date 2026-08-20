@@ -94,7 +94,7 @@ class ResearchSnapshot(BaseModel):
     market_signals   : list[MarketSignal]
     news_items       : list[NewsItem]
     sec_insights     : list[SECInsight]
-    rag_context      : str = ""     # relevant chunks from pgvector
+    rag_context      : str = ""     # relevant chunks from Qdrant hybrid search
     macro_summary    : str = ""     # overall market mood, LLM-generated
     data_confidence  : str = "high" # "high" | "medium" | "low" | "none"
     generated_at     : str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())

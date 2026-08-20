@@ -123,16 +123,49 @@ Reply with only the 5-line briefing, nothing else."""
 @activity.defn
 async def send_briefing(user_id: str, briefing: str) -> dict:
     """
-    Deliver the briefing via Composio (Gmail + WhatsApp).
+    Email the briefing via plain SMTP (stdlib smtplib).
+
+    Was Composio (Gmail + WhatsApp) — removed. Composio's actual value is
+    avoiding OAuth boilerplate across many third-party services; this was
+    using it for exactly one thing, delivered to one hardcoded destination
+    (the old composio_client.py's own mock_db had a single UUID entry).
+    That's a whole integration platform for what smtplib does in ~15 lines.
+    WhatsApp delivery is dropped, not replaced — it needs its own API
+    account (Twilio/Meta) that was never actually configured; add it back
+    properly if that's wanted, rather than half-building a new integration
+    here.
+
+    ponytail: SMTP, single recipient from NOTIFY_EMAIL, no retry/queue.
+    Add a real provider (SES/Resend/etc.) if this needs to scale past
+    "one demo user's inbox."
     """
-    from services.composio_client import send_notification
-    results = send_notification(
-        user_id=user_id,
-        subject=f"WealthOS Morning Briefing — {date.today()}",
-        message=briefing,
-    )
-    print(f"  [briefing] Delivered for {user_id}: {results}")
-    return results
+    import smtplib
+    from email.mime.text import MIMEText
+
+    to_email = os.getenv("NOTIFY_EMAIL", "")
+    smtp_host = os.getenv("SMTP_HOST", "")
+    if not to_email or not smtp_host:
+        print(f"  [briefing] SMTP_HOST/NOTIFY_EMAIL not configured — skipping delivery for {user_id}")
+        return {"email": False}
+
+    msg = MIMEText(briefing)
+    msg["Subject"] = f"WealthOS Morning Briefing — {date.today()}"
+    msg["From"] = os.getenv("SMTP_USER", to_email)
+    msg["To"] = to_email
+
+    try:
+        with smtplib.SMTP(smtp_host, int(os.getenv("SMTP_PORT", "587"))) as server:
+            server.starttls()
+            smtp_user = os.getenv("SMTP_USER", "")
+            smtp_password = os.getenv("SMTP_PASSWORD", "")
+            if smtp_user and smtp_password:
+                server.login(smtp_user, smtp_password)
+            server.sendmail(msg["From"], [to_email], msg.as_string())
+        print(f"  [briefing] Emailed {user_id} at {to_email}")
+        return {"email": True}
+    except Exception as e:
+        print(f"  [briefing] Email failed for {user_id}: {e}")
+        return {"email": False, "error": str(e)}
 
 
 # ── Cron Workflow ─────────────────────────────────────────────────────────────

@@ -14,12 +14,13 @@ Endpoints:
 import os
 import json
 import time
+import uuid
 import logging
 import asyncio
 from contextlib import asynccontextmanager
 import shutil
-import collections
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
 import re
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends
 from fastapi.responses import StreamingResponse
@@ -30,6 +31,7 @@ import asyncpg
 import redis.asyncio as aioredis
 from dotenv import load_dotenv
 import bcrypt as _bcrypt
+import jwt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -43,7 +45,6 @@ load_dotenv()
 from graph.graph  import wealthos_graph
 from graph.state  import WealthOSState
 from observability.langsmith_config import verify_langsmith
-from observability.weave_config     import init_weave
 from services.llm_client            import get_session_cost
 from agents.agent_cards             import get_agent_card, list_all_agents
 
@@ -122,7 +123,9 @@ async def _ensure_analysis_history_table():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     verify_langsmith()
-    init_weave()
+    # W&B Weave is not initialized here on purpose — nothing in the live
+    # request path logs to it. eval/evaluate.py (offline only) initializes
+    # its own Weave session when run. See plan_ahead.md Phase 7, item 6.
     await _ensure_users_table()
     await _ensure_analysis_history_table()
     yield
@@ -174,22 +177,45 @@ class LoginRequest(BaseModel):
     password: str
 
 
-# ── Rate limiting (simple in-memory, per user_id, 10 req/min) ────────────────
+# ── Rate limiting (Redis sliding-window-log, per user_id, 10 req/min) ────────
+#
+# Was an in-memory dict — reset on every restart and gave zero protection once
+# the API ran as more than one replica (each got its own independent counter).
+# Redis is already a hard dependency elsewhere in this file; this stores each
+# request as a sorted-set member scored by its timestamp, prunes anything
+# outside the window, and counts what's left — the standard sliding-window-log
+# pattern (see plan_ahead.md Phase 7, item 10).
+#
+# ponytail: check-count-then-add is not a single atomic operation, so two
+# requests from the same user arriving in the same instant could both slip
+# through right at the limit boundary. A Lua script would close that gap;
+# not worth it at this app's actual traffic scale — revisit if it ever is.
 
-_rate_buckets: dict = collections.defaultdict(list)
 _RATE_LIMIT    = int(os.getenv("ANALYZE_RATE_LIMIT", "10"))
 _RATE_WINDOW   = 60  # seconds
 
-def _check_rate_limit(user_id: str) -> None:
+async def _check_rate_limit(user_id: str) -> None:
+    key = f"ratelimit:analyze:{user_id}"
     now = time.time()
-    bucket = _rate_buckets[user_id]
-    _rate_buckets[user_id] = [t for t in bucket if now - t < _RATE_WINDOW]
-    if len(_rate_buckets[user_id]) >= _RATE_LIMIT:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Rate limit exceeded: max {_RATE_LIMIT} analyses per minute.",
-        )
-    _rate_buckets[user_id].append(now)
+    try:
+        redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+        await redis.zremrangebyscore(key, 0, now - _RATE_WINDOW)
+        count = await redis.zcard(key)
+        if count >= _RATE_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Rate limit exceeded: max {_RATE_LIMIT} analyses per minute.",
+                headers={"Retry-After": str(_RATE_WINDOW)},
+            )
+        await redis.zadd(key, {f"{now}-{uuid.uuid4().hex[:8]}": now})
+        await redis.expire(key, _RATE_WINDOW)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Redis down — fail open. Rate limiting is defense-in-depth, not a
+        # correctness requirement; matches this file's existing "never let an
+        # optional dependency block a real request" pattern.
+        logger.warning("[rate_limit] Redis unavailable, allowing request: %s", e)
 
 
 # ── API key auth dependency ───────────────────────────────────────────────────
@@ -198,6 +224,56 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     api_key = os.getenv("WEALTHOS_API_KEY", "")
     if api_key and x_api_key != api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+# ── JWT auth (per-user_id endpoints) ─────────────────────────────────────────
+#
+# Login/signup previously returned a raw {user_id, username} JSON body that
+# the Streamlit frontend stored as two unsigned cookies — anyone could set
+# wo_user_id to any value in a browser console and every {user_id}-scoped
+# endpoint (/history, /portfolio, /memory incl. DELETE, /user-profile,
+# /user-analyses, /briefing/history) would trust it with zero further check.
+# See plan_ahead.md Phase 7, item 11.
+
+_JWT_SECRET      = os.getenv("WEALTHOS_JWT_SECRET", "")
+_JWT_ALGORITHM   = "HS256"
+_JWT_EXPIRY_DAYS = 30  # matches the existing 30-day cookie session length
+
+
+def _issue_token(user_id: str, username: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": user_id,
+        "username": username,
+        "iat": now,
+        "exp": now + timedelta(days=_JWT_EXPIRY_DAYS),
+    }
+    return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
+
+
+async def verify_user_token(user_id: str, authorization: Optional[str] = Header(None)) -> str:
+    """
+    Dependency for every {user_id}-scoped endpoint. Verifies the Bearer JWT
+    and confirms its subject matches the user_id being requested.
+
+    Fails open (no-op) if WEALTHOS_JWT_SECRET is unset — same "optional in
+    local dev, required once configured" pattern as WEALTHOS_API_KEY on
+    /analyze, so a bare local checkout still runs without extra setup.
+    """
+    if not _JWT_SECRET:
+        return user_id
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or malformed Authorization header")
+    token = authorization[len("Bearer "):].strip()
+    try:
+        payload = jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("sub") != user_id:
+        raise HTTPException(status_code=403, detail="Token does not authorize access to this user_id")
+    return user_id
 
 
 # ── Input sanitization ────────────────────────────────────────────────────────
@@ -288,7 +364,11 @@ async def signup(req: SignupRequest):
             )
         finally:
             await conn.close()
-        return {"user_id": row["id"], "username": row["username"], "message": "Account created successfully"}
+        return {
+            "user_id": row["id"], "username": row["username"],
+            "token": _issue_token(row["id"], row["username"]),
+            "message": "Account created successfully",
+        }
     except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=409, detail="Username already taken")
     except Exception as e:
@@ -312,7 +392,10 @@ async def login(req: LoginRequest):
         raise HTTPException(status_code=500, detail=str(e))
     if not row or not _verify_password(req.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    return {"user_id": row["id"], "username": row["username"]}
+    return {
+        "user_id": row["id"], "username": row["username"],
+        "token": _issue_token(row["id"], row["username"]),
+    }
 
 
 # ── Health check ───────────────────────────────────────────────────────────────
@@ -326,7 +409,7 @@ async def health():
 
 @app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_api_key)])
 async def analyze(req: AnalyzeRequest):
-    _check_rate_limit(req.user_id)
+    await _check_rate_limit(req.user_id)
     ticker = req.ticker.upper().strip()
     query  = _sanitize_query(req.query)
 
@@ -529,7 +612,7 @@ async def send_briefing_now(req: BriefingRequest):
         raise HTTPException(status_code=500, detail=f"Briefing failed: {e}")
 
 
-@app.get("/briefing/history/{user_id}")
+@app.get("/briefing/history/{user_id}", dependencies=[Depends(verify_user_token)])
 async def briefing_history(user_id: str):
     """Return last 7 morning briefings for a user."""
     try:
@@ -562,7 +645,7 @@ async def agent_detail(agent_name: str):
 
 # ── Analysis history ──────────────────────────────────────────────────────────
 
-@app.get("/history/{user_id}")
+@app.get("/history/{user_id}", dependencies=[Depends(verify_user_token)])
 async def analysis_history(user_id: str, limit: int = 20):
     """Return the last N analysis runs for a user."""
     if not DB_URL:
@@ -594,7 +677,7 @@ async def analysis_history(user_id: str, limit: int = 20):
 
 # ── Portfolio ──────────────────────────────────────────────────────────────────
 
-@app.get("/portfolio/{user_id}")
+@app.get("/portfolio/{user_id}", dependencies=[Depends(verify_user_token)])
 async def get_portfolio(user_id: str):
     """Return the current portfolio holdings for a user."""
     if not DB_URL:
@@ -663,7 +746,7 @@ async def upload_personal_doc(
 
 # ── Memory endpoints ──────────────────────────────────────────────────────────
 
-@app.get("/memory/{user_id}")
+@app.get("/memory/{user_id}", dependencies=[Depends(verify_user_token)])
 async def get_memory(user_id: str):
     """Return Mem0 memories for a user as a plain string."""
     try:
@@ -674,7 +757,7 @@ async def get_memory(user_id: str):
         return {"memory": "", "has_memory": False, "error": str(e)}
 
 
-@app.delete("/memory/{user_id}")
+@app.delete("/memory/{user_id}", dependencies=[Depends(verify_user_token)])
 async def clear_memory(user_id: str):
     """Delete all Mem0 memories for a user."""
     try:
@@ -685,7 +768,7 @@ async def clear_memory(user_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/user-profile/{user_id}")
+@app.get("/user-profile/{user_id}", dependencies=[Depends(verify_user_token)])
 async def get_user_profile(user_id: str):
     """Return the user_risk_profiles row for a user."""
     if not DB_URL:
@@ -703,7 +786,7 @@ async def get_user_profile(user_id: str):
         return {"profile": None, "error": str(e)}
 
 
-@app.get("/user-analyses/{user_id}")
+@app.get("/user-analyses/{user_id}", dependencies=[Depends(verify_user_token)])
 async def get_user_analyses(user_id: str, limit: int = 8):
     """Return the last N verdict entries from the Qdrant user_analyses collection."""
     try:
