@@ -134,6 +134,10 @@ pymupdf
 streamlit
 streamlit-cookies-controller
 dspy-ai
+litellm==1.88.1  # pinned — unpinned, pip's resolver backtracks through 100+ litellm
+                 # releases trying to satisfy dspy/weave's version ranges alongside our
+                 # other hard pins, which timed out the EC2 deploy step (verified live
+                 # 2026-08-20). Confirmed compatible with the full dependency graph.
 # smolagents  # listed but not imported anywhere in the codebase — keeping for future use
 # composio-core  # removed — morning_briefing.py now uses stdlib smtplib directly
 mem0ai==0.1.113
