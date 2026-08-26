@@ -32,41 +32,55 @@ flowchart LR
     classDef input fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
     classDef interface fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#064e3b
     classDef mcp fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
-    classDef agent fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
-    classDef orch fill:#f1f5f9,stroke:#f97316,stroke-width:3px,color:#7c2d12
+    classDef mcpdead fill:#f5f5f4,stroke:#a8a29e,stroke-width:1px,color:#78716c,stroke-dasharray: 4 3
+    classDef graphnode fill:#f1f5f9,stroke:#f97316,stroke-width:2px,color:#7c2d12
     classDef intel fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
     classDef data fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
     classDef output fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef separate fill:#f5f5f4,stroke:#78716c,stroke-width:2px,color:#44403c
 
-    Input[Text / PDF Input]:::input --> FastAPI[FastAPI + Streamlit]:::interface
+    Input[Text query / PDF upload]:::input --> UI[Streamlit UI<br>wealthos_app.py]:::interface
+    UI -- "POST /analyze" --> API[FastAPI<br>api/main.py]:::interface
+    UI -- "POST /upload (PDF/HTML)" --> Upload[Upload endpoint]:::interface
+    Upload --> Indexer[RAG Indexer]:::intel --> Qdrant[(Qdrant<br>wealthos_docs)]:::data
 
-    FastAPI --> M1[Market Data<br>yfinance · FRED]:::mcp
-    FastAPI --> M2[SEC Filings<br>10-K / 10-Q]:::mcp
-    FastAPI --> M3[News & Sentiment]:::mcp
-    FastAPI --> M4[Finance Calculators<br>DCF / WACC]:::mcp
-    FastAPI --> M5[Tax & Portfolio]:::mcp
+    API --> N0[router]:::graphnode
+    N0 --> N1[finance]:::graphnode
+    N1 --> N2["data_and_research<br>(parallel: data + research)"]:::graphnode
+    N2 --> N3["risk_and_code<br>(parallel: risk + code)"]:::graphnode
+    N3 --> N4[validation]:::graphnode
+    N4 --> N5[rebalancing]:::graphnode
+    N5 --> N6[writer]:::graphnode
+    N6 --> Output[Investment Memo<br>Buy / Hold / Avoid]:::output
 
-    M1 & M2 & M3 & M4 & M5 --> A0[Router Agent<br>Horizon · Tier · Fetch Plan]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A1[Finance Agent<br>Health Score]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A2[Research Agent<br>RAG + News]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A3[Data Agent<br>asyncpg + Redis]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A4[Risk Agent<br>Debate Pattern]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A5[Code Agent<br>E2B Sandbox]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A6[Rebalancing Agent<br>Concentration Check]:::agent
-    M1 & M2 & M3 & M4 & M5 --> A7[Writer Agent<br>DSPy Compiled]:::agent
+    N0 -. "direct import" .-> SEC[sec_edgar_server<br>5 tools]:::mcp
 
-    A0 & A1 & A2 & A3 & A4 & A5 & A6 & A7 --> Orchestrator[LangGraph Orchestrator<br>8 Nodes · asyncio.gather parallelism]:::orch
+    N1 -- MCPClient --> FIN[finance_server<br>19 tools]:::mcp
+    N1 --> PG1[(PostgreSQL)]:::data
+    N1 -. "read, start of run" .-> Mem0[Mem0]:::intel
+    N1 -. "past-decisions lookup" .-> Qdrant
 
-    Orchestrator --> RAG[RAG Pipeline<br>all-MiniLM-L6-v2 · Qdrant hybrid]:::intel
-    Orchestrator --> Mem0[Three-Layer Memory<br>Mem0 · Qdrant · Postgres]:::intel
-    Orchestrator --> Temporal[Temporal<br>Morning briefing cron]:::intel
+    N2 -- "MCPClient, fallback direct import" --> MKT[market_server<br>13 tools]:::mcp
+    N2 -. "direct import" .-> NEWS[news_server<br>4 tools]:::mcp
+    N2 --> PG2[(PostgreSQL)]:::data
+    N2 --> Redis[(Redis<br>per-tool TTL, 5–60 min)]:::data
 
-    Orchestrator --> DB[(PostgreSQL 16<br>11 tables)]:::data
-    Orchestrator --> Cache[(Redis Cache<br>5–60 min TTL by tool)]:::data
-    Orchestrator --> Sandbox[E2B Sandbox<br>DCF / Monte Carlo]:::data
+    N3 -- MCPClient --> MKT
+    N3 --> Sandbox[E2B Sandbox<br>DCF / WACC / Monte Carlo]:::data
+    N3 -. "no MCP — LLM debate only" .-> RiskNote(( )):::mcpdead
 
-    Orchestrator --> Output[Investment Memo<br>Buy / Hold / Avoid]:::output
+    N5 -. "direct import" .-> MKT
+
+    N6 -. "write, end of run" .-> Mem0
+    N6 -. "index final verdict" .-> Qdrant
+
+    TAX[tax_server<br>4 tools — unused,<br>no caller found]:::mcpdead
+
+    Briefing[POST /briefing/send-now]:::separate -.-> TemporalW[Temporal<br>morning briefing cron only]:::separate
+    API -.-> Briefing
 ```
+
+> Arrows above map to actual imports as of the last fact-check (2026-08-20): `sec_edgar_server`, `news_server`, and `rebalancing`'s market calls go through **direct Python imports**, not the MCP protocol — only `finance`, `data_and_research`, and `risk_and_code` go through `MCPClient`. `tax_server` has 4 real tools but no agent currently calls it. Temporal is wholly separate from `/analyze` — it only powers the morning-briefing cron.
 
 ---
 
@@ -99,7 +113,7 @@ flowchart LR
 | `sec_edgar_server` | 5 | SEC EDGAR — 10-K / 10-Q filing URLs + XBRL facts |
 | `news_server` | 4 | NewsAPI + Firecrawl + newspaper3k — headlines, full article body, sentiment, Reddit |
 | `finance_server` | 19 | PostgreSQL + yfinance — transactions, EMIs, goals, portfolio holdings/P&L/allocation, plus pure financial math (XIRR, EMI, FIRE, SIP). Merged from 3 servers — 2 of the 3 weren't spawned via MCP by any live caller before the merge |
-| `tax_server` | 4 | Old vs new regime, STCG/LTCG (Budget 2024 rates), advance tax, 80C suggestions |
+| `tax_server` | 4 | Old vs new regime, STCG/LTCG (Budget 2024 rates), advance tax, 80C suggestions. Not currently called by any agent — verified live 2026-08-20 |
 
 **45 tools · stdio transport via MCPClient subprocess**
 
