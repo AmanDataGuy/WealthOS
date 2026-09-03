@@ -7,7 +7,7 @@ Projects impact of a new investment. Suggests specific buy/sell actions.
 No LLM needed — pure arithmetic. Verified results.
 
 Flow:
-  1. Fetch holdings from portfolio_server (Postgres)
+  1. Fetch holdings from finance_server (Postgres)
   2. Fetch live prices from yfinance
   3. Compute current weights per sector
   4. Compare against target allocation

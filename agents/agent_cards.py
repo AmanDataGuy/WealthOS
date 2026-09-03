@@ -104,7 +104,7 @@ AGENT_CARDS = {
         ],
         "input_schema": ["user_id", "tickers", "financial_snapshot"],
         "output_schema": ["rebalance_suggestion"],
-        "mcp_servers": ["market_server", "portfolio_server"],
+        "mcp_servers": ["market_server", "finance_server"],
         "status": "FULL",
     },
 

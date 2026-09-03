@@ -75,12 +75,9 @@ flowchart LR
     N6 -. "index final verdict" .-> Qdrant
 
     TAX[tax_server<br>4 tools — unused,<br>no caller found]:::mcpdead
-
-    Briefing[POST /briefing/send-now]:::separate -.-> TemporalW[Temporal<br>morning briefing cron only]:::separate
-    API -.-> Briefing
 ```
 
-> Arrows above map to actual imports as of the last fact-check (2026-08-20): `sec_edgar_server`, `news_server`, and `rebalancing`'s market calls go through **direct Python imports**, not the MCP protocol — only `finance`, `data_and_research`, and `risk_and_code` go through `MCPClient`. `tax_server` has 4 real tools but no agent currently calls it. Temporal is wholly separate from `/analyze` — it only powers the morning-briefing cron.
+> Arrows above map to actual imports as of the last fact-check (2026-08-20): `sec_edgar_server`, `news_server`, and `rebalancing`'s market calls go through **direct Python imports**, not the MCP protocol — only `finance`, `data_and_research`, and `risk_and_code` go through `MCPClient`. `tax_server` has 4 real tools but no agent currently calls it.
 
 ---
 
@@ -143,8 +140,6 @@ flowchart LR
 | **Validation** | Custom Pydantic v2 validators | `validation/validators.py` — risk score 1–10, verdict in {Buy, Hold, Avoid}, memo section presence |
 | **Auth** | bcrypt 5.x + PostgreSQL `users` table + JWT | passlib removed (incompatible with bcrypt 5.x); 72-byte UTF-8 cap before hash/verify; `/auth/login` and `/auth/signup` issue an HS256 JWT (30-day expiry) that every `{user_id}`-scoped endpoint verifies against the requested `user_id` |
 | **Session** | streamlit-cookies-controller | 30-day browser cookies; restored on every refresh; cleared on sign-out |
-| **Notifications** | stdlib `smtplib` | Morning briefing email; optional, skips delivery if `SMTP_HOST`/`NOTIFY_EMAIL` unset |
-| **Durability** | Temporal | Morning briefing cron at 08:00; crash-safe with automatic retry |
 
 </div>
 
@@ -156,7 +151,7 @@ flowchart LR
 
 | Layer | Technologies |
 |:---:|:---|
-| **Orchestration** | LangGraph (8-node StateGraph) · Temporal (durable workflows) |
+| **Orchestration** | LangGraph (8-node StateGraph) |
 | **LLM** | Groq `openai/gpt-oss-120b` with 3-key rotation |
 | **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` (384-dim, local CPU) |
 | **RAG** | Qdrant local (hybrid dense + BM25 sparse · RRF fusion) · Cohere reranking |
@@ -169,7 +164,6 @@ flowchart LR
 | **Cache** | Redis (5-min market data TTL · 15-min snapshot TTL · 15-min macro TTL · 30-min sector TTL · 1-hour financials/info/recommendations TTL) |
 | **MCP Transport** | MCPClient stdio subprocess (services/mcp\_client.py) — not used by all servers, see Under the Hood |
 | **Macro Data** | FRED API (`fredapi`) · yfinance fallback (^TNX, ^VIX, ^GSPC) |
-| **Notifications** | stdlib `smtplib` (email only) |
 | **Observability** | LangSmith (pipeline traces · PII-masked user\_id) · W&B Weave (eval quality) |
 | **Backend** | FastAPI (rate-limited · permanent doc storage) |
 | **Frontend** | Streamlit (light theme · cookie sessions · session memory view) |

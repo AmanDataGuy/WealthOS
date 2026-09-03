@@ -97,25 +97,6 @@ services:
       - wealthos-network
     restart: unless-stopped
 
-  # ── 6. Temporal (durable workflows) ───────────────────
-  wealthos-temporal:
-    image: temporalio/auto-setup:1.22.0
-    container_name: wealthos-temporal
-    ports:
-      - "7233:7233"
-    environment:
-      - DB=postgresql
-      - DB_PORT=5432
-      - POSTGRES_USER=wealthos
-      - POSTGRES_PWD=wealthos_secure_password
-      - POSTGRES_SEEDS=wealthos-db
-    depends_on:
-      wealthos-db:
-        condition: service_healthy
-    networks:
-      - wealthos-network
-    restart: unless-stopped
-
 # ── Volumes ─────────────────────────────────────────────
 volumes:
   postgres_data:
