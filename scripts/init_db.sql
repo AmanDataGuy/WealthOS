@@ -120,8 +120,8 @@ CREATE INDEX IF NOT EXISTS idx_financial_facts_ticker_metric
 
 -- ──────────────────────────────────────────────────────────────────────────────
 --  6. portfolio_holdings
---     Used by: portfolio_server.py  (get_holdings, add_holding, remove_holding)
---     Note: user_id is TEXT here, not UUID — portfolio_server passes it as plain
+--     Used by: finance_server.py  (get_holdings, add_holding, remove_holding)
+--     Note: user_id is TEXT here, not UUID — finance_server passes it as plain
 --     string (no UUID parsing). Keep consistent with how the server uses it.
 -- ──────────────────────────────────────────────────────────────────────────────
 

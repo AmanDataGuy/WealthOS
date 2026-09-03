@@ -7,8 +7,6 @@ Endpoints:
   POST /analyze/stream     → run pipeline, stream memo chunks
   GET  /health             → service health check
   GET  /state/{ticker}     → last known state for a ticker (from Redis)
-  POST /briefing/send-now  → trigger morning briefing immediately (testing)
-  GET  /briefing/history/{user_id} → last 7 briefings from Redis
 """
 
 import os
@@ -165,9 +163,6 @@ class AnalyzeResponse(BaseModel):
     messages:   list[str]
     error:      Optional[str]
 
-class BriefingRequest(BaseModel):
-    user_id: str = "00000000-0000-0000-0000-000000000001"
-
 class SignupRequest(BaseModel):
     username: str
     password: str
@@ -232,7 +227,7 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
 # the Streamlit frontend stored as two unsigned cookies — anyone could set
 # wo_user_id to any value in a browser console and every {user_id}-scoped
 # endpoint (/history, /portfolio, /memory incl. DELETE, /user-profile,
-# /user-analyses, /briefing/history) would trust it with zero further check.
+# /user-analyses) would trust it with zero further check.
 # See plan_ahead.md Phase 7, item 11.
 
 _JWT_SECRET      = os.getenv("WEALTHOS_JWT_SECRET", "")
@@ -569,59 +564,6 @@ async def get_state(ticker: str):
         return json.loads(raw)
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ── Phase 6: Morning briefing endpoints ───────────────────────────────────────
-
-@app.post("/briefing/send-now")
-async def send_briefing_now(req: BriefingRequest):
-    """
-    Trigger a morning briefing immediately for a user.
-    Used for testing — no need to wait for 8 AM cron.
-    Requires Temporal worker to be running.
-    """
-    try:
-        from temporalio.client import Client
-        from workflows.morning_briefing import MorningBriefingWorkflow, TASK_QUEUE
-
-        client = await Client.connect("localhost:7233")
-        result = await client.execute_workflow(
-            MorningBriefingWorkflow.run,
-            req.user_id,
-            id=f"briefing-now-{req.user_id}-{int(asyncio.get_event_loop().time())}",
-            task_queue=TASK_QUEUE,
-        )
-
-        # Cache in Redis for history
-        try:
-            redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-            try:
-                history_key = f"briefing:history:{req.user_id}"
-                await redis.lpush(history_key, json.dumps({"date": str(__import__('datetime').date.today()), "text": result}))
-                await redis.ltrim(history_key, 0, 6)   # keep last 7
-            finally:
-                await redis.aclose()
-        except Exception:
-            pass
-
-        return {"user_id": req.user_id, "briefing": result}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Briefing failed: {e}")
-
-
-@app.get("/briefing/history/{user_id}", dependencies=[Depends(verify_user_token)])
-async def briefing_history(user_id: str):
-    """Return last 7 morning briefings for a user."""
-    try:
-        redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-        try:
-            items = await redis.lrange(f"briefing:history:{user_id}", 0, 6)
-        finally:
-            await redis.aclose()
-        return {"user_id": user_id, "history": [json.loads(i) for i in items]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
