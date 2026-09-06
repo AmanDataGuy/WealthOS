@@ -608,6 +608,12 @@ if page == "Analyze":
         verdict    = res.get("verdict") or ""
         risk_score = res.get("risk_score")
         dcf        = res.get("dcf_value")
+        valuation_method = res.get("valuation_method")
+        # This value silently came from the Monte Carlo median (not a real
+        # DCF run) whenever the DCF model was skipped for missing FCF data —
+        # confirmed live 2026-09-06, where the header said "DCF value" but
+        # the memo's own prose correctly called it the Monte Carlo median.
+        dcf_label  = "Est. value (Monte Carlo)" if valuation_method == "monte_carlo_fallback" else "DCF value"
         memo       = res.get("final_memo") or res.get("memo") or ""
         messages   = res.get("messages", [])
 
@@ -636,7 +642,7 @@ if page == "Analyze":
             st.markdown(
                 f'<div style="padding:0.75rem 0 0.25rem;">'
                 f'<div style="font-size:0.7rem;color:#8c959f;text-transform:uppercase;'
-                f'letter-spacing:0.06em;margin-bottom:0.35rem;">DCF value</div>'
+                f'letter-spacing:0.06em;margin-bottom:0.35rem;">{dcf_label}</div>'
                 f'<div style="font-size:1.3rem;font-weight:700;color:#1f2328;">{dcf_str}</div>'
                 f'</div>',
                 unsafe_allow_html=True,

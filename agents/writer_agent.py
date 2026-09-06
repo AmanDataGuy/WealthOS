@@ -54,7 +54,7 @@ def _load_compiled_program():
         from eval.dspy_optimizer import MemoWriter
         program = MemoWriter()
         program.load(COMPILED_PROMPT_PATH)
-        lm = dspy.LM(f"groq/{GROQ_MODEL}", api_key=GROQ_API_KEY, max_tokens=1500, temperature=0.3)
+        lm = dspy.LM(f"groq/{GROQ_MODEL}", api_key=GROQ_API_KEY, max_tokens=3000, temperature=0.3)
         dspy.configure(lm=lm)
         print(f"  [writer] DSPy compiled prompt loaded from {COMPILED_PROMPT_PATH}")
         return program
@@ -295,7 +295,7 @@ Write the {section_name} section now."""
     return await call_llm(
         system=system,
         user=user,
-        max_tokens=400,
+        max_tokens=700,
         temperature=0.3,
         client=client
     )

@@ -255,6 +255,39 @@ def extract_inputs(snapshot) -> dict:
     }
 
 
+# ── Historical Volatility ─────────────────────────────────────────────────────
+
+def _compute_annualized_volatility(ticker: str) -> Optional[float]:
+    """
+    Real annualized volatility from 1y of daily closes — std dev of daily log
+    returns, scaled by sqrt(252) trading days. Runs in a thread (blocking
+    yfinance call), called via asyncio.to_thread.
+
+    Was a hardcoded growth_std=0.25 for every ticker regardless of its actual
+    risk profile — confirmed live 2026-09-06 that two very differently-risky
+    stocks (AAPL, NVDA) produced the identical Monte Carlo upside probability
+    to one decimal place, because volatility was the one input that never
+    varied by ticker. NVDA's real volatility is typically far above 25%
+    annualized; a stable large-cap can be well below it — a flat constant
+    was silently wrong in both directions.
+    """
+    try:
+        import yfinance as yf
+        import math
+        hist = yf.Ticker(ticker).history(period="1y")
+        closes = hist["Close"]
+        if len(closes) < 30:
+            return None
+        log_returns = (closes / closes.shift(1)).dropna().apply(lambda r: math.log(r))
+        daily_std = log_returns.std()
+        if not daily_std or daily_std != daily_std:  # NaN check
+            return None
+        return float(daily_std * math.sqrt(252))
+    except Exception as e:
+        print(f"  ⚠️  Historical volatility fetch failed for {ticker}: {e}")
+        return None
+
+
 # ── Short-Term Technical Path ─────────────────────────────────────────────────
 
 async def _run_technicals_path(ticker: str) -> CodeAgentOutput:
@@ -386,11 +419,14 @@ async def run_code_agent(
             print(f"  ⚠️  DCF failed: {error}")
 
     # ── Monte Carlo ───────────────────────────────────────────────────────────
-    print(f"\n  [2/3] Running Monte Carlo (1000 paths)...")
+    real_vol = await asyncio.to_thread(_compute_annualized_volatility, ticker)
+    growth_std = real_vol if real_vol else inputs["growth_std"]
+    print(f"\n  [2/3] Running Monte Carlo (1000 paths, volatility={growth_std*100:.1f}%"
+          f"{' — real historical' if real_vol else ' — fallback default, fetch failed'})...")
     mc_code = build_montecarlo_code(
         current_price=inputs["current_price"],
         growth_mean=inputs["growth_rate"],
-        growth_std=inputs["growth_std"],
+        growth_std=growth_std,
     )
 
     output, error = await run_in_sandbox(mc_code)

@@ -155,13 +155,14 @@ class AnalyzeRequest(BaseModel):
     investment_horizon: Optional[str] = None   # "short" | "mid" | "long" | None
 
 class AnalyzeResponse(BaseModel):
-    ticker:     str
-    verdict:    Optional[str]
-    memo:       Optional[str]
-    risk_score: Optional[int]
-    dcf_value:  Optional[float]
-    messages:   list[str]
-    error:      Optional[str]
+    ticker:            str
+    verdict:           Optional[str]
+    memo:              Optional[str]
+    risk_score:        Optional[int]
+    dcf_value:         Optional[float]
+    valuation_method:  Optional[str] = None   # "dcf" | "monte_carlo_fallback" | None
+    messages:          list[str]
+    error:              Optional[str]
 
 class SignupRequest(BaseModel):
     username: str
@@ -469,12 +470,18 @@ async def analyze(req: AnalyzeRequest):
     risk    = result.get("risk_report") or {}
     code    = result.get("code_output") or {}
     dcf_val = None
+    valuation_method = None
     if code.get("dcf"):
         dcf_val = code["dcf"].get("intrinsic_value")
+        valuation_method = "dcf"
     elif code.get("monte_carlo"):
         # DCF guard skipped the classic model (no FCF data) — fall back to
         # the Monte Carlo median so the UI isn't blank when a real number exists.
+        # valuation_method tells the frontend/memo which one this actually is,
+        # so it isn't silently mislabeled "DCF value" when it's really the
+        # Monte Carlo median — that mismatch was confirmed live 2026-09-06.
         dcf_val = code["monte_carlo"].get("median_price")
+        valuation_method = "monte_carlo_fallback"
 
     try:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
@@ -500,6 +507,7 @@ async def analyze(req: AnalyzeRequest):
         memo=result.get("final_memo"),
         risk_score=risk.get("risk_score"),
         dcf_value=dcf_val,
+        valuation_method=valuation_method,
         messages=result.get("messages", []),
         error=result.get("error"),
     )
