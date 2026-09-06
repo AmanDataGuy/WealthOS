@@ -13,6 +13,7 @@ Run:
 
 import argparse
 import json
+import os
 import sys
 import time
 from datetime import date
@@ -64,8 +65,12 @@ def score_entry(entry: dict) -> dict:
     """Run every metric in METRICS against one golden-dataset entry."""
     test_case = make_memo_test_case(entry)
     scores = {}
+    # Groq's free-tier 8k TPM cap is why every metric call needs pacing —
+    # a paid Gemini key (see eval/deepeval_metrics.py's GeminiJudge) has no
+    # such wall, so skip the wait entirely when one's configured.
+    use_gemini = bool(os.getenv("GEMINI_API_KEY"))
     for i, (name, metric) in enumerate(METRICS):
-        if i > 0:
+        if i > 0 and not use_gemini:
             time.sleep(METRIC_SLEEP_SECONDS)
         try:
             metric.measure(test_case)

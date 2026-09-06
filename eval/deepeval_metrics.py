@@ -37,6 +37,7 @@ Agent-quality evaluation for the full WealthOS 8-agent pipeline.
     evaluate([make_memo_test_case(dataset[0])], [faithfulness_metric])
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -110,7 +111,49 @@ class GroqJudge(DeepEvalBaseLLM):
         return self._model_name
 
 
-JUDGE = GroqJudge()
+class GeminiJudge(DeepEvalBaseLLM):
+    """
+    DeepEval-compatible judge backed by Gemini instead of Groq. Used
+    automatically when GEMINI_API_KEY is set — Gemini's rate limits are
+    generous enough on a paid key that run_deepeval.py's 30s inter-metric
+    pacing (needed only to survive Groq's free-tier 8k TPM cap) can be
+    skipped entirely, so a full eval run finishes in a couple minutes
+    instead of 20+.
+
+    Real cost at ~4k tokens/call (per run_deepeval.py's own estimate):
+    a --limit 5 CI run (45 calls) is a few cents; the full 28-example
+    dataset (252 calls) is roughly $0.15-$1.50 depending on model choice —
+    verified against Gemini's published pricing 2026-09-06, not a guess.
+    """
+
+    def __init__(self, model: str = None):
+        self._model = model or os.getenv("GEMINI_JUDGE_MODEL", "gemini-2.5-flash-lite")
+
+    def load_model(self):
+        return self
+
+    def generate(self, prompt: str, schema=None) -> str:
+        import asyncio
+        return asyncio.run(self.a_generate(prompt, schema))
+
+    async def a_generate(self, prompt: str, schema=None) -> str:
+        import httpx
+        api_key = os.getenv("GEMINI_API_KEY", "")
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent",
+                params={"key": api_key},
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+
+    def get_model_name(self) -> str:
+        return f"gemini/{self._model}"
+
+
+JUDGE = GeminiJudge() if os.getenv("GEMINI_API_KEY") else GroqJudge()
 
 
 # ── Built-in DeepEval metrics ─────────────────────────────────────────────────

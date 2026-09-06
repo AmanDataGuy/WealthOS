@@ -218,7 +218,11 @@ async def _check_rate_limit(user_id: str) -> None:
 
 async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     api_key = os.getenv("WEALTHOS_API_KEY", "")
-    if api_key and x_api_key != api_key:
+    if not api_key:
+        if _IS_PRODUCTION:
+            raise HTTPException(status_code=500, detail="Server misconfigured: WEALTHOS_API_KEY required when WEALTHOS_ENV=production")
+        return
+    if x_api_key != api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
@@ -234,6 +238,13 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
 _JWT_SECRET      = os.getenv("WEALTHOS_JWT_SECRET", "")
 _JWT_ALGORITHM   = "HS256"
 _JWT_EXPIRY_DAYS = 30  # matches the existing 30-day cookie session length
+
+# Set WEALTHOS_ENV=production on a real deployment to make a missing
+# WEALTHOS_JWT_SECRET/WEALTHOS_API_KEY refuse requests (500) instead of
+# silently running with auth/rate-limiting wide open. Default stays
+# fail-open so a bare local checkout still runs with zero setup — this
+# only changes behavior for anyone who explicitly opts in.
+_IS_PRODUCTION = os.getenv("WEALTHOS_ENV", "").lower() == "production"
 
 
 def _issue_token(user_id: str, username: str) -> str:
@@ -257,6 +268,8 @@ async def verify_user_token(user_id: str, authorization: Optional[str] = Header(
     /analyze, so a bare local checkout still runs without extra setup.
     """
     if not _JWT_SECRET:
+        if _IS_PRODUCTION:
+            raise HTTPException(status_code=500, detail="Server misconfigured: WEALTHOS_JWT_SECRET required when WEALTHOS_ENV=production")
         return user_id
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or malformed Authorization header")
