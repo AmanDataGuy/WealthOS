@@ -74,7 +74,12 @@ def score_entry(entry: dict) -> dict:
             print(f"  [warn] {name} failed for {entry.get('ticker')}: {e}")
             scores[name] = None
 
-    overall_pass = all(v for v in scores.values() if v is not None)
+    completed = [v for v in scores.values() if v is not None]
+    # all() on an empty list is vacuously True — without this guard, a total
+    # outage (every metric erroring, e.g. Groq's daily token quota exhausted)
+    # silently reported "PASS" with zero real signal. Verified live 2026-09-03:
+    # every metric 429'd and this still printed "1/1 passed (100%)".
+    overall_pass = bool(completed) and all(completed)
     return {"ticker": entry.get("ticker"), "scores": scores, "overall_pass": overall_pass}
 
 

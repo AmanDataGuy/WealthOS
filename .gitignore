@@ -58,14 +58,9 @@ Thumbs.db
 *.code-workspace
 
 # Planning / audit docs — local only
-plan_ahead.md
 project_status.md
 INTERVIEW_DOSSIER.md
-CHANGES_REPORT.md
-CHANGES_REPORT_2.md
 PROJECT_DEEP_DIVE_QA.md
-STACK_DECISION_AUDIT.md
-TECH_STACK_FIT_ASSESSMENT.md
 
 # Session notes & local memory — never commit
 changes1.md
