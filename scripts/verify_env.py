@@ -33,7 +33,7 @@ load_dotenv()
 EXPECTED_TABLES = {
     "transactions", "subscriptions", "financial_goals", "emis",
     "financial_facts", "portfolio_holdings", "tracked_symbols",
-    "indexed_tickers", "user_risk_profiles",  # from scripts/init_db.sql
+    "indexed_tickers", "user_risk_profiles", "llm_usage",  # from scripts/init_db.sql
     "users", "analysis_history",              # created lazily by api/main.py
 }
 
@@ -73,7 +73,7 @@ async def check_postgres():
                 f"missing tables: {sorted(missing)} — run scripts/init_db.sql",
             )
         else:
-            report("Postgres schema", True, "all 11 expected tables present")
+            report("Postgres schema", True, f"all {len(EXPECTED_TABLES)} expected tables present")
     finally:
         await conn.close()
 
