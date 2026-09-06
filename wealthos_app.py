@@ -475,9 +475,10 @@ if page == "Analyze":
         )
 
         fc1, fc2, fc3 = st.columns([1, 1, 2])
-        ticker  = fc1.text_input("Ticker", placeholder="AAPL")
+        ticker  = fc1.text_input("Ticker (optional if mentioned above)", placeholder="AAPL")
         amount  = fc2.number_input(
-            "Investment amount (₹)", min_value=0, value=20000, step=5000,
+            "Investment amount (₹, optional if mentioned above)",
+            min_value=0, value=None, step=5000, placeholder="e.g. 20000",
         )
         horizon = fc3.radio(
             "Horizon",
@@ -531,14 +532,14 @@ if page == "Analyze":
         st.markdown("&nbsp;&nbsp;".join(parts) + "<br>", unsafe_allow_html=True)
 
     if submitted:
-        if not mock and not ticker:
-            st.error("Enter a ticker symbol.")
-            st.stop()
         if not mock and not query:
             st.error("Write your question first.")
             st.stop()
 
-        ticker = (ticker or "AAPL").upper().strip()
+        # Ticker/amount are optional — if left blank, the backend extracts
+        # them from the query text itself (e.g. "invest 20000 in NVDA") and
+        # only errors if genuinely neither the form nor the question has it.
+        ticker = ticker.upper().strip() if ticker else (None if not mock else "AAPL")
         h_map  = {
             "Short-term":    "short",
             "Mid-term":      "mid",
@@ -575,20 +576,28 @@ if page == "Analyze":
             }
         else:
             payload = {
-                "query":         query or f"Analyze {ticker}",
+                "query":         query or (f"Analyze {ticker}" if ticker else "Analyze"),
                 "ticker":        ticker,
                 "user_id":       USER_ID,
-                "invest_amount": float(amount),
+                "invest_amount": float(amount) if amount is not None else None,
             }
             if sel_horizon:
                 payload["investment_horizon"] = sel_horizon
-            with st.spinner(f"Running 8 agents for {ticker}… (~60 s)"):
+            spinner_label = f"Running 8 agents for {ticker}… (~60 s)" if ticker else "Running 8 agents… (~60 s)"
+            with st.spinner(spinner_label):
                 try:
                     r = requests.post(f"{API_URL}/analyze", json=payload, timeout=180)
                     if r.status_code == 200:
                         st.session_state.last_result = r.json()
                     elif r.status_code == 429:
                         st.error("Rate limit reached — max 10 analyses per minute. Try again shortly.")
+                        st.stop()
+                    elif r.status_code == 400:
+                        try:
+                            detail = r.json().get("detail", r.text[:200])
+                        except Exception:
+                            detail = r.text[:200]
+                        st.error(detail)
                         st.stop()
                     else:
                         st.error(f"Backend error {r.status_code}: {r.text[:200]}")

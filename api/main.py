@@ -149,9 +149,9 @@ app.add_middleware(
 
 class AnalyzeRequest(BaseModel):
     query:              str
-    ticker:             str
+    ticker:             Optional[str] = None
     user_id:            str = "00000000-0000-0000-0000-000000000001"
-    invest_amount:      Optional[float] = 20000.0
+    invest_amount:      Optional[float] = None
     investment_horizon: Optional[str] = None   # "short" | "mid" | "long" | None
 
 class AnalyzeResponse(BaseModel):
@@ -401,19 +401,68 @@ async def health():
     return {"status": "ok", "version": "2.0.0", "agents": 7}
 
 
+# ── Ticker/amount extraction from free text ───────────────────────────────────
+# Was: ticker and amount were required form fields even when the user already
+# typed them in their question ("Should I invest 20000 in NVDA?") — forcing
+# them to repeat information they'd already given. This extracts either
+# field from the query text when the explicit field is left blank, using the
+# same fast/cheap model tier the router agent already uses for classification.
+
+async def _extract_ticker_and_amount(query: str) -> tuple[Optional[str], Optional[float]]:
+    from services.llm_client import call_llm, GROQ_MODEL_FAST
+    system = (
+        "Extract a stock ticker symbol and an investment amount from the user's "
+        "question. Resolve company names to their real ticker (e.g. 'Nvidia' -> "
+        "'NVDA', 'Reliance' -> 'RELIANCE.NS' for Indian companies). The amount "
+        "must be a plain number with no currency symbol, commas, or units. "
+        'Reply with ONLY a JSON object: {"ticker": "SYMBOL" or null, "amount": '
+        'number or null}. No other text, no markdown.'
+    )
+    raw = await call_llm(system=system, user=query, model=GROQ_MODEL_FAST, max_tokens=100, temperature=0)
+    try:
+        data = json.loads(raw)
+        ticker = (data.get("ticker") or "").strip().upper() or None
+        amount = data.get("amount")
+        amount = float(amount) if amount is not None else None
+        return ticker, amount
+    except Exception:
+        return None, None
+
+
+async def _resolve_request_fields(req: "AnalyzeRequest") -> tuple[str, float]:
+    """
+    Prefer explicit form fields; fall back to extracting from the free-text
+    query when left blank. Errors clearly only if neither source has it.
+    """
+    ticker = (req.ticker or "").strip().upper() or None
+    amount = req.invest_amount
+
+    if not ticker or amount is None:
+        extracted_ticker, extracted_amount = await _extract_ticker_and_amount(req.query)
+        ticker = ticker or extracted_ticker
+        amount = amount if amount is not None else extracted_amount
+
+    if not ticker:
+        raise HTTPException(status_code=400, detail="Please specify a ticker symbol, either in the form or in your question.")
+    if amount is None:
+        raise HTTPException(status_code=400, detail="Please specify an investment amount, either in the form or in your question.")
+
+    return ticker, amount
+
+
 # ── Main analysis endpoint ─────────────────────────────────────────────────────
 
 @app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_api_key)])
 async def analyze(req: AnalyzeRequest):
     await _check_rate_limit(req.user_id)
-    ticker = req.ticker.upper().strip()
+    ticker, amount = await _resolve_request_fields(req)
     query  = _sanitize_query(req.query)
 
     initial_state: WealthOSState = {
         "query":              query,
         "tickers":            [ticker],
         "user_id":            req.user_id,
-        "invest_amount":      req.invest_amount,
+        "invest_amount":      amount,
         "investment_horizon": req.investment_horizon,
         "fetch_plan":         None,
         "user_memory":        None,
@@ -517,14 +566,14 @@ async def analyze(req: AnalyzeRequest):
 
 @app.post("/analyze/stream", dependencies=[Depends(verify_api_key)])
 async def analyze_stream(req: AnalyzeRequest):
-    ticker = req.ticker.upper().strip()
+    ticker, amount = await _resolve_request_fields(req)
     query  = _sanitize_query(req.query)
 
     initial_state: WealthOSState = {
         "query":              query,
         "tickers":            [ticker],
         "user_id":            req.user_id,
-        "invest_amount":      req.invest_amount,
+        "invest_amount":      amount,
         "investment_horizon": req.investment_horizon,
         "fetch_plan":         None,
         "user_memory":        None,
