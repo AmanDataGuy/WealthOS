@@ -37,7 +37,6 @@ Agent-quality evaluation for the full WealthOS 8-agent pipeline.
     evaluate([make_memo_test_case(dataset[0])], [faithfulness_metric])
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -64,34 +63,48 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 
 class GroqJudge(DeepEvalBaseLLM):
     """
-    DeepEval-compatible judge backed by Groq llama-3.3-70b (free tier).
+    DeepEval-compatible judge. Routes through services.llm_client.call_llm()
+    instead of calling ChatGroq directly, so it inherits the same Groq-key
+    rotation + OpenRouter fallback the main app uses.
 
-    The ChatGroq client is built lazily on first use, not in __init__ — this
-    lets the module (and the deterministic VerdictConsistencyMetric, which
-    never touches an LLM) import cleanly without GROQ_API_KEY set, e.g. in CI
-    jobs that only run the no-API-key test.
+    Was a direct ChatGroq call with no fallback — a single point of failure
+    on one provider. That's exactly the failure class that broke the CI gate
+    on 2026-09-03: Groq's daily token quota (org-wide, all 3 rotation keys
+    share it) was exhausted from live testing, and every metric call 429'd.
+    The main app already has an OpenRouter fallback for this; the eval judge
+    didn't, despite existing for the same reason. This closes that gap.
+
+    Caveat, kept simple deliberately: if Groq is unavailable and OpenRouter's
+    free-tier model answers instead, get_model_name() still reports the Groq
+    model — call_llm() doesn't report back which provider actually answered.
+    Good enough for "the gate still runs instead of hard-failing"; revisit if
+    you need per-call provider attribution in eval results.
     """
 
-    def __init__(self, model: str = "openai/gpt-oss-120b"):
-        self._model = model
-        self._model_name = f"groq/{model}"
-        self._chat = None
+    def __init__(self, model: str = None):
+        from services.llm_client import GROQ_MODEL
+        self._model = model or GROQ_MODEL
+        self._model_name = f"groq/{self._model}"
 
     def load_model(self):
-        if self._chat is None:
-            from langchain_groq import ChatGroq
-            self._chat = ChatGroq(
-                model=self._model,
-                api_key=os.getenv("GROQ_API_KEY", ""),
-                temperature=0,
-            )
-        return self._chat
+        return self
 
     def generate(self, prompt: str, schema=None) -> str:
-        return self.load_model().invoke(prompt).content
+        import asyncio
+        return asyncio.run(self.a_generate(prompt, schema))
 
     async def a_generate(self, prompt: str, schema=None) -> str:
-        return (await self.load_model().ainvoke(prompt)).content
+        from services.llm_client import call_llm
+        result = await call_llm(
+            system="You are an expert evaluator.",
+            user=prompt,
+            max_tokens=2000,
+            temperature=0,
+            model=self._model,
+        )
+        if not result:
+            raise RuntimeError("GroqJudge: Groq and OpenRouter fallback both failed to return a response")
+        return result
 
     def get_model_name(self) -> str:
         return self._model_name
