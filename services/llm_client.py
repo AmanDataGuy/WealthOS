@@ -58,13 +58,23 @@ def get_session_cost() -> dict:
     return dict(_session_cost)
 
 
-def _track_usage(usage: dict, model: str):
-    """Update session totals from a Groq usage dict. Called after every successful Groq call."""
+async def _track_usage(usage: dict, model: str, provider: str = "groq", cost_per_m: tuple[float, float] = None):
+    """
+    Update session totals and persist one row to llm_usage. Called after
+    every successful LLM call (Groq or OpenRouter).
+
+    Was in-memory only (_session_cost resets on every process restart) — no
+    historical record existed anywhere, which is part of why the 2026-09-03
+    Groq daily-quota exhaustion was only discovered by hitting a live 429
+    instead of by watching usage climb toward the ceiling. Persistence here
+    is best-effort: a DB outage must never break an LLM call, so failures
+    are logged and swallowed, same pattern as market_server.py's cache.
+    """
     prompt     = usage.get("prompt_tokens", 0)
     completion = usage.get("completion_tokens", 0)
     total      = usage.get("total_tokens", 0)
-    cost       = (prompt / 1_000_000 * _COST_INPUT_PER_M) + \
-                 (completion / 1_000_000 * _COST_OUTPUT_PER_M)
+    cost_in, cost_out = cost_per_m or (_COST_INPUT_PER_M, _COST_OUTPUT_PER_M)
+    cost       = (prompt / 1_000_000 * cost_in) + (completion / 1_000_000 * cost_out)
 
     _session_cost["prompt_tokens"]      += prompt
     _session_cost["completion_tokens"]  += completion
@@ -77,6 +87,25 @@ def _track_usage(usage: dict, model: str):
         model, prompt, completion, total, cost,
         _session_cost["estimated_cost_usd"], _session_cost["calls"],
     )
+
+    db_url = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
+    if not db_url:
+        return
+    try:
+        import asyncpg
+        conn = await asyncpg.connect(db_url, timeout=5)
+        try:
+            await conn.execute(
+                """
+                INSERT INTO llm_usage (provider, model, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                """,
+                provider, model, prompt, completion, total, cost,
+            )
+        finally:
+            await conn.close()
+    except Exception as e:
+        logger.warning("[llm_client] Could not persist llm_usage row: %s", e)
 
 
 async def call_llm(
@@ -138,7 +167,7 @@ async def call_llm(
                     resp.raise_for_status()
                     data = resp.json()
                     if "usage" in data:
-                        _track_usage(data["usage"], model or GROQ_MODEL)
+                        await _track_usage(data["usage"], model or GROQ_MODEL)
                     message = data["choices"][0]["message"]
                     if tools:
                         return message
@@ -186,9 +215,14 @@ async def call_llm(
                     timeout=30.0,
                 )
                 resp.raise_for_status()
-                content = resp.json()["choices"][0]["message"]["content"].strip()
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"].strip()
                 if content:
                     logger.info("[llm] OpenRouter fallback succeeded")
+                    if "usage" in data:
+                        # Free tier — $0 either way, but still worth counting
+                        # tokens so usage history shows fallback activity.
+                        await _track_usage(data["usage"], OPENROUTER_MODEL, provider="openrouter", cost_per_m=(0.0, 0.0))
                     return content
             except Exception as e:
                 logger.warning("[llm_client] OpenRouter fallback also failed: %s", e)
