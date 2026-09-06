@@ -204,6 +204,29 @@ CREATE TABLE IF NOT EXISTS user_risk_profiles (
 );
 
 
+-- ──────────────────────────────────────────────────────────────────────────────
+--  10. llm_usage
+--     Used by: services/llm_client.py (_track_usage) — one row per LLM call.
+--     Was an in-memory dict (_session_cost) that reset on every process
+--     restart, so there was no actual historical record of spend, and the
+--     2026-09-03 Groq daily-quota exhaustion was only discovered by hitting
+--     a live 429, not by any usage tracking. This persists it.
+-- ──────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS llm_usage (
+    id                 SERIAL        PRIMARY KEY,
+    provider           TEXT          NOT NULL,
+    model              TEXT          NOT NULL,
+    prompt_tokens      INTEGER       NOT NULL,
+    completion_tokens  INTEGER       NOT NULL,
+    total_tokens       INTEGER       NOT NULL,
+    estimated_cost_usd NUMERIC       NOT NULL,
+    created_at         TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_llm_usage_created_at ON llm_usage (created_at DESC);
+
+
 INSERT INTO portfolio_holdings (user_id, ticker, quantity, avg_buy_price, sector, asset_type)
 VALUES ('00000000-0000-0000-0000-000000000001', 'TCS.NS', 10, 3200.00, 'Technology', 'equity')
 ON CONFLICT DO NOTHING;
