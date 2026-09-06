@@ -159,7 +159,7 @@ flowchart LR
 | **Prompt Optimization** | DSPy BootstrapFewShot (28 golden examples) |
 | **Validation** | Custom Pydantic v2 validators |
 | **Code Execution** | E2B Sandbox |
-| **Database** | PostgreSQL 16 (11 tables — 9 from `scripts/init_db.sql`: transactions, subscriptions, financial\_goals, emis, financial\_facts, portfolio\_holdings, tracked\_symbols, indexed\_tickers, user\_risk\_profiles; 2 created lazily by the API on startup: users, analysis\_history) |
+| **Database** | PostgreSQL 16 (12 tables — 10 from `scripts/init_db.sql`: transactions, subscriptions, financial\_goals, emis, financial\_facts, portfolio\_holdings, tracked\_symbols, indexed\_tickers, user\_risk\_profiles, llm\_usage; 2 created lazily by the API on startup: users, analysis\_history) |
 | **Vector Store** | Qdrant (local, localhost:6333) — `wealthos_docs` + `user_analyses` collections |
 | **Cache** | Redis (5-min market data TTL · 15-min snapshot TTL · 15-min macro TTL · 30-min sector TTL · 1-hour financials/info/recommendations TTL) |
 | **MCP Transport** | MCPClient stdio subprocess (services/mcp\_client.py) — not used by all servers, see Under the Hood |
@@ -167,6 +167,16 @@ flowchart LR
 | **Observability** | LangSmith (pipeline traces · PII-masked user\_id) · W&B Weave (eval quality) |
 | **Backend** | FastAPI (rate-limited · permanent doc storage) |
 | **Frontend** | Streamlit (light theme · cookie sessions · session memory view) |
+
+</div>
+
+---
+
+<div align="center">
+
+## Eval Results
+
+**26/28 (93%)** passed the DeepEval quality gate against the full golden dataset — first full run, 2026-09-07, judged by `gemini-2.5-flash-lite`. Faithfulness and Hallucination both at 100% across all 28 examples (28 diverse scenarios: US/Indian equities, ETFs, crypto, and non-stock cases like debt payoff and 80C tax planning). The 2 failures and one metric's reliability gap are documented honestly, not glossed over — see [`eval_report.md`](eval_report.md) for the full per-metric breakdown, methodology, and known issues.
 
 </div>
 
