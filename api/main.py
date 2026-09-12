@@ -421,15 +421,18 @@ async def health():
 # field from the query text when the explicit field is left blank, using the
 # same fast/cheap model tier the router agent already uses for classification.
 
-async def _extract_ticker_and_amount(query: str) -> tuple[Optional[str], Optional[float]]:
+async def _extract_ticker_and_amount(query: str) -> tuple[Optional[str], Optional[float], Optional[str]]:
     from services.llm_client import call_llm, GROQ_MODEL_FAST
     system = (
-        "Extract a stock ticker symbol and an investment amount from the user's "
-        "question. Resolve company names to their real ticker (e.g. 'Nvidia' -> "
-        "'NVDA', 'Reliance' -> 'RELIANCE.NS' for Indian companies). The amount "
-        "must be a plain number with no currency symbol, commas, or units. "
+        "Extract a stock ticker symbol, an investment amount, and which currency "
+        "the amount was stated in from the user's question. Resolve company names "
+        "to their real ticker (e.g. 'Nvidia' -> 'NVDA', 'Reliance' -> "
+        "'RELIANCE.NS' for Indian companies). The amount must be a plain number "
+        "with no currency symbol, commas, or units (e.g. '1,20,000' or '1.2 lakh' "
+        "-> 120000). currency must be exactly 'INR' if stated in rupees/₹/Rs/lakhs/"
+        "crores, 'USD' if stated in dollars/$, or null if no currency was mentioned. "
         'Reply with ONLY a JSON object: {"ticker": "SYMBOL" or null, "amount": '
-        'number or null}. No other text, no markdown.'
+        'number or null, "currency": "INR"|"USD"|null}. No other text, no markdown.'
     )
     raw = await call_llm(system=system, user=query, model=GROQ_MODEL_FAST, max_tokens=100, temperature=0)
     try:
@@ -437,23 +440,54 @@ async def _extract_ticker_and_amount(query: str) -> tuple[Optional[str], Optiona
         ticker = (data.get("ticker") or "").strip().upper() or None
         amount = data.get("amount")
         amount = float(amount) if amount is not None else None
-        return ticker, amount
+        currency = data.get("currency")
+        currency = currency.upper() if isinstance(currency, str) and currency.upper() in ("INR", "USD") else None
+        return ticker, amount, currency
     except Exception:
-        return None, None
+        return None, None, None
+
+
+async def _get_usd_inr_rate() -> float:
+    """Live USD/INR rate via the same yfinance ticker market_server.py's
+    get_currency_rates() uses. Falls back to a fixed approximate rate if the
+    live fetch fails — better than blocking the whole request on an FX quote.
+    """
+    try:
+        import yfinance as yf
+        info = await asyncio.to_thread(lambda: yf.Ticker("INR=X").info)
+        rate = info.get("regularMarketPrice")
+        if rate and 50 < rate < 150:   # sanity range — USD/INR has lived here for years
+            return float(rate)
+    except Exception as e:
+        logger.warning("[currency] Live USD/INR fetch failed, using fallback: %s", e)
+    return 83.0  # ponytail: fixed fallback, revisit if USD/INR drifts far from this
 
 
 async def _resolve_request_fields(req: "AnalyzeRequest") -> tuple[str, float]:
     """
     Prefer explicit form fields; fall back to extracting from the free-text
     query when left blank. Errors clearly only if neither source has it.
+
+    Also converts the amount if the user stated it in a different currency
+    than the target ticker trades in — this used to just relabel the raw
+    number with whatever symbol matched the ticker, with zero actual FX
+    conversion. Confirmed live 2026-09-12: a user who typed "₹1,20,000" for
+    an MSFT purchase got "$120,000" in the memo — an ~82x scale error, not
+    just a mislabeled symbol.
     """
     ticker = (req.ticker or "").strip().upper() or None
     amount = req.invest_amount
 
     if not ticker or amount is None:
-        extracted_ticker, extracted_amount = await _extract_ticker_and_amount(req.query)
+        extracted_ticker, extracted_amount, source_currency = await _extract_ticker_and_amount(req.query)
         ticker = ticker or extracted_ticker
-        amount = amount if amount is not None else extracted_amount
+        if amount is None:
+            amount = extracted_amount
+            if amount is not None and ticker and source_currency:
+                target_currency = "INR" if ticker.endswith((".NS", ".BO")) else "USD"
+                if source_currency != target_currency:
+                    rate = await _get_usd_inr_rate()
+                    amount = amount / rate if source_currency == "INR" else amount * rate
 
     if not ticker:
         raise HTTPException(status_code=400, detail="Please specify a ticker symbol, either in the form or in your question.")
