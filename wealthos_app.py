@@ -1,3 +1,4 @@
+import json
 import os
 import requests
 import pandas as pd
@@ -463,38 +464,13 @@ if page == "Analyze":
             unsafe_allow_html=True,
         )
 
-    # Analysis form
-    with st.form("analyze_form"):
-        query = st.text_area(
-            "What do you want to know?",
-            placeholder=(
-                "e.g. I have around ₹30k–50k to invest and I'm fairly conservative. "
-                "Should I add AAPL to my portfolio right now, or wait?"
-            ),
-            height=115,
-        )
-
-        fc1, fc2, fc3 = st.columns([1, 1, 2])
-        ticker  = fc1.text_input("Ticker (optional if mentioned above)", placeholder="AAPL")
-        amount  = fc2.number_input(
-            "Investment amount (₹, optional if mentioned above)",
-            min_value=0, value=None, step=5000, placeholder="e.g. 20000",
-        )
-        horizon = fc3.radio(
-            "Horizon",
-            ["Short-term", "Mid-term", "Long-term", "Let AI decide"],
-            horizontal=True,
-            index=2,
-        )
-        mock = st.checkbox("Mock mode (no backend needed)", value=False)
-        submitted = st.form_submit_button(
-            "Run analysis", use_container_width=True, type="primary"
-        )
-
-    # File uploader — below form, outside it so indexing fires immediately
-    st.markdown("<div style='height:0.75rem'></div>", unsafe_allow_html=True)
+    # File uploader — BEFORE the form, so it's visually and functionally clear
+    # that attaching a document starts indexing immediately (it already did,
+    # under the hood — this block runs on every rerun regardless of the form's
+    # state — but sitting below the query box made it look sequential when it
+    # never was).
     st.markdown(
-        '<span style="font-size:0.875rem;font-weight:500;color:#57606a;">Attach documents</span>'
+        '<span style="font-size:0.875rem;font-weight:500;color:#57606a;">Attach documents (optional, indexes immediately)</span>'
         '<span style="font-size:0.78rem;color:#8c959f;margin-left:0.5rem;">'
         'Upload salary slips, bank statements, or loan docs so WealthOS can give you truly personalised advice based on your actual financial situation (PDF)</span>',
         unsafe_allow_html=True,
@@ -530,6 +506,36 @@ if page == "Analyze":
             color = "#22c55e" if status == "ready" else "#ef4444" if status == "error" else "#8c959f"
             parts.append(f'<span style="color:{color};font-size:0.8rem;">{icon} {name}</span>')
         st.markdown("&nbsp;&nbsp;".join(parts) + "<br>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+
+    # Analysis form
+    with st.form("analyze_form"):
+        query = st.text_area(
+            "What do you want to know?",
+            placeholder=(
+                "e.g. I have around ₹30k–50k to invest and I'm fairly conservative. "
+                "Should I add AAPL to my portfolio right now, or wait?"
+            ),
+            height=115,
+        )
+
+        fc1, fc2, fc3 = st.columns([1, 1, 2])
+        ticker  = fc1.text_input("Ticker (optional if mentioned above)", placeholder="AAPL")
+        amount  = fc2.number_input(
+            "Investment amount (₹, optional if mentioned above)",
+            min_value=0, value=None, step=5000, placeholder="e.g. 20000",
+        )
+        horizon = fc3.radio(
+            "Horizon",
+            ["Short-term", "Mid-term", "Long-term", "Let AI decide"],
+            horizontal=True,
+            index=2,
+        )
+        mock = st.checkbox("Mock mode (no backend needed)", value=False)
+        submitted = st.form_submit_button(
+            "Run analysis", use_container_width=True, type="primary"
+        )
 
     if submitted:
         if not mock and not query:
@@ -583,13 +589,38 @@ if page == "Analyze":
             }
             if sel_horizon:
                 payload["investment_horizon"] = sel_horizon
-            spinner_label = f"Running 8 agents for {ticker}… (~60 s)" if ticker else "Running 8 agents… (~60 s)"
-            with st.spinner(spinner_label):
-                try:
-                    r = requests.post(f"{API_URL}/analyze", json=payload, timeout=180)
-                    if r.status_code == 200:
-                        st.session_state.last_result = r.json()
-                    elif r.status_code == 429:
+
+            # Live agent-progress view — was a single opaque spinner for the
+            # whole ~60-90s run. /analyze/stream now emits a real event per
+            # node as it actually finishes (see api/main.py), so this renders
+            # each step going pending -> done with what that agent produced,
+            # instead of "8 agents running" and a wait.
+            PIPELINE_STEPS = [
+                ("router", "Router"),
+                ("finance", "Finance"),
+                ("data_and_research", "Data + Research (parallel)"),
+                ("risk_and_code", "Risk + Code (parallel)"),
+                ("validation", "Validation"),
+                ("rebalancing", "Rebalancing"),
+                ("writer", "Writer"),
+            ]
+            step_labels = dict(PIPELINE_STEPS)
+            st.markdown("**Live agent progress**")
+            step_placeholders = {}
+            for node_id, label in PIPELINE_STEPS:
+                step_placeholders[node_id] = st.empty()
+                step_placeholders[node_id].markdown(f"⏳ {label} — waiting…")
+            memo_placeholder = st.empty()
+
+            final = {
+                "ticker": ticker, "verdict": None, "risk_score": None,
+                "dcf_value": None, "valuation_method": None,
+                "final_memo": "", "messages": [], "error": None,
+            }
+            memo_parts = []
+            try:
+                with requests.post(f"{API_URL}/analyze/stream", json=payload, stream=True, timeout=180) as r:
+                    if r.status_code == 429:
                         st.error("Rate limit reached — max 10 analyses per minute. Try again shortly.")
                         st.stop()
                     elif r.status_code == 400:
@@ -599,15 +630,42 @@ if page == "Analyze":
                             detail = r.text[:200]
                         st.error(detail)
                         st.stop()
-                    else:
+                    elif r.status_code != 200:
                         st.error(f"Backend error {r.status_code}: {r.text[:200]}")
                         st.stop()
-                except requests.exceptions.ConnectionError:
-                    st.error("Cannot connect to backend at localhost:8000. Is it running?")
-                    st.stop()
-                except requests.exceptions.Timeout:
-                    st.error("Request timed out after 180 s.")
-                    st.stop()
+
+                    for line in r.iter_lines(decode_unicode=True):
+                        if not line or not line.startswith("data: "):
+                            continue
+                        event = json.loads(line[len("data: "):])
+                        kind = event.get("event")
+                        if kind == "node_complete":
+                            node = event.get("node")
+                            if node in step_placeholders:
+                                label = step_labels.get(node, node)
+                                step_placeholders[node].markdown(f"✅ **{label}** — {event.get('summary', 'done')}")
+                        elif kind == "chunk":
+                            memo_parts.append(event.get("text", ""))
+                            memo_placeholder.markdown("".join(memo_parts).replace("$", "\\$") + "▌")
+                        elif kind == "done":
+                            final["verdict"] = event.get("verdict")
+                            final["risk_score"] = event.get("risk_score")
+                            final["dcf_value"] = event.get("dcf_value")
+                            final["valuation_method"] = event.get("valuation_method")
+                            final["messages"] = event.get("messages", [])
+                        elif kind == "error":
+                            st.error(f"Pipeline error: {event.get('message')}")
+                            st.stop()
+
+                memo_placeholder.empty()
+                final["final_memo"] = "".join(memo_parts)
+                st.session_state.last_result = final
+            except requests.exceptions.ConnectionError:
+                st.error("Cannot connect to backend at localhost:8000. Is it running?")
+                st.stop()
+            except requests.exceptions.Timeout:
+                st.error("Request timed out after 180 s.")
+                st.stop()
 
     # Results section
     res = st.session_state.get("last_result")

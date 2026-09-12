@@ -577,6 +577,48 @@ async def analyze(req: AnalyzeRequest):
 
 # ── Streaming endpoint ─────────────────────────────────────────────────────────
 
+_NODE_LABELS = {
+    "router": "Router — classifying your question",
+    "finance": "Finance — reading your financial health",
+    "data_and_research": "Data + Research (parallel) — market data & filings",
+    "risk_and_code": "Risk + Code (parallel) — risk analysis & valuation",
+    "validation": "Validation — checking results",
+    "rebalancing": "Rebalancing — checking portfolio balance",
+    "writer": "Writer — composing your memo",
+    "error": "Error",
+}
+
+
+def _summarize_node_output(node_name: str, output: dict) -> str:
+    """One short line of what this node actually added to state — shown live
+    in the UI next to the node as it completes, not just a checkmark."""
+    try:
+        if node_name == "router":
+            plan = output.get("fetch_plan") or {}
+            return f"horizon={output.get('investment_horizon', '?')}, tier={plan.get('company_tier', '?')}"
+        if node_name == "finance":
+            hs = (output.get("personal_finance") or {}).get("health_score") or {}
+            total = hs.get("total") if isinstance(hs, dict) else None
+            return f"health score {total}/100" if total is not None else "personal finance loaded"
+        if node_name == "data_and_research":
+            snap = output.get("financial_snapshot") or {}
+            return f"market data fetched (confidence: {snap.get('confidence', '?')})"
+        if node_name == "risk_and_code":
+            risk = output.get("risk_report") or {}
+            score = risk.get("risk_score")
+            return f"risk score {score}/10" if score is not None else "risk + valuation computed"
+        if node_name == "validation":
+            return "issues found" if output.get("error") else "all checks passed"
+        if node_name == "rebalancing":
+            return "rebalancing suggested" if output.get("rebalance_suggestion") else "portfolio already balanced"
+        if node_name == "writer":
+            memo = output.get("final_memo") or ""
+            return f"memo written ({len(memo)} chars)"
+    except Exception:
+        pass
+    return "done"
+
+
 @app.post("/analyze/stream", dependencies=[Depends(verify_api_key)])
 async def analyze_stream(req: AnalyzeRequest):
     ticker, amount = await _resolve_request_fields(req)
@@ -603,16 +645,45 @@ async def analyze_stream(req: AnalyzeRequest):
     }
 
     async def event_stream():
+        # Was ainvoke() — blocks until the whole 8-node pipeline finishes, then
+        # fakes "streaming" by chopping the already-complete memo into words.
+        # astream(stream_mode="updates") yields the real partial state after
+        # each node actually finishes, so the frontend can show live progress
+        # (which agent is running, what it just added) instead of one opaque
+        # spinner for the full ~60-90s run.
         yield f"data: {json.dumps({'event': 'start', 'ticker': ticker})}\n\n"
+        final_state: dict = {}
         try:
-            result = await wealthos_graph.ainvoke(initial_state)
-            memo   = result.get("final_memo", "")
-            words  = memo.split(" ")
+            async for update in wealthos_graph.astream(initial_state, stream_mode="updates"):
+                for node_name, node_output in update.items():
+                    final_state.update(node_output or {})
+                    payload = {
+                        "event": "node_complete",
+                        "node": node_name,
+                        "label": _NODE_LABELS.get(node_name, node_name),
+                        "summary": _summarize_node_output(node_name, node_output or {}),
+                    }
+                    yield f"data: {json.dumps(payload)}\n\n"
+
+            memo  = final_state.get("final_memo", "") or ""
+            words = memo.split(" ")
             for i, word in enumerate(words):
                 chunk = word + (" " if i < len(words) - 1 else "")
                 yield f"data: {json.dumps({'event': 'chunk', 'text': chunk})}\n\n"
-                await asyncio.sleep(0.02)
-            yield f"data: {json.dumps({'event': 'done', 'messages': result.get('messages', [])})}\n\n"
+                await asyncio.sleep(0.01)
+
+            # Same dcf_val/valuation_method fallback logic as /analyze, so the
+            # frontend's result header (Verdict/Risk/Est.-value cards) works
+            # identically whether it came from the blocking or streamed path.
+            risk = final_state.get("risk_report") or {}
+            code = final_state.get("code_output") or {}
+            dcf_val, valuation_method = None, None
+            if code.get("dcf"):
+                dcf_val, valuation_method = code["dcf"].get("intrinsic_value"), "dcf"
+            elif code.get("monte_carlo"):
+                dcf_val, valuation_method = code["monte_carlo"].get("median_price"), "monte_carlo_fallback"
+
+            yield f"data: {json.dumps({'event': 'done', 'verdict': risk.get('recommendation'), 'risk_score': risk.get('risk_score'), 'dcf_value': dcf_val, 'valuation_method': valuation_method, 'messages': final_state.get('messages', [])})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
 
