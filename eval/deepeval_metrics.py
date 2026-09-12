@@ -43,6 +43,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from deepeval.models.base_model import DeepEvalBaseLLM
 from deepeval.metrics import (
     FaithfulnessMetric,
