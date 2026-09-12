@@ -216,8 +216,12 @@ def format_rebalancing(suggestion, ticker: str = "") -> str:
 
     actions = d.get("actions", [])
     if actions:
+        # Was actions[:4] while the header printed len(actions) — a stated
+        # count that doesn't match how many are actually listed is exactly
+        # what leaked into the memo as a wrong "N actions" claim, confirmed
+        # live 2026-09-12. List everything the header claims.
         lines.append(f"\nRebalancing Actions ({len(actions)}):")
-        for a in actions[:4]:
+        for a in actions:
             act    = a.get("action", "") if isinstance(a, dict) else a.action
             sector = a.get("sector", "") if isinstance(a, dict) else a.sector
             amount = a.get("amount", 0) if isinstance(a, dict) else a.amount
@@ -226,8 +230,20 @@ def format_rebalancing(suggestion, ticker: str = "") -> str:
     else:
         lines.append("Portfolio is well balanced. No rebalancing required.")
 
+    # Given as an explicit, never-truncated field — was only reachable inside
+    # new_investment_impact's 200-char cutoff below, so on portfolios with
+    # several actions it got cut off before the LLM ever saw it, and the LLM
+    # computed sell-minus-buy itself in prose instead — getting the sign
+    # backwards twice (confirmed live 2026-09-06 and 2026-09-12).
+    if d.get("net_cash_flow") is not None:
+        flow = d["net_cash_flow"]
+        if flow >= 0:
+            lines.append(f"\nNet cash flow: {c}{flow:,.0f} freed up by the sells — use this exact figure, do not recompute it.")
+        else:
+            lines.append(f"\nNet cash flow: {c}{abs(flow):,.0f} more needed for the buys than the sells raise — use this exact figure, do not recompute it.")
+
     if d.get("new_investment_impact"):
-        lines.append(f"\nNew Investment Impact: {d['new_investment_impact'][:200]}")
+        lines.append(f"\nNew Investment Impact: {d['new_investment_impact'][:400]}")
 
     return "\n".join(lines)
 

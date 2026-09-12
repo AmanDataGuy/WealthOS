@@ -705,7 +705,13 @@ if page == "Analyze":
                 unsafe_allow_html=True,
             )
         with col_d:
-            dcf_str = f"${dcf:,.2f}" if dcf else "—"
+            # Was a hardcoded "$" regardless of what exchange the ticker
+            # trades on — confirmed live 2026-09-12 on RELIANCE.NS showing
+            # "$1,355.29" while the memo body correctly used ₹ for the same
+            # number throughout.
+            res_ticker = (res.get("ticker") or "").upper()
+            currency = "₹" if res_ticker.endswith((".NS", ".BO")) else "$"
+            dcf_str = f"{currency}{dcf:,.2f}" if dcf else "—"
             st.markdown(
                 f'<div style="padding:0.75rem 0 0.25rem;">'
                 f'<div style="font-size:0.7rem;color:#8c959f;text-transform:uppercase;'

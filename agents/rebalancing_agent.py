@@ -70,8 +70,20 @@ class RebalanceSuggestion(BaseModel):
     actions:                list[RebalanceAction]
     new_investment_impact:  Optional[str]        = None
     summary:                str
+    net_cash_flow:          Optional[float]      = None   # +ve = freed cash, -ve = extra cash needed
     analysis_date:          str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     holdings:               list[Holding]        = Field(default_factory=list)
+
+
+# Was hardcoded "$" everywhere in this file regardless of what exchange the
+# ticker actually trades on — confirmed live 2026-09-12 on RELIANCE.NS: the
+# memo correctly used ₹ everywhere else, but the Portfolio Impact section
+# said "$150,000" for an amount the user typed as ₹1,50,000, because this
+# agent's own summary/reason strings hardcoded $.
+def _currency_symbol(ticker: Optional[str]) -> str:
+    if ticker and ticker.upper().endswith((".NS", ".BO")):
+        return "₹"
+    return "$"
 
 
 # ── Holdings Fetcher ───────────────────────────────────────────────────────────
@@ -229,6 +241,7 @@ def generate_actions(
     drift: dict[str, float],
     total_value: float,
     threshold: float = 5.0,    # % deviation to trigger action
+    currency: str = "$",
 ) -> list[RebalanceAction]:
     """
     Generate rebalance actions for sectors with drift > threshold.
@@ -249,7 +262,7 @@ def generate_actions(
                 sector=sector,
                 amount=round(amount, 2),
                 reason=f"{sector} is {deviation:.1f}% overweight vs target. "
-                       f"Trim ${amount:,.0f} to rebalance.",
+                       f"Trim {currency}{amount:,.0f} to rebalance.",
                 urgency=urgency,
             ))
         else:
@@ -260,7 +273,7 @@ def generate_actions(
                 sector=sector,
                 amount=round(amount, 2),
                 reason=f"{sector} is {abs(deviation):.1f}% underweight vs target. "
-                       f"Add ${amount:,.0f} to rebalance.",
+                       f"Add {currency}{amount:,.0f} to rebalance.",
                 urgency=urgency,
             ))
 
@@ -273,6 +286,23 @@ def generate_actions(
 
 # ── Summary Builder ────────────────────────────────────────────────────────────
 
+def compute_net_cash_flow(actions: list[RebalanceAction]) -> float:
+    """
+    Sell total minus buy total. Positive = net cash freed by the trims,
+    negative = the buys need more cash than the sells raised.
+
+    Was never computed anywhere — the writer agent was asked to do this
+    sell-minus-buy arithmetic itself in prose, and got the SIGN backwards
+    twice in a row (confirmed live 2026-09-06 and 2026-09-12: it stated a
+    negative "net cash flow" when its own listed sell/buy numbers summed to
+    a positive net). Computing it here means the writer just repeats a given
+    number instead of deriving it.
+    """
+    sells = sum(a.amount for a in actions if a.action == "sell")
+    buys  = sum(a.amount for a in actions if a.action == "buy")
+    return round(sells - buys, 2)
+
+
 def build_summary(
     current: dict[str, float],
     projected: dict[str, float],
@@ -280,6 +310,7 @@ def build_summary(
     actions: list[RebalanceAction],
     new_investment: Optional[NewInvestment],
     total_value: float,
+    currency: str = "$",
 ) -> str:
     lines = []
 
@@ -288,7 +319,7 @@ def build_summary(
         proj_sector_pct = projected.get(new_investment.sector, 0)
         target_pct      = target.get(new_investment.sector, 0)
         lines.append(
-            f"Adding ${new_investment.amount:,.0f} to {new_investment.ticker} "
+            f"Adding {currency}{new_investment.amount:,.0f} to {new_investment.ticker} "
             f"({new_investment.sector}) increases sector weight from "
             f"{curr_sector_pct:.1f}% → {proj_sector_pct:.1f}% "
             f"(target: {target_pct:.1f}%)."
@@ -300,9 +331,17 @@ def build_summary(
         high_urgency = [a for a in actions if a.urgency == "high"]
         if high_urgency:
             lines.append(f"{len(high_urgency)} high-urgency rebalancing action(s) identified.")
-        lines.append(f"Total portfolio value: ${total_value:,.0f}.")
-        for a in actions[:3]:   # top 3 actions in summary
-            lines.append(f"• {a.action.upper()} {a.sector}: ${a.amount:,.0f} — {a.reason[:60]}")
+        lines.append(f"Total portfolio value: {currency}{total_value:,.0f}.")
+        # List every action, not a capped subset — a stated count ("N
+        # high-urgency actions") that doesn't match how many are actually
+        # listed is exactly the inconsistency the writer echoed verbatim.
+        for a in actions:
+            lines.append(f"• {a.action.upper()} {a.sector}: {currency}{a.amount:,.0f} — {a.reason[:60]}")
+        net_flow = compute_net_cash_flow(actions)
+        if net_flow >= 0:
+            lines.append(f"Net cash flow: {currency}{net_flow:,.0f} freed up by the sells.")
+        else:
+            lines.append(f"Net cash flow: {currency}{abs(net_flow):,.0f} more is needed for the buys than the sells raise.")
 
     return " ".join(lines)
 
@@ -372,7 +411,10 @@ async def run_rebalancing_agent(
     drift = compute_drift(projected_allocation, target)
 
     # ── Generate actions ──────────────────────────────────────────────────────
-    actions = generate_actions(drift, total_value + (new_investment.amount if new_investment else 0))
+    currency = _currency_symbol(new_investment.ticker if new_investment else None)
+    actions = generate_actions(
+        drift, total_value + (new_investment.amount if new_investment else 0), currency=currency,
+    )
 
     # ── Build summary ─────────────────────────────────────────────────────────
     summary = build_summary(
@@ -382,7 +424,9 @@ async def run_rebalancing_agent(
         actions,
         new_investment,
         total_value,
+        currency=currency,
     )
+    net_cash_flow = compute_net_cash_flow(actions)
 
     suggestion = RebalanceSuggestion(
         user_id=user_id,
@@ -394,6 +438,7 @@ async def run_rebalancing_agent(
         actions=actions,
         new_investment_impact=summary if new_investment else None,
         summary=summary,
+        net_cash_flow=net_cash_flow,
         holdings=holdings,
     )
 
