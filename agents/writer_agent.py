@@ -54,7 +54,11 @@ def _load_compiled_program():
         from eval.dspy_optimizer import MemoWriter
         program = MemoWriter()
         program.load(COMPILED_PROMPT_PATH)
-        lm = dspy.LM(f"groq/{GROQ_MODEL}", api_key=GROQ_API_KEY, max_tokens=3000, temperature=0.3)
+        # Raised from 3000 — confirmed live 2026-09-12 that a 7442-char memo
+        # still hit this ceiling mid-sentence in Valuation Analysis. A 7-
+        # section memo with citations and tables genuinely needs headroom
+        # beyond what a rough char-count estimate suggests.
+        lm = dspy.LM(f"groq/{GROQ_MODEL}", api_key=GROQ_API_KEY, max_tokens=4500, temperature=0.3)
         dspy.configure(lm=lm)
         print(f"  [writer] DSPy compiled prompt loaded from {COMPILED_PROMPT_PATH}")
         return program
