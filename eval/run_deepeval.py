@@ -76,7 +76,12 @@ def score_entry(entry: dict) -> dict:
             metric.measure(test_case)
             scores[name] = bool(metric.success)
         except Exception as e:
-            print(f"  [warn] {name} failed for {entry.get('ticker')}: {e}")
+            # str(e) is empty for some exception types (notably httpx transport
+            # errors like ReadTimeout/ConnectTimeout raised with no message) —
+            # that's exactly what produced the undebuggable
+            # "[warn] AnswerRelevancy failed for AAPL: " lines with nothing
+            # after the colon. type(e).__name__ + repr() is never empty.
+            print(f"  [warn] {name} failed for {entry.get('ticker')}: {type(e).__name__}: {e!r}")
             scores[name] = None
 
     completed = [v for v in scores.values() if v is not None]
