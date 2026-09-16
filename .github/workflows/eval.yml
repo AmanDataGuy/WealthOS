@@ -11,6 +11,12 @@ on:
       - "eval/deepeval_metrics.py"
       - "eval/run_deepeval.py"
       - "graph/nodes.py"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of golden-dataset examples to run (28 = full dataset)"
+        required: false
+        default: "5"
 
 jobs:
   deepeval:
@@ -27,10 +33,23 @@ jobs:
       - name: Install eval dependencies
         run: pip install deepeval langchain-groq python-dotenv
 
-      - name: Run DeepEval (first 5 examples)
+      # Per-PR runs are intentionally 5 examples on the Groq judge — this is a
+      # fast, free-tier feedback loop for catching regressions, not a quality
+      # benchmark. It is NOT the same run as the authoritative one: the "real"
+      # number (26/28, 92.9%) documented in eval_report.md was 28 examples on
+      # the Gemini judge, run manually. Groq's free-tier 8k TPM cap makes a
+      # full 28-example x 9-metric run impractical to run on every PR (it needs
+      # 30s inter-metric pacing — see METRIC_SLEEP_SECONDS in run_deepeval.py
+      # — which would blow well past a reasonable PR feedback loop); Gemini
+      # avoids that but requires a paid, budget-capped key we don't want to
+      # spend on every push. Trigger this workflow manually (workflow_dispatch)
+      # with a larger `limit` input (up to 28) for a fuller periodic check; the
+      # full-28/Gemini run stays a manual, occasional benchmark documented in
+      # eval_report.md, not a CI gate.
+      - name: Run DeepEval
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: python eval/run_deepeval.py --limit 5
+        run: python eval/run_deepeval.py --limit "${{ github.event.inputs.limit || '5' }}"
 
       - name: Check pass rate >= 80%
         run: |
