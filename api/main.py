@@ -448,14 +448,18 @@ async def _extract_ticker_and_amount(query: str) -> tuple[Optional[str], Optiona
 
 
 async def _get_usd_inr_rate() -> float:
-    """Live USD/INR rate via the same yfinance ticker market_server.py's
-    get_currency_rates() uses. Falls back to a fixed approximate rate if the
-    live fetch fails — better than blocking the whole request on an FX quote.
+    """Live USD/INR rate via market_server.get_currency_rates() — was a
+    separate inline yfinance lookup duplicating that function's own USD/INR
+    fetch (and missing its Redis/TTL_MACRO caching). Direct import, same
+    precedent as rebalancing_agent.py/research_agent.py/data_agent.py rather
+    than wiring up the full MCP client protocol for one field.
+    Falls back to a fixed approximate rate if the live fetch fails — better
+    than blocking the whole request on an FX quote.
     """
     try:
-        import yfinance as yf
-        info = await asyncio.to_thread(lambda: yf.Ticker("INR=X").info)
-        rate = info.get("regularMarketPrice")
+        from mcp_servers.market_server import get_currency_rates
+        data = await asyncio.to_thread(get_currency_rates)
+        rate = (data.get("rates") or {}).get("usd_inr", {}).get("rate")
         if rate and 50 < rate < 150:   # sanity range — USD/INR has lived here for years
             return float(rate)
     except Exception as e:
@@ -500,7 +504,12 @@ async def _resolve_request_fields(req: "AnalyzeRequest") -> tuple[str, float]:
 # ── Main analysis endpoint ─────────────────────────────────────────────────────
 
 @app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_api_key)])
-async def analyze(req: AnalyzeRequest):
+async def analyze(req: AnalyzeRequest, authorization: Optional[str] = Header(None)):
+    # verify_user_token is also the {user_id}-path-param dependency used on
+    # /history, /portfolio, /memory, etc. It's a plain function, so it's
+    # callable directly here too — /analyze takes user_id from the request
+    # body instead of a path param, so it can't be wired in via Depends().
+    await verify_user_token(req.user_id, authorization)
     await _check_rate_limit(req.user_id)
     ticker, amount = await _resolve_request_fields(req)
     query  = _sanitize_query(req.query)
@@ -654,7 +663,9 @@ def _summarize_node_output(node_name: str, output: dict) -> str:
 
 
 @app.post("/analyze/stream", dependencies=[Depends(verify_api_key)])
-async def analyze_stream(req: AnalyzeRequest):
+async def analyze_stream(req: AnalyzeRequest, authorization: Optional[str] = Header(None)):
+    await verify_user_token(req.user_id, authorization)
+    await _check_rate_limit(req.user_id)
     ticker, amount = await _resolve_request_fields(req)
     query  = _sanitize_query(req.query)
 
@@ -827,20 +838,27 @@ async def get_portfolio(user_id: str):
 async def upload_personal_doc(
     user_id: str = Form(...),
     file: UploadFile = File(...),
+    authorization: Optional[str] = Header(None),
 ):
     """
     Index a personal finance document (PDF, HTM) into Qdrant under
     ticker=PERSONAL_{user_id} so the research agent can retrieve it
     during personalised analysis.
     """
-    suffix = Path(file.filename).suffix.lower()
+    await verify_user_token(user_id, authorization)
+
+    # file.filename is attacker-controlled; Path(...).name strips any
+    # directory components (e.g. "../../../evil.pdf") so it can't escape
+    # docs_dir when joined below.
+    safe_filename = Path(file.filename).name
+    suffix = Path(safe_filename).suffix.lower()
     if suffix not in {".pdf", ".htm", ".html"}:
         raise HTTPException(status_code=400, detail="Only PDF and HTML files are supported.")
 
     # Save permanently to data/personal_docs/{user_id}/
     docs_dir = Path("data") / "personal_docs" / user_id
     docs_dir.mkdir(parents=True, exist_ok=True)
-    perm_path = docs_dir / file.filename
+    perm_path = docs_dir / f"{uuid.uuid4().hex[:8]}_{safe_filename}"
     with perm_path.open("wb") as f:
         shutil.copyfileobj(file.file, f)
 
@@ -850,7 +868,7 @@ async def upload_personal_doc(
         result = await indexer.index_personal_doc(
             str(perm_path),
             user_id,
-            filename=file.filename,
+            filename=safe_filename,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
