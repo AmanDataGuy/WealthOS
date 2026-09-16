@@ -58,6 +58,58 @@ def get_session_cost() -> dict:
     return dict(_session_cost)
 
 
+# ── Cost cap enforcement ──────────────────────────────────────────────────────
+#
+# _track_usage persists every call to llm_usage but nothing ever checked the
+# total against a ceiling — usage could climb unbounded with no error until
+# Groq's own 429s kicked in (see the 2026-09-03 quota exhaustion note above
+# _track_usage, which is what got llm_usage added in the first place).
+#
+# llm_usage has no user_id column — this app shares one pool of Groq keys
+# across all users rather than metering per-user, so there is no per-user key
+# to reuse here. The cap below is global daily spend, the same identifying
+# key (none) _track_usage itself already uses.
+#
+# ponytail: one SELECT then proceed, no lock — two concurrent calls can both
+# read "under budget" and both go through, running slightly over the cap.
+# A token-bucket/distributed-lock would close that gap; not worth it at this
+# app's solo/personal traffic scale.
+
+_MAX_DAILY_COST_USD = float(os.getenv("WEALTHOS_MAX_DAILY_COST_USD", "5.0"))
+
+
+async def _check_cost_cap():
+    """Raise RuntimeError if today's total LLM spend already hit the cap.
+
+    Fails open (logs a warning, allows the call) if WEALTHOS_DB_URL is unset,
+    the DB is unreachable, or llm_usage doesn't exist yet — matches
+    api/main.py's _check_rate_limit failing open when Redis is down. This is
+    an optional safety check; its backing store not being provisioned yet
+    must never block the app from working.
+    """
+    db_url = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
+    if not db_url:
+        return
+    try:
+        import asyncpg
+        conn = await asyncpg.connect(db_url, timeout=5)
+        try:
+            total = await conn.fetchval(
+                "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage "
+                "WHERE created_at > NOW() - INTERVAL '1 day'"
+            )
+        finally:
+            await conn.close()
+    except Exception as e:
+        logger.warning("[llm_client] Cost cap check unavailable, allowing call: %s", e)
+        return
+    if total is not None and float(total) >= _MAX_DAILY_COST_USD:
+        raise RuntimeError(
+            f"Daily LLM usage cap exceeded: ${float(total):.4f} spent in the "
+            f"last 24h, limit is ${_MAX_DAILY_COST_USD:.2f}."
+        )
+
+
 async def _track_usage(usage: dict, model: str, provider: str = "groq", cost_per_m: tuple[float, float] = None):
     """
     Update session totals and persist one row to llm_usage. Called after
@@ -129,6 +181,8 @@ async def call_llm(
     multi-turn tool-calling loops. No OpenRouter fallback when tools are
     requested; the free-tier fallback model doesn't reliably support it.
     """
+    await _check_cost_cap()
+
     owns_client = False
     if client is None:
         client = httpx.AsyncClient()
