@@ -493,6 +493,7 @@ if page == "Analyze":
                             f"{API_URL}/upload-personal-doc",
                             data={"user_id": USER_ID},
                             files={"file": (uf.name, uf.getvalue(), "application/pdf")},
+                            headers=_auth_headers(),
                             timeout=120,
                         )
                         st.session_state.doc_status[uf.name] = "ready" if r.ok else "error"
@@ -619,7 +620,7 @@ if page == "Analyze":
             }
             memo_parts = []
             try:
-                with requests.post(f"{API_URL}/analyze/stream", json=payload, stream=True, timeout=180) as r:
+                with requests.post(f"{API_URL}/analyze/stream", json=payload, headers=_auth_headers(), stream=True, timeout=180) as r:
                     if r.status_code == 429:
                         st.error("Rate limit reached — max 10 analyses per minute. Try again shortly.")
                         st.stop()
