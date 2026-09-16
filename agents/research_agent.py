@@ -27,7 +27,6 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 
-import httpx
 import asyncpg
 
 from pydantic import BaseModel, Field
@@ -232,74 +231,41 @@ async def fetch_news(symbols: list[str], days: int = 7) -> list[NewsItem]:
 
 async def fetch_sec_insights(symbols: list[str]) -> list[SECInsight]:
     """
-    Fetch the latest 10-K or 10-Q for each symbol from SEC EDGAR.
+    Fetch the latest 10-K or 10-Q for each symbol via sec_edgar_server's
+    get_filings_list (CIK resolution, caching, and HTTP calls all live there —
+    same directly-callable-MCP-tool pattern router_agent.py uses for get_10k).
     Only works for US-listed tickers — Indian tickers are silently skipped.
-    No API key needed — SEC EDGAR is a free public API.
     """
+    from mcp_servers.sec_edgar_server import get_filings_list
+
     insights = []
-    headers  = {"User-Agent": "WealthOS research@wealthos.app"}
+    for symbol in symbols:
+        # Strip exchange suffix — "RELIANCE.NS" → "RELIANCE" (won't resolve, skipped below)
+        clean = symbol.split(".")[0].upper()
 
-    # First, get the SEC CIK number for each ticker
-    async with httpx.AsyncClient(timeout=20, headers=headers) as client:
-
-        # SEC publishes a single JSON file mapping all tickers → CIK
         try:
-            resp = await client.get("https://www.sec.gov/files/company_tickers.json")
-            resp.raise_for_status()
-            ticker_map = {
-                v["ticker"].upper(): str(v["cik_str"]).zfill(10)
-                for v in resp.json().values()
-            }
+            data = await asyncio.to_thread(get_filings_list, clean, 5)
         except Exception as e:
-            logger.error("Could not fetch SEC ticker map: %s", e)
-            return []
+            logger.error("SEC fetch failed for %s: %s", symbol, e)
+            continue
 
-        for symbol in symbols:
-            # Strip exchange suffix — "RELIANCE.NS" → skip, "AAPL" → look up
-            clean = symbol.split(".")[0].upper()
-            cik   = ticker_map.get(clean)
+        if data.get("error"):
+            logger.info("%s not found in SEC database — likely non-US ticker, skipping", symbol)
+            continue
 
-            if not cik:
-                logger.info("%s not found in SEC database — likely non-US ticker, skipping", symbol)
-                continue
+        filings = data.get("filings", [])  # already merged 10-K+10-Q, sorted most-recent first
+        if not filings:
+            continue
 
-            try:
-                # Fetch all filings for this company
-                sub_resp = await client.get(f"https://data.sec.gov/submissions/CIK{cik}.json")
-                sub_resp.raise_for_status()
-                subs = sub_resp.json()
-
-                recent    = subs.get("filings", {}).get("recent", {})
-                forms     = recent.get("form", [])
-                dates     = recent.get("filingDate", [])
-                accessions = recent.get("accessionNumber", [])
-                docs      = recent.get("primaryDocument", [])
-
-                # Find the most recent 10-K or 10-Q
-                filing = None
-                for i, form in enumerate(forms):
-                    if form in ("10-K", "10-Q"):
-                        acc_clean = accessions[i].replace("-", "")
-                        doc_url   = (
-                            f"https://www.sec.gov/Archives/edgar/data/"
-                            f"{int(subs.get('cik', 0))}/{acc_clean}/{docs[i]}"
-                            if i < len(docs) else ""
-                        )
-                        filing = SECInsight(
-                            ticker       = symbol,
-                            form         = form,
-                            filed_date   = dates[i],
-                            document_url = doc_url,
-                        )
-                        break
-
-                if filing:
-                    insights.append(filing)
-                    logger.info("%s — latest filing: %s on %s", symbol, filing.form, filing.filed_date)
-
-            except Exception as e:
-                logger.error("SEC fetch failed for %s: %s", symbol, e)
-                continue
+        latest = filings[0]
+        filing = SECInsight(
+            ticker       = symbol,
+            form         = latest["form"],
+            filed_date   = latest["filed_date"],
+            document_url = latest.get("document_url") or "",
+        )
+        insights.append(filing)
+        logger.info("%s — latest filing: %s on %s", symbol, filing.form, filing.filed_date)
 
     return insights
 
