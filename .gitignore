@@ -28,6 +28,9 @@ env/
 .coverage
 htmlcov/
 
+# Lint cache
+.ruff_cache/
+
 # DSPy compiled outputs — keep example, ignore real runs
 eval/compiled_*.json
 !eval/writer_golden_dataset.json
@@ -65,7 +68,13 @@ PROJECT_DEEP_DIVE_QA.md
 # Session notes & local memory — never commit
 changes1.md
 notes.md
+CHANGES_REPORT.md
 .claude/
+
+# Large local media — not source, don't commit
+*.mp4
+*.mov
+*.mkv
 
 # Local startup scripts (machine-specific)
 start.ps1
