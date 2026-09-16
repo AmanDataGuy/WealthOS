@@ -249,6 +249,12 @@ def format_rebalancing(suggestion, ticker: str = "") -> str:
     if d.get("new_investment_impact"):
         lines.append(f"\nNew Investment Impact: {d['new_investment_impact'][:400]}")
 
+    harvesting = d.get("tax_harvesting", [])
+    if harvesting:
+        lines.append(f"\nTax-Harvesting Suggestions (India LTCG/STCG, {len(harvesting)}):")
+        for h in harvesting:
+            lines.append(f"  - {h.get('ticker', '')} — {h.get('reason', '')}")
+
     return "\n".join(lines)
 
 
