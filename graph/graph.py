@@ -3,7 +3,9 @@
 WealthOS LangGraph orchestrator.
 
 ## Phase 5 change
-`validation_node` added between risk_and_code and rebalancing.
+`validation_node` added between risk_and_code and rebalancing. It is a real
+gate: on failure it routes to `error_node` via `add_conditional_edges`
+instead of just logging and continuing.
 
 ## Phase 3/4 change
 `router_node` added as first node — classifies horizon, company tier, user tier.
@@ -22,8 +24,10 @@ Execution order:
               │                      │
               └───────────┬──────────┘
                           ▼
-                  validation_node     ← Phase 5: guardrails checks
+                  validation_node     ← Phase 5: guardrails gate
                           │
+                    (pass / fail)
+                          ├──────────────► error_node ─► END
                           ▼
                   rebalancing_node
                           │
@@ -103,6 +107,13 @@ def route_on_error(state: WealthOSState) -> str:
     return "continue"
 
 
+def route_on_validation(state: WealthOSState) -> str:
+    """Phase 5 gate: stop if validation_node found a hard failure."""
+    if state.get("validation_passed") is False:
+        return "error"
+    return "continue"
+
+
 # ── Build the graph ────────────────────────────────────────────────────────────
 
 def build_graph():
@@ -132,7 +143,16 @@ def build_graph():
     )
 
     graph.add_edge("risk_and_code", "validation")     # Phase 5
-    graph.add_edge("validation",    "rebalancing")    # Phase 5
+
+    graph.add_conditional_edges(
+        "validation",
+        route_on_validation,
+        {
+            "continue": "rebalancing",
+            "error":    "error",
+        }
+    )
+
     graph.add_edge("rebalancing",   "writer")
     graph.add_edge("writer",        END)
     graph.add_edge("error",         END)
