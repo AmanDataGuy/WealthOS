@@ -242,6 +242,8 @@ See `.env.example` for the full list. `GROQ_API_KEY` also needs to be set as a *
 
 ## Demo
 
+**[Watch the full walkthrough on YouTube](https://youtu.be/6H6aCxz2w0U)** — the 8-agent pipeline explained, then a live run of a real multi-part investment question end to end.
+
 ![WealthOS Analyze page — ticker, amount, horizon, and document upload inputs](docs/screenshots/analyze-input.png)
 *The Analyze page — set a ticker, investment amount, horizon, and optionally attach loan/EMI documents for personalised context.*
 
