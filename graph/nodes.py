@@ -5,7 +5,9 @@ Each node pulls what it needs from state, calls the agent, writes result back.
 Errors are caught per-node so one failure doesn't kill the whole pipeline.
 
 ## Phase 5 addition
-`validation_node` added between risk_and_code and rebalancing.
+`validation_node` added between risk_and_code and rebalancing. It now
+actually gates the pipeline: a failed check routes to `error_node` instead
+of just logging a warning and continuing.
 
 ## Phase 6 addition
 `finance_node` now reads Mem0 memory at the start.
@@ -352,12 +354,24 @@ async def validation_node(state: WealthOSState) -> dict:
     valid, error = validate_all(state)
     if valid:
         return {
+            "validation_passed": True,
+            "validation_issues": [],
             "messages": log(state, "Validation Node ✅ all agent outputs passed checks"),
         }
     else:
-        print(f"  [validation] ⚠️  {error}")
+        # ponytail: validate_all returns a flat (bool, str) — no soft/hard
+        # severity split. Its checks (missing financial data, out-of-range
+        # risk_score, non Buy/Hold/Avoid recommendation, etc.) are all things
+        # that would make rebalancing/writer operate on garbage, so treat
+        # every failure as hard and route to error_node. If validate_all ever
+        # grows genuinely cosmetic checks, give it a severity field instead of
+        # inferring severity here.
+        print(f"  [validation] ❌ {error}")
         return {
-            "messages": log(state, f"Validation Node ⚠️ {error} (continuing)"),
+            "validation_passed": False,
+            "validation_issues": [error],
+            "error": error,
+            "messages": log(state, f"Validation Node ❌ {error} (routing to error)"),
         }
 
 
@@ -380,6 +394,7 @@ async def rebalancing_node(state: WealthOSState) -> dict:
         suggestion = await run_rebalancing_agent(
             user_id=user_id,
             new_investment=new_inv,
+            risk_report=state.get("risk_report"),
         )
         return {
             "rebalance_suggestion": suggestion.model_dump(),
