@@ -17,6 +17,8 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
+from services.pii_redaction import redact_pii
+
 load_dotenv()
 
 QDRANT_URL     = os.getenv("QDRANT_URL",     "http://localhost:6333")
@@ -530,6 +532,10 @@ class FilingIndexer:
 
         if not full_text.strip():
             return {"error": "No text could be extracted. The document may be image-based or scanned. Please use a text-based PDF.", "ticker": ticker}
+
+        # Redact PII once, before chunking — so every chunk's `content` (and
+        # anything later pulled into an LLM prompt) is already redacted.
+        full_text = redact_pii(full_text)
 
         words = full_text.split()
         CHUNK_SIZE = 150
