@@ -36,3 +36,7 @@ class WealthOSState(TypedDict):
     # ── Control ─────────────────────────────────────────────
     error:          Optional[str]
     messages:       list[str]     # execution log — what ran and when
+
+    # ── Phase 5: validation gate ─────────────────────────────
+    validation_passed: Optional[bool]   # set by validation_node
+    validation_issues: Optional[list]   # validate_all failures, if any
