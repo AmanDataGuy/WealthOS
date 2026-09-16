@@ -46,6 +46,7 @@ class Holding(BaseModel):
     current_value:  Optional[float] = None
     pnl:            Optional[float] = None
     pnl_pct:        Optional[float] = None
+    held_since:     Optional[str]   = None   # portfolio_holdings.added_at — proxy for purchase date, see services/tax_calculator.py
 
 class RebalanceAction(BaseModel):
     action:         Literal["buy", "sell", "hold"]
@@ -73,6 +74,7 @@ class RebalanceSuggestion(BaseModel):
     net_cash_flow:          Optional[float]      = None   # +ve = freed cash, -ve = extra cash needed
     analysis_date:          str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     holdings:               list[Holding]        = Field(default_factory=list)
+    tax_harvesting:         list                 = Field(default_factory=list)   # list[HarvestSuggestion], Indian (.NS/.BO) holdings only
 
 
 # Was hardcoded "$" everywhere in this file regardless of what exchange the
@@ -95,7 +97,7 @@ async def fetch_holdings(user_id: str, conn: asyncpg.Connection) -> list[Holding
         uuid.UUID(user_id)   # validate — raises ValueError if not a real UUID
         rows = await conn.fetch(
             """
-            SELECT ticker, quantity, avg_buy_price, sector, asset_type
+            SELECT ticker, quantity, avg_buy_price, sector, asset_type, added_at
             FROM portfolio_holdings
             WHERE user_id = $1
             """,
@@ -122,6 +124,7 @@ async def fetch_holdings(user_id: str, conn: asyncpg.Connection) -> list[Holding
             avg_buy_price=float(r["avg_buy_price"]),
             sector=r["sector"] or "Unknown",
             asset_type=r["asset_type"] or "equity",
+            held_since=r["added_at"].isoformat() if r["added_at"] else None,
         )
         for r in rows
     ]
@@ -366,6 +369,7 @@ async def run_rebalancing_agent(
     user_id: str,
     new_investment: Optional[NewInvestment] = None,
     target_allocation: Optional[dict[str, float]] = None,
+    risk_report: Optional[dict] = None,
 ) -> RebalanceSuggestion:
     """
     Main entry point. Called by LangGraph in Phase 4.
@@ -374,6 +378,9 @@ async def run_rebalancing_agent(
         user_id:            User identifier
         new_investment:     Optional new investment being considered
         target_allocation:  Optional custom target allocation (uses DEFAULT_TARGET if None)
+        risk_report:        Optional RiskReport.model_dump() from risk_and_code — used only
+                             to check for a high-severity "macro" risk factor, which nudges
+                             the tax-harvesting suggestion tone (see services/tax_calculator.py)
     """
     print(f"\n{'='*50}")
     print(f"  Rebalancing Agent — user: {user_id}")
@@ -428,6 +435,16 @@ async def run_rebalancing_agent(
     )
     net_cash_flow = compute_net_cash_flow(actions)
 
+    # ── Indian tax-harvesting suggestions (LTCG/STCG, .NS/.BO holdings only) ───
+    from services.tax_calculator import suggest_harvesting
+    macro_risk_high = bool(risk_report) and any(
+        f.get("category") == "macro" and f.get("severity") == "high"
+        for f in (risk_report or {}).get("risk_factors", [])
+    )
+    tax_harvesting = suggest_harvesting(holdings, macro_risk_high=macro_risk_high)
+    if tax_harvesting:
+        print(f"  ✅ Tax harvesting: {len(tax_harvesting)} suggestions (Indian holdings)")
+
     suggestion = RebalanceSuggestion(
         user_id=user_id,
         total_portfolio_value=total_value,
@@ -440,6 +457,7 @@ async def run_rebalancing_agent(
         summary=summary,
         net_cash_flow=net_cash_flow,
         holdings=holdings,
+        tax_harvesting=[h.model_dump() for h in tax_harvesting],
     )
 
     print(f"\n  Actions      : {len(actions)} rebalancing actions")
