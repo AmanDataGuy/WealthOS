@@ -143,14 +143,36 @@ class GeminiJudge(DeepEvalBaseLLM):
         import httpx
         api_key = os.getenv("GEMINI_API_KEY", "")
         async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent",
-                params={"key": api_key},
-                json={"contents": [{"parts": [{"text": prompt}]}]},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
+            try:
+                resp = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent",
+                    params={"key": api_key},
+                    json={"contents": [{"parts": [{"text": prompt}]}]},
+                )
+                resp.raise_for_status()
+            except httpx.HTTPError as e:
+                # httpx transport errors (timeout, connect refused, etc.) often
+                # stringify to "" — that's what showed up upstream as
+                # "[warn] AnswerRelevancy failed for AAPL: " with nothing after
+                # the colon. Wrap with the exception's class name so a future
+                # failure is actually diagnosable.
+                raise RuntimeError(
+                    f"GeminiJudge: request to Gemini failed ({type(e).__name__}: {e!r})"
+                ) from e
+
+            try:
+                data = resp.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            except (KeyError, IndexError, TypeError, ValueError) as e:
+                # Response parsed as HTTP 200 but not in the expected shape —
+                # e.g. a safety block or MAX_TOKENS cutoff returns candidates
+                # with no "content"/"parts". Surface the raw body so whoever
+                # debugs this next can see exactly what Gemini returned,
+                # instead of a bare null with no information.
+                raise RuntimeError(
+                    f"GeminiJudge: unexpected response shape from Gemini "
+                    f"({type(e).__name__}: {e!r}); raw response: {resp.text[:2000]!r}"
+                ) from e
 
     def get_model_name(self) -> str:
         return f"gemini/{self._model}"
