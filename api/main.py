@@ -208,9 +208,14 @@ async def _check_rate_limit(user_id: str) -> None:
     except HTTPException:
         raise
     except Exception as e:
-        # Redis down — fail open. Rate limiting is defense-in-depth, not a
-        # correctness requirement; matches this file's existing "never let an
-        # optional dependency block a real request" pattern.
+        if _IS_PRODUCTION:
+            # Same WEALTHOS_ENV=production opt-in used by verify_api_key /
+            # verify_user_token below: refuse rather than silently run
+            # unprotected once an operator has said this is a real deployment.
+            logger.error("[rate_limit] Redis unavailable, rejecting request (fail closed): %s", e)
+            raise HTTPException(status_code=503, detail="Rate limiter unavailable")
+        # Local dev default stays fail-open — matches this file's existing
+        # "never let an optional dependency block a bare checkout" pattern.
         logger.warning("[rate_limit] Redis unavailable, allowing request: %s", e)
 
 
