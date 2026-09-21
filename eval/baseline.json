@@ -1,0 +1,7 @@
+{
+  "_comment": "Pinned baseline from the first full-dataset run — see eval_report.md. Only compared against full/near-full CI runs (see eval.yml); the 5-example per-PR smoke test uses the flat 80% floor instead, since 26/28 has no meaningful equivalent at n=5.",
+  "run_date": "2026-09-07",
+  "judge_model": "gemini-2.5-flash-lite",
+  "total": 28,
+  "passed": 26
+}
