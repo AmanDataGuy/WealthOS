@@ -11,7 +11,7 @@
 [![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
 
-*8 specialized agents × 5 MCP servers × 45 tools → one personalized investment memo, grounded in real filings and computed math.*
+*9 specialized agents × 5 MCP servers × 21 tools → one personalized investment memo, grounded in real filings and computed math.*
 
 </div>
 
@@ -51,16 +51,16 @@ flowchart LR
     N3 --> N4[validation]:::graphnode
     N4 --> N5[rebalancing]:::graphnode
     N5 --> N6[writer]:::graphnode
-    N6 --> Output[Investment Memo<br>Buy / Hold / Avoid]:::output
+    Output[Investment Memo<br>Buy / Hold / Avoid]:::output
 
     N0 -. "direct import" .-> SEC[sec_edgar_server<br>5 tools]:::mcp
 
-    N1 -- MCPClient --> FIN[finance_server<br>19 tools]:::mcp
+    N1 -- MCPClient --> FIN[finance_server<br>1 tool]:::mcp
     N1 --> PG1[(PostgreSQL)]:::data
     N1 -. "read, start of run" .-> Mem0[Mem0]:::intel
     N1 -. "past-decisions lookup" .-> Qdrant
 
-    N2 -- "MCPClient, fallback direct import" --> MKT[market_server<br>13 tools]:::mcp
+    N2 -- "MCPClient, fallback direct import" --> MKT[market_server<br>7 tools]:::mcp
     N2 -. "direct import" .-> NEWS[news_server<br>4 tools]:::mcp
     N2 --> PG2[(PostgreSQL)]:::data
     N2 --> Redis[(Redis<br>per-tool TTL, 5–60 min)]:::data
@@ -73,11 +73,13 @@ flowchart LR
 
     N6 -. "write, end of run" .-> Mem0
     N6 -. "index final verdict" .-> Qdrant
-
-    TAX[tax_server<br>4 tools — unused,<br>no caller found]:::mcpdead
+    N6 --> N6b["tax<br>(conditional — tax-shaped queries only)"]:::graphnode
+    N6b -. "direct import" .-> TAX[tax_server<br>4 tools]:::mcp
+    N6b --> N7[policy<br>harness/risk_policy.py]:::graphnode
+    N7 --> Output
 ```
 
-> Arrows above map to actual imports as of the last fact-check (2026-08-20): `sec_edgar_server`, `news_server`, and `rebalancing`'s market calls go through **direct Python imports**, not the MCP protocol — only `finance`, `data_and_research`, and `risk_and_code` go through `MCPClient`. `tax_server` has 4 real tools but no agent currently calls it.
+> Arrows above map to actual imports as of the last fact-check (2026-09-22): `sec_edgar_server`, `news_server`, `tax_server`, and `rebalancing`'s market calls go through **direct Python imports**, not the MCP protocol — only `finance`, `data_and_research`, and `risk_and_code` go through `MCPClient`. Rationale in [`docs/adr/001-mcp-transport-boundary.md`](docs/adr/001-mcp-transport-boundary.md). 18 unused finance tools and 6 unused market tools were deleted 2026-09-16 after a repo-wide grep found zero callers; `tax_server` was deleted the same day for the same reason, then restored and wired up 2026-09-22 via the new Tax Agent.
 
 ---
 
@@ -95,6 +97,8 @@ flowchart LR
 | Code Agent | E2B sandbox | Real Python execution — DCF, Monte Carlo (1 000 paths), sensitivity table | Intrinsic value, upside probability |
 | Rebalancing Agent | Pure Python | Flags any sector drifting >5 percentage points from its target allocation | Rebalance actions with urgency |
 | Writer Agent | DSPy BootstrapFewShot | Compiled few-shot prompt (28 golden examples); source citation trust hierarchy; injects user risk profile (buy/hold/avoid history) into Personal Finance Fit section; Final Verdict indexed to Qdrant `user_analyses` after each run | 7-section investment memo |
+| Tax Agent | Pure Python (`tax_server` direct import) | Runs only when the query is tax-shaped (regex gate on tax/80C/HRA/regime/capital gains keywords — no LLM call to decide); old vs. new regime comparison + 80C/80D/HRA/NPS headroom for the user's annual income | Appended "Tax Impact" section on the memo |
+
 
 </div>
 
@@ -106,13 +110,13 @@ flowchart LR
 
 | Server | Tools | Data Source |
 |:---:|:---:|:---:|
-| `market_server` | 13 | yfinance — price, P/E, market cap, historical, sector, competitors, options, technicals, VIX; FRED — 10Y yield, fed funds rate (yfinance fallback if no key) |
+| `market_server` | 7 | yfinance — price, financials, history, info, currency rates, technicals, options data |
 | `sec_edgar_server` | 5 | SEC EDGAR — 10-K / 10-Q filing URLs + XBRL facts |
 | `news_server` | 4 | NewsAPI + Firecrawl + newspaper3k — headlines, full article body, sentiment, Reddit |
-| `finance_server` | 19 | PostgreSQL + yfinance — transactions, EMIs, goals, portfolio holdings/P&L/allocation, plus pure financial math (XIRR, EMI, FIRE, SIP). Merged from 3 servers — 2 of the 3 weren't spawned via MCP by any live caller before the merge |
-| `tax_server` | 4 | Old vs new regime, STCG/LTCG (Budget 2024 rates), advance tax, 80C suggestions. Not currently called by any agent — verified live 2026-08-20 |
+| `finance_server` | 1 | PostgreSQL — `get_transactions` (raw transaction history). 18 other tools (EMIs, goals, portfolio holdings/P&L/allocation, calculator math) were removed 2026-09-16 — zero live callers found in a repo-wide grep |
+| `tax_server` | 4 | Old vs. new regime comparison, capital gains tax (STCG/LTCG, Budget 2024 rates), 80C/80D/HRA/NPS suggestions, advance tax schedule. Deleted 2026-09-16 as dead code, **restored and wired up 2026-09-22** via the new Tax Agent (`agents/tax_agent.py`) — the tools were real and tested, they just had no caller |
 
-**45 tools total** — most go through MCPClient stdio subprocess; `sec_edgar_server` (5), `news_server` (4), and `rebalancing`'s market calls bypass MCP entirely via direct Python import; `tax_server`'s 4 tools have no caller at all (see diagram footnote above)
+**21 tools total** across 5 servers — most go through MCPClient stdio subprocess; `sec_edgar_server` (5), `news_server` (4), `rebalancing`'s market calls, and all of `tax_server` (4) bypass MCP entirely via direct Python import, per [`docs/adr/001-mcp-transport-boundary.md`](docs/adr/001-mcp-transport-boundary.md).
 
 </div>
 
@@ -124,9 +128,10 @@ flowchart LR
 
 | Category | Implementation | Detail |
 |:---:|:---:|:---|
-| **Orchestration** | LangGraph 8-node state machine | `asyncio.gather` for parallel data+research and parallel risk+code — ~2× speedup |
+| **Orchestration** | LangGraph 10-node state machine | `asyncio.gather` for parallel data+research and parallel risk+code — ~2× speedup |
+| **Policy Gate** | `harness/risk_policy.py` (node 9, after writer) | Deterministic allow/deny/escalate check on every Buy verdict — no LLM call. Denies a Buy sized past 3× the user's computed monthly surplus; escalates a Buy built on low-confidence data or one that contradicts the user's own risk-score history in `user_risk_profiles`. A denial/escalation renders as a visible banner appended to the memo, not an error |
 | **Routing** | Router Agent (node 0) | LLM classifies investment horizon; Qdrant chunk-count sets company tier (`well_indexed` / `thin_indexed` / `not_indexed`); fires `_on_demand_index()` as background task for unknown tickers |
-| **MCP Transport** | MCPClient stdio subprocess (`finance`, `data_and_research`/market) | JSON-RPC over stdin/stdout, retry-on-crash; `sec_edgar_server`/`news_server`/`rebalancing`'s market calls bypass this via direct Python import instead |
+| **MCP Transport** | MCPClient stdio subprocess (`finance`, `data_and_research`/market) | JSON-RPC over stdin/stdout, retry-on-crash; `sec_edgar_server`/`news_server`/`tax_server`/`rebalancing`'s market calls bypass this via direct Python import instead — see ADR 001 |
 | **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | Key rotation across up to 3 Groq keys; if all fail, falls back to OpenRouter's free `openai/gpt-oss-20b:free` |
 | **RAG** | Qdrant hybrid search + Cohere reranking | `all-MiniLM-L6-v2` 384-dim dense (local CPU, no API key) + BM25 sparse; RRF fusion; SEC 10-K filings indexed for AAPL/MSFT/NVDA/GOOGL/TSLA/AMZN |
 | **Embeddings** | sentence-transformers/all-MiniLM-L6-v2 | 384-dim, runs on CPU, no API key required |
@@ -151,7 +156,7 @@ flowchart LR
 
 | Layer | Technologies |
 |:---:|:---|
-| **Orchestration** | LangGraph (8-node StateGraph) |
+| **Orchestration** | LangGraph (10-node StateGraph) |
 | **LLM** | Groq `openai/gpt-oss-120b` with 3-key rotation |
 | **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` (384-dim, local CPU) |
 | **RAG** | Qdrant local (hybrid dense + BM25 sparse · RRF fusion) · Cohere reranking |
@@ -260,7 +265,7 @@ See `.env.example` for the full list. `GROQ_API_KEY` also needs to be set as a *
 **3-minute script:**
 
 1. **Analyze page** — In the query box write e.g. *"I have ₹30k–50k to invest and I'm fairly conservative. Should I add NVDA to my portfolio right now?"* · set Ticker to `NVDA` · pick **Long-term** horizon · hit **Run analysis** (runtime varies — first-time tickers trigger background filing indexing) → results show Verdict pill, Risk score bar, DCF intrinsic value, and the full 7-section memo with a Download button
-2. Expand **Agent log** at the bottom → walk through each node: Router → Finance → Data → Research → Risk → Code → Rebalancing → Writer
+2. Expand **Agent log** at the bottom → walk through each node: Router → Finance → Data → Research → Risk → Code → Rebalancing → Writer → Tax (conditional) → Policy
 3. Switch to **History** page → open the **Memory** sub-tab → show the investor profile (total analyses, Buy/Hold/Avoid counts, avg risk score, tracked sectors) and the past-decisions table that feeds every new risk analysis
 4. Open **`http://<host>:8000/docs`** → show the rate-limited `/analyze` endpoint (10 req/min per user), `/upload-personal-doc`, and A2A agent cards at `/agents`
 
