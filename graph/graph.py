@@ -34,6 +34,13 @@ Execution order:
                           ▼
                      writer_node
                           │
+                          ▼
+                       tax_node      ← agents/tax_agent.py: appends a Tax
+                          │            Impact section, only when the query
+                          │            is tax-shaped (skipped otherwise)
+                          ▼
+                     policy_node     ← harness/risk_policy.py: deterministic
+                          │            allow/deny/escalate gate, no LLM call
                          END
 """
 
@@ -50,6 +57,8 @@ from graph.nodes import (
     validation_node,
     rebalancing_node,
     writer_node,
+    tax_node,
+    policy_node,
     error_node,
 )
 
@@ -126,6 +135,8 @@ def build_graph():
     graph.add_node("validation",        validation_node)       # Phase 5
     graph.add_node("rebalancing",       rebalancing_node)
     graph.add_node("writer",            writer_node)
+    graph.add_node("tax",               tax_node)          # agents/tax_agent.py, conditional
+    graph.add_node("policy",            policy_node)       # harness/risk_policy.py gate
     graph.add_node("error",             error_node)
 
     graph.set_entry_point("router")
@@ -154,7 +165,9 @@ def build_graph():
     )
 
     graph.add_edge("rebalancing",   "writer")
-    graph.add_edge("writer",        END)
+    graph.add_edge("writer",        "tax")
+    graph.add_edge("tax",           "policy")
+    graph.add_edge("policy",        END)
     graph.add_edge("error",         END)
 
     return graph.compile()
