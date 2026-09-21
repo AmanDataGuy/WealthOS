@@ -21,9 +21,11 @@ from agents.risk_agent        import run_risk_agent
 from agents.code_agent        import run_code_agent
 from agents.rebalancing_agent import run_rebalancing_agent, NewInvestment
 from agents.writer_agent      import run_writer_agent
+from agents.tax_agent         import run_tax_agent, involves_taxable_decision
 from graph.state              import WealthOSState
 from validation.validators     import validate_all, validate_memo
 from observability.langsmith_config import trace_node
+from harness.risk_policy       import validate_recommendation, PolicyDecision
 
 
 # ── Helper: past decisions retrieval ──────────────────────────────────────────
@@ -476,6 +478,8 @@ async def writer_node(state: WealthOSState) -> dict:
 
         return {
             "final_memo": memo.full_memo,
+            "memo_verdict": memo.verdict,
+            "memo_risk_score": memo.risk_score,
             "messages": log(state, f"Writer Node ✅ {len(memo.full_memo)} chars — verdict: {memo.verdict}"),
         }
     except Exception as e:
@@ -483,6 +487,101 @@ async def writer_node(state: WealthOSState) -> dict:
             "error": f"Writer Node failed: {e}",
             "messages": log(state, f"Writer Node ❌ {e}"),
         }
+
+
+# ── Tax Node ───────────────────────────────────────────────────────────────────
+# agents/tax_agent.py — India tax regime comparison + 80C headroom. Appended
+# as a post-processing step on the already-generated memo rather than fed
+# into the DSPy-compiled writer prompt itself: the writer's compiled prompt
+# and its 28-example golden dataset are tuned for a fixed 7-section shape,
+# and retraining that to add an 8th section is a separate, larger piece of
+# work than "wire up the already-built tax tools." This gets a real Tax
+# Impact section into the memo today without touching DSPy or eval risk.
+
+@trace_node("tax_node")
+async def tax_node(state: WealthOSState) -> dict:
+    print("\n[Graph] Tax Node running...")
+    query = state.get("query", "")
+    if not involves_taxable_decision(query):
+        return {"messages": log(state, "Tax Node — query not tax-shaped, skipped")}
+
+    personal_finance = state.get("personal_finance") or {}
+    try:
+        tax_context = await run_tax_agent(
+            monthly_income=personal_finance.get("monthly_income", 0),
+        )
+    except Exception as e:
+        # Never let a tax-calculation bug take down a memo that's otherwise
+        # ready — same "errors are caught per-node" contract as every other
+        # node in this file.
+        print(f"  [tax] ⚠️  Tax Agent failed: {e}")
+        return {"messages": log(state, f"Tax Node ❌ {e} (memo unaffected)")}
+
+    if tax_context is None:
+        return {"messages": log(state, "Tax Node — no income data to compute against, skipped")}
+
+    regime   = tax_context["regime_comparison"]
+    savings  = tax_context["tax_saving_suggestions"]
+    section = (
+        "\n\n## Tax Impact\n"
+        f"- Recommended regime: **{regime['recommendation'].replace('_', ' ').title()}** "
+        f"(saves ₹{abs(regime['tax_savings_with_new_regime']):,.0f}/year vs. the alternative)\n"
+        f"- Estimated annual tax: old regime ₹{regime['old_regime']['total_tax']:,.0f} · "
+        f"new regime ₹{regime['new_regime']['total_tax']:,.0f}\n"
+        f"- Unused deduction headroom: ₹{savings['total_potential_tax_saving']:,.0f} in potential "
+        f"savings across {len(savings['suggestions'])} sections (80C/80D/HRA/NPS)\n"
+    )
+
+    return {
+        "tax_context": tax_context,
+        "final_memo": (state.get("final_memo") or "") + section,
+        "messages": log(state, "Tax Node ✅ Tax Impact section appended"),
+    }
+
+
+# ── Policy Node ────────────────────────────────────────────────────────────────
+# harness/risk_policy.py — deterministic gate, no LLM call. The Writer Agent
+# proposes a verdict; this is the only thing with authority to allow, deny,
+# or escalate it before it reaches the user. Runs even after a Writer
+# failure is impossible by construction: writer_node's except branch sets
+# "error" and skips straight to error_node via the graph's error routing,
+# so policy_node only ever sees a real memo.
+
+@trace_node("policy_node")
+async def policy_node(state: WealthOSState) -> dict:
+    print("\n[Graph] Policy Node running...")
+    verdict = state.get("memo_verdict")
+    if not verdict:
+        # Nothing to gate (writer_node errored — graph error routing already
+        # sent that case to error_node, not here — this is just a safety net).
+        return {"policy_status": "allow", "messages": log(state, "Policy Node — no memo to check, skipped")}
+
+    personal_finance   = state.get("personal_finance") or {}
+    financial_snapshot = state.get("financial_snapshot") or {}
+    user_risk_profile  = await _fetch_user_risk_profile(state.get("user_id") or "00000000-0000-0000-0000-000000000001")
+
+    result = validate_recommendation(
+        verdict=verdict,
+        risk_score=state.get("memo_risk_score"),
+        invest_amount=state.get("invest_amount"),
+        monthly_surplus=personal_finance.get("monthly_surplus"),
+        data_confidence=financial_snapshot.get("confidence"),
+        user_risk_profile=user_risk_profile,
+    )
+
+    if result.decision == PolicyDecision.ALLOW:
+        return {
+            "policy_status": "allow",
+            "messages": log(state, "Policy Node ✅ recommendation allowed"),
+        }
+
+    banner = f"\n\n---\n\n> ⚠️ **Policy {result.decision.value.upper()}**: {result.reason}\n\n---\n"
+    return {
+        "policy_status": result.decision.value,
+        "policy_reason": result.reason,
+        "final_memo": (state.get("final_memo") or "") + banner,
+        "messages": log(state, f"Policy Node ⚠️ {result.decision.value} — {result.reason}"),
+    }
 
 
 # ── Error Node ─────────────────────────────────────────────────────────────────

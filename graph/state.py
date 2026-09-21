@@ -31,6 +31,7 @@ class WealthOSState(TypedDict):
     risk_report:            Optional[dict]   # Risk Agent
     code_output:            Optional[dict]   # Code Agent
     rebalance_suggestion:   Optional[dict]   # Rebalancing Agent
+    tax_context:            Optional[dict]   # Tax Agent — only set when involves_taxable_decision()
     final_memo:             Optional[str]    # Writer Agent
 
     # ── Control ─────────────────────────────────────────────
@@ -40,3 +41,9 @@ class WealthOSState(TypedDict):
     # ── Phase 5: validation gate ─────────────────────────────
     validation_passed: Optional[bool]   # set by validation_node
     validation_issues: Optional[list]   # validate_all failures, if any
+
+    # ── Policy gate (harness/risk_policy.py) ─────────────────
+    memo_verdict:    Optional[str]  # Buy/Hold/Avoid — set by writer_node, read by policy_node
+    memo_risk_score: Optional[int]  # set by writer_node, read by policy_node
+    policy_status:   Optional[str]  # "allow" | "deny" | "escalate" — set by policy_node
+    policy_reason:   Optional[str]  # human-readable reason, if not "allow"
