@@ -1,6 +1,9 @@
 # .github/workflows/eval.yml
 # DeepEval quality gate — runs on every PR touching writer or eval code.
-# Fails if memo quality drops below 80%. Reads golden dataset — no live pipeline needed.
+# 5-example smoke test (per PR): fails below an 80% flat floor.
+# Full/near-full manual run (workflow_dispatch, limit>=26): fails if it drops
+# below the pinned eval/baseline.json count (26/28), not just the 80% floor.
+# Reads golden dataset — no live pipeline needed.
 name: Eval Gate
 
 on:
@@ -51,7 +54,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python eval/run_deepeval.py --limit "${{ github.event.inputs.limit || '5' }}"
 
-      - name: Check pass rate >= 80%
+      - name: Check pass rate
         run: |
           python - <<'EOF'
           import json, sys, pathlib
@@ -71,6 +74,25 @@ jobs:
           total  = len(results)
           rate   = passed / total
           print(f"DeepEval pass rate: {passed}/{total} ({rate:.0%})")
+
+          baseline_path = pathlib.Path("eval/baseline.json")
+          baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else None
+
+          # A run within 2 examples of the pinned baseline's size is a
+          # full/near-full run (28 examples, occasionally 26-27 if a dataset
+          # entry gets skipped) — hold it to the exact pinned count, not just
+          # the flat floor, so a silent 26/28 -> 24/28 drop still fails even
+          # though 24/28 (86%) clears 80%. Anything smaller is the 5-example
+          # per-PR smoke test, which has no meaningful equivalent to "26/28"
+          # and stays on the flat floor.
+          if baseline and abs(total - baseline["total"]) <= 2:
+              if passed < baseline["passed"]:
+                  print(f"FAIL: {passed}/{total} is below pinned baseline {baseline['passed']}/{baseline['total']} "
+                        f"(run_date={baseline['run_date']}, judge={baseline['judge_model']}) — see eval/baseline.json")
+                  sys.exit(1)
+              print(f"PASS — meets or beats pinned baseline {baseline['passed']}/{baseline['total']}")
+              sys.exit(0)
+
           if rate < 0.80:
               print(f"FAIL: {rate:.0%} < 80% threshold")
               sys.exit(1)
