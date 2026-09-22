@@ -45,6 +45,7 @@ from graph.state  import WealthOSState
 from observability.langsmith_config import verify_langsmith
 from services.llm_client            import get_session_cost
 from agents.agent_cards             import get_agent_card, list_all_agents
+from agents.risk_agent               import RiskReport
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 DB_URL    = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
@@ -770,7 +771,7 @@ async def get_state(ticker: str):
 
 @app.get("/agents")
 async def agents_list():
-    """Return metadata cards for all 7 agents."""
+    """Return metadata cards for all 9 agents."""
     return {"agents": list_all_agents()}
 
 
@@ -781,6 +782,40 @@ async def agent_detail(agent_name: str):
     if not card:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
     return card
+
+
+class RiskAgentInvokeRequest(BaseModel):
+    ticker: str
+    personal_finance: Optional[dict] = None   # caller-supplied, per risk_agent's own input_schema
+
+
+# The other 8 agent cards above are illustrative — this is the one genuinely
+# A2A-callable agent: a separate process can POST here and get back a real
+# RiskReport, independent of the full 10-node pipeline (no router/finance/
+# writer/etc. involved). Internally still calls the Data Agent directly
+# (not through the graph) since a risk analysis needs financial context to
+# be meaningful — that's a real function call, not a network hop, so it
+# doesn't reintroduce a pipeline dependency. Own auth boundary via
+# verify_api_key, same as /analyze, unlike the read-only GET /agents above.
+@app.post("/agents/risk_agent/invoke", response_model=RiskReport, dependencies=[Depends(verify_api_key)])
+async def invoke_risk_agent(req: RiskAgentInvokeRequest):
+    from agents.data_agent import run_data_agent
+    from agents.risk_agent import run_risk_agent
+
+    ticker = req.ticker.upper()
+    try:
+        snapshot = await run_data_agent(ticker, use_rag=False)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Data Agent failed to fetch financial data: {e}")
+
+    try:
+        return await run_risk_agent(
+            ticker=ticker,
+            financial_snapshot=snapshot,
+            personal_finance=req.personal_finance,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Risk Agent failed: {e}")
 
 
 # ── Analysis history ──────────────────────────────────────────────────────────
