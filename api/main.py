@@ -633,6 +633,8 @@ _NODE_LABELS = {
     "validation": "Validation — checking results",
     "rebalancing": "Rebalancing — checking portfolio balance",
     "writer": "Writer — composing your memo",
+    "tax": "Tax — checking regime & 80C impact",
+    "policy": "Policy — final safety check",
     "error": "Error",
 }
 
@@ -662,6 +664,11 @@ def _summarize_node_output(node_name: str, output: dict) -> str:
         if node_name == "writer":
             memo = output.get("final_memo") or ""
             return f"memo written ({len(memo)} chars)"
+        if node_name == "tax":
+            return "Tax Impact section added" if output.get("tax_context") else "not a tax-shaped query, skipped"
+        if node_name == "policy":
+            status = output.get("policy_status", "allow")
+            return "allowed" if status == "allow" else f"{status} — {output.get('policy_reason', '')}"
     except Exception:
         pass
     return "done"

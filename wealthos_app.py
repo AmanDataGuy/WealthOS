@@ -604,6 +604,8 @@ if page == "Analyze":
                 ("validation", "Validation"),
                 ("rebalancing", "Rebalancing"),
                 ("writer", "Writer"),
+                ("tax", "Tax (conditional)"),
+                ("policy", "Policy"),
             ]
             step_labels = dict(PIPELINE_STEPS)
             st.markdown("**Live agent progress**")
