@@ -13,6 +13,20 @@ from typing import Optional
 # ── Agent card definitions ─────────────────────────────────────────────────────
 
 AGENT_CARDS = {
+    "router_agent": {
+        "name": "router_agent",
+        "description": "First node in the graph — classifies investment horizon and company tier, triggers on-demand SEC filing indexing.",
+        "capabilities": [
+            "LLM classification of investment horizon (short/mid/long)",
+            "Qdrant chunk-count company tier classification (well_indexed/thin_indexed/not_indexed)",
+            "fires on-demand 10-K download + indexing as a background task for unindexed tickers",
+        ],
+        "input_schema": ["query", "tickers", "user_id"],
+        "output_schema": ["investment_horizon", "fetch_plan"],
+        "mcp_servers": ["sec_edgar_server"],
+        "status": "FULL",
+    },
+
     "finance_agent": {
         "name": "finance_agent",
         "description": "Reads user transaction history and computes a 5-dimension financial health score.",
@@ -76,6 +90,9 @@ AGENT_CARDS = {
         "output_schema": ["risk_report"],
         "mcp_servers": [],
         "status": "FULL",
+        # Genuinely A2A-callable, not just a descriptor: a separate process
+        # can invoke this agent directly, independent of the full pipeline.
+        "a2a_endpoint": "POST /agents/risk_agent/invoke",
     },
 
     "code_agent": {
@@ -123,6 +140,20 @@ AGENT_CARDS = {
         ],
         "output_schema": ["final_memo"],
         "mcp_servers": [],
+        "status": "FULL",
+    },
+
+    "tax_agent": {
+        "name": "tax_agent",
+        "description": "India tax context — old vs. new regime comparison and 80C/80D/HRA/NPS headroom, appended as a Tax Impact section.",
+        "capabilities": [
+            "old vs. new income tax regime comparison (FY 2024-25 slabs)",
+            "80C/80D/HRA/NPS deduction headroom suggestions",
+            "keyword-gated: only runs on tax-shaped queries, no LLM call needed to decide",
+        ],
+        "input_schema": ["query", "personal_finance"],
+        "output_schema": ["tax_context", "final_memo (appended section)"],
+        "mcp_servers": ["tax_server"],
         "status": "FULL",
     },
 }
