@@ -226,6 +226,16 @@ Open **http://localhost:8501** — sign up, or use demo accounts: `admin / wealt
 python -m rag.indexer batch AAPL MSFT NVDA GOOGL TSLA AMZN
 ```
 
+**Populate financial facts for the Data Agent (first time only):**
+```bash
+python -m rag.populate_facts AAPL MSFT NVDA GOOGL TSLA AMZN
+```
+Without this, `financial_facts` is empty and the Data Agent falls back to
+live yfinance price data only — every analysis reports `confidence: low`
+(3+ of revenue/net income/debt/FCF missing), which the Policy Gate then
+escalates every Buy verdict on. Confirmed live: NVDA/MSFT read `confidence:
+low` on a fresh DB, `confidence: high` after running this.
+
 **Required environment variables:**
 
 | Variable | Purpose |
