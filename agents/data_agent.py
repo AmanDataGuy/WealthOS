@@ -319,7 +319,7 @@ async def run_data_agent(ticker: str, use_rag: bool = True) -> FinancialSnapshot
                     data_sources.append("financial_facts_db")
                     print(f"  ✅ DB: {len(db_data)} metrics found")
                 else:
-                    print(f"  ⚠️  DB: No data — run populate_facts.py first")
+                    print(f"  ⚠️  DB: No data — run `python -m rag.populate_facts {ticker}` first")
     
                 # Fetch live market data
                 market_data = await fetch_market_data(ticker, client)
