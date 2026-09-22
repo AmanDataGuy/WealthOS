@@ -16,6 +16,7 @@ of just logging a warning and continuing.
 
 import os
 import time
+import asyncio
 from agents.data_agent        import run_data_agent
 from agents.risk_agent        import run_risk_agent
 from agents.code_agent        import run_code_agent
@@ -438,43 +439,50 @@ async def writer_node(state: WealthOSState) -> dict:
         if not valid:
             print(f"  [validation] ⚠️  Memo validation: {error}")
 
-        # Save to Mem0 (2-line signal)
-        try:
-            from memory.mem0_client import write_memory
-            write_memory(state.get("user_id") or "00000000-0000-0000-0000-000000000001", {
-                **state,
-                "final_memo": memo.full_memo,
-            })
-        except Exception as e:
-            print(f"  [mem0] ⚠️  write failed: {e}")
+        # Mem0 write, Qdrant user_analyses indexing, and the risk-profile
+        # upsert are all writes for a *future* run's benefit — nothing later
+        # in *this* run (tax_node, policy_node, or the response itself) reads
+        # them back. They used to be awaited/called synchronously here, which
+        # meant every one of them sat directly on the response's critical
+        # path. Fired as background tasks instead — same per-write error
+        # handling, just not gating the memo the user is waiting on.
+        _uid = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
 
-        # Index Final Verdict into user_analyses Qdrant collection
-        try:
-            from rag.indexer import index_user_analysis
-            _uid    = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
-            _ticker = state["tickers"][0] if state.get("tickers") else "UNKNOWN"
-            await index_user_analysis(
-                user_id=_uid,
-                ticker=_ticker,
-                verdict=memo.verdict or "Hold",
-                full_memo=memo.full_memo,
-                risk_score=float(memo.risk_score) if memo.risk_score is not None else None,
-            )
-        except Exception as e:
-            print(f"  [indexer] ⚠️  user_analyses index failed: {e}")
+        async def _write_mem0():
+            try:
+                from memory.mem0_client import write_memory
+                await asyncio.get_running_loop().run_in_executor(
+                    None, write_memory, _uid, {**state, "final_memo": memo.full_memo}
+                )
+            except Exception as e:
+                print(f"  [mem0] ⚠️  write failed: {e}")
 
-        # Upsert user_risk_profiles with verdict + sector from this analysis
-        try:
-            _sector = (state.get("financial_snapshot") or {}).get("sector", "Unknown")
-            _risk_score = float(memo.risk_score) if memo.risk_score is not None else 5.0
-            await _upsert_risk_profile(
-                user_id=state.get("user_id") or "00000000-0000-0000-0000-000000000001",
-                verdict=memo.verdict,
-                risk_score=_risk_score,
-                sector=_sector,
-            )
-        except Exception as e:
-            print(f"  [profile] ⚠️  risk profile upsert failed: {e}")
+        async def _index_qdrant():
+            try:
+                from rag.indexer import index_user_analysis
+                _ticker = state["tickers"][0] if state.get("tickers") else "UNKNOWN"
+                await index_user_analysis(
+                    user_id=_uid,
+                    ticker=_ticker,
+                    verdict=memo.verdict or "Hold",
+                    full_memo=memo.full_memo,
+                    risk_score=float(memo.risk_score) if memo.risk_score is not None else None,
+                )
+            except Exception as e:
+                print(f"  [indexer] ⚠️  user_analyses index failed: {e}")
+
+        async def _upsert_profile():
+            try:
+                _sector = (state.get("financial_snapshot") or {}).get("sector", "Unknown")
+                _risk_score = float(memo.risk_score) if memo.risk_score is not None else 5.0
+                await _upsert_risk_profile(
+                    user_id=_uid, verdict=memo.verdict, risk_score=_risk_score, sector=_sector,
+                )
+            except Exception as e:
+                print(f"  [profile] ⚠️  risk profile upsert failed: {e}")
+
+        for coro in (_write_mem0(), _index_qdrant(), _upsert_profile()):
+            asyncio.create_task(coro)
 
         return {
             "final_memo": memo.full_memo,
