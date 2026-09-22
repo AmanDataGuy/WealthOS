@@ -35,7 +35,10 @@ class WriteMemo(dspy.Signature):
 
     Rules:
     - Lead the Executive Summary with the verdict word (BUY / HOLD / AVOID)
-    - Reference the user's actual INR surplus and health score by number
+    - Reference the user's actual INR surplus and health score by number when
+      the input provides one. If personal_context does not mention a health
+      score, do not say it is "None," "unavailable," or "not provided" —
+      simply omit any mention of it rather than naming the absence
     - Every figure in the memo must come from the provided inputs — no invented numbers
     - Bold all key numbers using **markdown bold**
     - Final Verdict must give exactly 3 numbered reasons
