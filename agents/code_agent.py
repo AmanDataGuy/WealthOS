@@ -371,8 +371,15 @@ async def run_code_agent(
     mc_result   = None
     sens_result = None
 
-    # Gate DCF on real FCF data — running on default fallback values produces
-    # meaningless output (e.g. $1.02 intrinsic value for a ₹1268 stock).
+    # Gate DCF on real FCF AND real price/market-cap data — running on default
+    # fallback values produces meaningless output (e.g. $1.02 intrinsic value
+    # for a ₹1268 stock). FCF alone used to be the only gate: extract_inputs()
+    # silently substitutes current_price=100.0 and market_cap=100e9 when the
+    # market data fetch failed but FCF still came through from the DB, so a
+    # DCF could run on real cash flow but a fabricated share count and
+    # baseline price — producing a confident-looking but fictional
+    # intrinsic-value/upside% (e.g. "340% upside" computed against a
+    # hallucinated $100 for a stock actually trading at $1,200).
     _raw_snapshot: dict = {}
     if financial_snapshot:
         _raw_snapshot = (
@@ -382,12 +389,22 @@ async def run_code_agent(
             if isinstance(financial_snapshot, dict)
             else {}
         )
-    _raw_fcf = (_raw_snapshot.get("cash_flow") or {}).get("free_cash_flow")
-    _skip_dcf = not _raw_fcf or _raw_fcf <= 0
+    _raw_fcf   = (_raw_snapshot.get("cash_flow") or {}).get("free_cash_flow")
+    _raw_val   = _raw_snapshot.get("valuation") or {}
+    _raw_price = _raw_val.get("current_price")
+    _raw_mcap  = _raw_val.get("market_cap")
+    _skip_dcf = (
+        not _raw_fcf or _raw_fcf <= 0
+        or not _raw_price or _raw_price <= 0
+        or not _raw_mcap or _raw_mcap <= 0
+    )
 
     # ── DCF Model ─────────────────────────────────────────────────────────────
     if _skip_dcf:
-        print(f"  ⚠️  [1/3] DCF skipped — no real FCF data available (raw_fcf={_raw_fcf})")
+        print(
+            f"  ⚠️  [1/3] DCF skipped — missing real data "
+            f"(raw_fcf={_raw_fcf}, raw_price={_raw_price}, raw_market_cap={_raw_mcap})"
+        )
     else:
         print(f"\n  [1/3] Running DCF model...")
         dcf_code = build_dcf_code(

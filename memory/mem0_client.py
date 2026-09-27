@@ -11,10 +11,12 @@ All we do is add and search.
 """
 
 import os
+import logging
 from mem0 import MemoryClient
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 _client = None
 
@@ -25,11 +27,18 @@ def get_client() -> MemoryClient:
     return _client
 
 
-def read_memory(user_id: str, query: str = "") -> str:
+def read_memory(user_id: str, query: str = "") -> tuple[str, bool]:
     """
     Pull what Mem0 knows about this user that's relevant to their current
-    question. Returns a plain string injected into state as user_memory.
-    Returns empty string if no memories exist yet (new user).
+    question. Returns (memory_text, failed).
+
+    memory_text is "" both when the user genuinely has no memories yet AND
+    when the Mem0 call itself failed — those used to be fully
+    indistinguishable to every caller, so a Mem0 outage silently degraded
+    personalization to generic advice with zero signal anywhere (not even a
+    log line above print's stdout-only visibility). `failed` disambiguates
+    them: True only on an actual exception, never on a legitimately empty
+    result for a new user.
 
     Args:
         user_id: whose memory to search
@@ -54,7 +63,7 @@ def read_memory(user_id: str, query: str = "") -> str:
         # ever reverts to returning a bare list.
         memories = response.get("results", []) if isinstance(response, dict) else response
         if not memories:
-            return ""
+            return "", False
 
         lines = []
         for m in memories:
@@ -63,16 +72,18 @@ def read_memory(user_id: str, query: str = "") -> str:
                 lines.append(f"- {text}")
 
         if not lines:
-            return ""
+            return "", False
 
         result = "\n".join(lines)
-        print(f"  [mem0] Retrieved {len(lines)} memories for {user_id}")
-        return result
+        logger.info("[mem0] Retrieved %d memories for %s", len(lines), user_id)
+        return result, False
 
     except Exception as e:
-        # Memory failure should never block the pipeline
-        print(f"  [mem0] ⚠️  read failed: {e}")
-        return ""
+        # Memory failure should never block the pipeline — but it must be
+        # visible (logger.warning, not just a print swallowed by stdout) and
+        # distinguishable from "new user with no history" via the bool.
+        logger.warning("[mem0] read failed for %s: %s", user_id, e)
+        return "", True
 
 
 def write_memory(user_id: str, state: dict) -> None:
@@ -121,7 +132,7 @@ def write_memory(user_id: str, state: dict) -> None:
         ]
 
         client.add(messages, user_id=user_id)
-        print(f"  [mem0] ✅ Saved analysis memory for {user_id} — {ticker} → {verdict}")
+        logger.info("[mem0] Saved analysis memory for %s — %s -> %s", user_id, ticker, verdict)
 
     except Exception as e:
-        print(f"  [mem0] ⚠️  write failed: {e}")
+        logger.warning("[mem0] write failed for %s: %s", user_id, e)

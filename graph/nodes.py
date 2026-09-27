@@ -176,13 +176,19 @@ async def finance_node(state: WealthOSState) -> dict:
         # Phase 6 — pull long-term memory for this user
         user_id = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
         user_memory = ""
+        memory_unavailable = False
         try:
             from memory.mem0_client import read_memory
-            user_memory = read_memory(user_id, query=state.get("query", ""))
+            user_memory, memory_unavailable = read_memory(user_id, query=state.get("query", ""))
             if user_memory:
                 print(f"  [mem0] Loaded memory for {user_id}")
+            elif memory_unavailable:
+                print(f"  [mem0] ⚠️  Memory read failed for {user_id} — proceeding without personalization history")
         except Exception as e:
+            # Belt-and-suspenders — read_memory itself never raises, but
+            # keep this in case that contract ever changes.
             print(f"  [mem0] ⚠️  Could not load memory: {e}")
+            memory_unavailable = True
 
         # Actually run the Finance Agent instead of returning hardcoded data
         try:
@@ -219,11 +225,13 @@ async def finance_node(state: WealthOSState) -> dict:
         except Exception as e:
             print(f"  [past_decisions] ⚠️  Could not load past decisions: {e}")
 
+        memory_status = "yes" if user_memory else ("failed" if memory_unavailable else "none")
         return {
-            "user_memory":        user_memory,
-            "personal_finance":   personal_finance,
-            "past_decisions_ctx": past_decisions_ctx,
-            "messages": log(state, f"Finance Node ✅ (confidence={personal_finance.get('data_confidence', 'unknown')}, memory={'yes' if user_memory else 'none'})"),
+            "user_memory":         user_memory,
+            "memory_unavailable":  memory_unavailable,
+            "personal_finance":    personal_finance,
+            "past_decisions_ctx":  past_decisions_ctx,
+            "messages": log(state, f"Finance Node ✅ (confidence={personal_finance.get('data_confidence', 'unknown')}, memory={memory_status})"),
         }
     except Exception as e:
         return {
@@ -398,6 +406,7 @@ async def rebalancing_node(state: WealthOSState) -> dict:
             user_id=user_id,
             new_investment=new_inv,
             risk_report=state.get("risk_report"),
+            risk_capacity=(state.get("personal_finance") or {}).get("risk_capacity"),
         )
         return {
             "rebalance_suggestion": suggestion.model_dump(),
@@ -430,6 +439,7 @@ async def writer_node(state: WealthOSState) -> dict:
             personal_finance=state.get("personal_finance"),
             research_snapshot=state.get("research_output"),
             user_memory=state.get("user_memory", ""),
+            memory_unavailable=bool(state.get("memory_unavailable")),
             investment_horizon=state.get("investment_horizon", "long"),
             past_decisions_ctx=state.get("past_decisions_ctx", ""),
             user_risk_profile=_user_risk_profile,

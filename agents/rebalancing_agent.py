@@ -75,6 +75,7 @@ class RebalanceSuggestion(BaseModel):
     analysis_date:          str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     holdings:               list[Holding]        = Field(default_factory=list)
     tax_harvesting:         list                 = Field(default_factory=list)   # list[HarvestSuggestion], Indian (.NS/.BO) holdings only
+    is_demo_data:           bool                 = False   # True when the fallback demo portfolio was used, not the user's real holdings
 
 
 # Was hardcoded "$" everywhere in this file regardless of what exchange the
@@ -90,8 +91,17 @@ def _currency_symbol(ticker: Optional[str]) -> str:
 
 # ── Holdings Fetcher ───────────────────────────────────────────────────────────
 
-async def fetch_holdings(user_id: str, conn: asyncpg.Connection) -> list[Holding]:
-    """Fetch portfolio holdings from Postgres."""
+async def fetch_holdings(user_id: str, conn: asyncpg.Connection) -> tuple[list[Holding], bool]:
+    """
+    Fetch portfolio holdings from Postgres.
+    Returns (holdings, is_demo_data) — is_demo_data is True whenever the
+    fallback demo portfolio was used, whether because the user genuinely has
+    no holdings or because the DB query itself failed. Those two cases used
+    to be indistinguishable: a transient Postgres/network error produced the
+    exact same silent demo-portfolio fallback as "new user, no holdings yet,"
+    and the memo presented fabricated holdings/P&L with full authority either
+    way. Callers now get is_demo_data so the memo can say so.
+    """
     try:
         import uuid
         uuid.UUID(user_id)   # validate — raises ValueError if not a real UUID
@@ -103,11 +113,18 @@ async def fetch_holdings(user_id: str, conn: asyncpg.Connection) -> list[Holding
             """,
             user_id
         )
-    except (ValueError, Exception):
-        rows = []   # fall through to demo holdings below
+    except ValueError:
+        # Not a real UUID — expected for demo/test user_ids, not a DB error
+        print(f"  [rebalancing] user_id '{user_id}' is not a UUID — using demo portfolio")
+        rows = []
+    except Exception as e:
+        # A real DB/connection error, not "user has no holdings" — same
+        # fallback, but worth its own loud log line so it isn't mistaken
+        # for the expected new-user case when debugging.
+        print(f"  [rebalancing] ⚠️  Holdings fetch failed ({e}) — falling back to demo portfolio")
+        rows = []
 
     if not rows:
-        # Return demo holdings for testing
         print("  [rebalancing] No holdings found — using demo portfolio")
         return [
             Holding(ticker="AAPL",  quantity=10,  avg_buy_price=150.0, sector="Technology"),
@@ -115,7 +132,7 @@ async def fetch_holdings(user_id: str, conn: asyncpg.Connection) -> list[Holding
             Holding(ticker="MSFT",  quantity=8,   avg_buy_price=300.0, sector="Technology"),
             Holding(ticker="JPM",   quantity=15,  avg_buy_price=140.0, sector="Financial Services"),
             Holding(ticker="XOM",   quantity=20,  avg_buy_price=90.0,  sector="Energy"),
-        ]
+        ], True
 
     return [
         Holding(
@@ -127,7 +144,7 @@ async def fetch_holdings(user_id: str, conn: asyncpg.Connection) -> list[Holding
             held_since=r["added_at"].isoformat() if r["added_at"] else None,
         )
         for r in rows
-    ]
+    ], False
 
 
 # ── Price Fetcher ──────────────────────────────────────────────────────────────
@@ -349,7 +366,11 @@ def build_summary(
     return " ".join(lines)
 
 
-# ── Default Target Allocation ──────────────────────────────────────────────────
+# ── Target Allocations ───────────────────────────────────────────────────────
+# Three tiers keyed by Finance Agent's risk_capacity (low/medium/high) — was
+# a single DEFAULT_TARGET applied to every user regardless of their actual
+# capacity, now that risk_capacity is a real computed field (see
+# finance_agent.py's PersonalFinanceSnapshot) rather than always-absent.
 
 DEFAULT_TARGET = {
     "Technology":           30.0,
@@ -362,6 +383,34 @@ DEFAULT_TARGET = {
     "Other":                 5.0,
 }
 
+CONSERVATIVE_TARGET = {
+    "Technology":           15.0,
+    "Consumer Cyclical":    10.0,
+    "Financial Services":   15.0,
+    "Healthcare":           20.0,
+    "Energy":               10.0,
+    "Industrials":          10.0,
+    "Consumer Defensive":   15.0,
+    "Other":                 5.0,
+}
+
+AGGRESSIVE_TARGET = {
+    "Technology":           40.0,
+    "Consumer Cyclical":    20.0,
+    "Financial Services":   10.0,
+    "Healthcare":           10.0,
+    "Energy":               10.0,
+    "Industrials":           5.0,
+    "Consumer Defensive":    0.0,
+    "Other":                 5.0,
+}
+
+_RISK_TARGETS = {
+    "low":    CONSERVATIVE_TARGET,
+    "medium": DEFAULT_TARGET,
+    "high":   AGGRESSIVE_TARGET,
+}
+
 
 # ── Main Orchestrator ──────────────────────────────────────────────────────────
 
@@ -370,6 +419,7 @@ async def run_rebalancing_agent(
     new_investment: Optional[NewInvestment] = None,
     target_allocation: Optional[dict[str, float]] = None,
     risk_report: Optional[dict] = None,
+    risk_capacity: Optional[str] = None,
 ) -> RebalanceSuggestion:
     """
     Main entry point. Called by LangGraph in Phase 4.
@@ -377,21 +427,25 @@ async def run_rebalancing_agent(
     Args:
         user_id:            User identifier
         new_investment:     Optional new investment being considered
-        target_allocation:  Optional custom target allocation (uses DEFAULT_TARGET if None)
+        target_allocation:  Optional explicit target allocation — takes priority over
+                             risk_capacity-derived targets if both are given
         risk_report:        Optional RiskReport.model_dump() from risk_and_code — used only
                              to check for a high-severity "macro" risk factor, which nudges
                              the tax-harvesting suggestion tone (see services/tax_calculator.py)
+        risk_capacity:      Finance Agent's computed "low"/"medium"/"high" — selects
+                             CONSERVATIVE_TARGET/DEFAULT_TARGET/AGGRESSIVE_TARGET. Falls back to
+                             DEFAULT_TARGET for "unknown"/None (unrecognized or missing).
     """
     print(f"\n{'='*50}")
     print(f"  Rebalancing Agent — user: {user_id}")
     print(f"{'='*50}")
 
-    target = target_allocation or DEFAULT_TARGET
+    target = target_allocation or _RISK_TARGETS.get(risk_capacity, DEFAULT_TARGET)
 
     # ── Fetch holdings ────────────────────────────────────────────────────────
     conn = await asyncpg.connect(clean_db_url(DATABASE_URL))
     try:
-        holdings = await fetch_holdings(user_id, conn)
+        holdings, is_demo_data = await fetch_holdings(user_id, conn)
     finally:
         await conn.close()
 
@@ -458,6 +512,7 @@ async def run_rebalancing_agent(
         net_cash_flow=net_cash_flow,
         holdings=holdings,
         tax_harvesting=[h.model_dump() for h in tax_harvesting],
+        is_demo_data=is_demo_data,
     )
 
     print(f"\n  Actions      : {len(actions)} rebalancing actions")
@@ -473,6 +528,22 @@ async def run_rebalancing_agent(
 
 if __name__ == "__main__":
     import sys
+
+    # ponytail: smallest runnable check for the risk_capacity -> target
+    # selection — pure logic, no DB/network needed, runs before the
+    # network-dependent CLI demo below.
+    assert _RISK_TARGETS.get("low") is CONSERVATIVE_TARGET
+    assert _RISK_TARGETS.get("high") is AGGRESSIVE_TARGET
+    assert _RISK_TARGETS.get("medium") is DEFAULT_TARGET
+    assert _RISK_TARGETS.get("unknown", DEFAULT_TARGET) is DEFAULT_TARGET
+    assert _RISK_TARGETS.get(None, DEFAULT_TARGET) is DEFAULT_TARGET
+    for name, tgt in [("CONSERVATIVE_TARGET", CONSERVATIVE_TARGET),
+                       ("DEFAULT_TARGET", DEFAULT_TARGET),
+                       ("AGGRESSIVE_TARGET", AGGRESSIVE_TARGET)]:
+        total = sum(tgt.values())
+        assert abs(total - 100.0) < 0.01, f"{name} sums to {total}, not 100"
+    print("  [self-check] risk_capacity target-allocation tiers: all sum to 100%, selection logic correct")
+
     user_id = sys.argv[1] if len(sys.argv) > 1 else "00000000-0000-0000-0000-000000000001"
 
     # Optional: pass ticker and amount as args

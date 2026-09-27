@@ -281,6 +281,14 @@ async def call_llm(
             except Exception as e:
                 logger.warning("[llm_client] OpenRouter fallback also failed: %s", e)
 
+        # Nothing before this point logs a single, unambiguous "total
+        # failure" line — just scattered per-key/per-provider warnings. A
+        # caller grepping logs for why a memo section came back blank had
+        # nothing to search for.
+        logger.error(
+            "[llm_client] All providers exhausted (%d Groq key(s), OpenRouter %s) — returning empty string",
+            len(_GROQ_KEYS), "configured" if OPENROUTER_API_KEY else "not configured",
+        )
         return ""
     finally:
         if owns_client:
