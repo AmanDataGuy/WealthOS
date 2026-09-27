@@ -89,6 +89,7 @@ pdfplumber              # table extraction from PDFs (supplements pypdf prose ex
 pytesseract             # OCR wrapper for tesseract (image-based PDFs)
 pdf2image               # converts PDF pages to images for OCR
 newspaper3k             # full article body extraction in news_server.py (newspaper3k primary, Firecrawl fallback)
+nsepython                # NSE public JSON endpoints — india_filings_server.py (session/cookie handling built in)
 
 # Eval framework (eval/evaluate.py, eval/deepeval_metrics.py, eval/ragas_eval.py, eval/reliability_eval.py)
 deepeval                # FaithfulnessMetric, AnswerRelevancyMetric, HallucinationMetric, GEval (Groq judge)

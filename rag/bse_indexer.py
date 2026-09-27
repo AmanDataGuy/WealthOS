@@ -122,7 +122,7 @@ async def index_indian_company(ticker: str, company_name: str = "") -> int:
         )
         count = result.get("total_points", 0)
         logger.info("[bse_indexer] Indexed %d chunks for %s", count, ticker)
-        await _update_indexed_tickers(ticker, count, str(date.today().year), "annual_report_pdf")
+        await _update_indexed_tickers(ticker, count, str(date.today().year), "bse_pdf")
         return count
     except Exception as e:
         logger.error("[bse_indexer] Indexing failed for %s: %s", ticker, e)

@@ -9,12 +9,38 @@
 #   advance_tax_schedule     — quarterly payment deadlines & amounts
 
 import logging
+from datetime import date
+
 from mcp.server.fastmcp import FastMCP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("tax-mcp")
+
+# ── Staleness tracking ──────────────────────────────────────────────────────
+# Every rate/threshold below is hardcoded for one specific fiscal year and
+# will silently go wrong the moment a new Finance Act changes them. This
+# doesn't auto-fetch new rates — it just stops that drift from being silent.
+
+TAX_RULES_FY = "2024-25"  # AY 2025-26 — see file header
+
+# FY 2024-25 ends 2025-03-31. One full fiscal year later (FY25-26 also
+# elapsed) is the start of FY26-27 — past that, these rates are >1 FY stale.
+_TAX_RULES_STALE_AFTER = date(2026, 4, 1)
+
+
+def _check_staleness() -> None:
+    if date.today() >= _TAX_RULES_STALE_AFTER:
+        logger.warning(
+            "tax_server.py's rates are hardcoded for FY %s and are now more than "
+            "one fiscal year old (past %s) — re-verify every rate/threshold in this "
+            "file against the latest Finance Act before trusting these numbers.",
+            TAX_RULES_FY, _TAX_RULES_STALE_AFTER.isoformat(),
+        )
+
+
+_check_staleness()  # runs once at import time — never silent
 
 
 # ── Tax Slab Data (FY 2024-25) ─────────────────────────────────────────────────
@@ -56,19 +82,35 @@ def _compute_tax(income: float, slabs: list) -> float:
     return tax
 
 
-def _apply_surcharge(tax: float, income: float) -> float:
-    """Apply surcharge based on income level."""
-    if income <= 5_000_000:
-        surcharge_rate = 0.0
-    elif income <= 10_000_000:
-        surcharge_rate = 0.10
-    elif income <= 20_000_000:
-        surcharge_rate = 0.15
-    elif income <= 50_000_000:
-        surcharge_rate = 0.25
-    else:
-        surcharge_rate = 0.37
-    return tax * surcharge_rate
+SURCHARGE_BRACKETS = [
+    (5_000_000,  0.10),
+    (10_000_000, 0.15),
+    (20_000_000, 0.25),
+    (50_000_000, 0.37),
+]
+
+
+def _apply_surcharge(tax: float, income: float, slabs: list) -> float:
+    """
+    Apply surcharge based on income level, with marginal relief: crossing a
+    surcharge threshold can never increase total tax by more than the
+    income increase past that threshold. Without this, earning Rs 1 over
+    Rs 50L would add a full 10% surcharge on the WHOLE base tax, not just
+    on the marginal rupee.
+    """
+    threshold, rate, prev_rate = 0, 0.0, 0.0
+    for t, r in SURCHARGE_BRACKETS:
+        if income > t:
+            prev_rate = rate
+            threshold, rate = t, r
+
+    if rate == 0.0:
+        return 0.0
+
+    surcharge = tax * rate
+    tax_at_threshold = _compute_tax(threshold, slabs) * (1 + prev_rate)
+    capped_total = tax_at_threshold + (income - threshold)
+    return max(min(tax + surcharge, capped_total) - tax, 0)
 
 
 def _apply_cess(tax_plus_surcharge: float) -> float:
@@ -78,7 +120,7 @@ def _apply_cess(tax_plus_surcharge: float) -> float:
 
 def _total_tax(income: float, slabs: list) -> dict:
     base_tax = _compute_tax(income, slabs)
-    surcharge = _apply_surcharge(base_tax, income)
+    surcharge = _apply_surcharge(base_tax, income, slabs)
     cess = _apply_cess(base_tax + surcharge)
     total = base_tax + surcharge + cess
     return {
@@ -100,20 +142,30 @@ def calculate_tax(
     section_80d: float = 0,
     hra_exemption: float = 0,
     other_deductions: float = 0,
+    dividend_income: float = 0,
 ) -> dict:
     """
     Compare old vs new income tax regime for FY 2024-25.
 
     Args:
-        gross_income:       Total annual income (₹)
+        gross_income:       Total annual income (₹), excluding dividends
         section_80c:        80C investments (max 1,50,000) — PF, ELSS, LIC etc.
         section_80d:        80D health insurance premium (max 25,000 self / 50,000 senior parents)
         hra_exemption:      HRA exemption if living in rented accommodation
         other_deductions:   Any other eligible deductions
+        dividend_income:    Dividend income received (₹) — taxable at slab rate
+                             since DDT was abolished in 2020, no separate
+                             concessional rate or exemption. Added to
+                             gross_income before computing tax; 80C/80D/HRA
+                             deductions don't apply specifically to this
+                             portion, matching how "Income from Other Sources"
+                             is folded into total taxable income.
 
     Returns:
         old_regime, new_regime tax breakdown + recommendation
     """
+    total_income = gross_income + dividend_income
+
     # Old regime
     old_deductions = (
         STANDARD_DEDUCTION_OLD
@@ -122,16 +174,16 @@ def calculate_tax(
         + hra_exemption
         + other_deductions
     )
-    old_taxable = max(gross_income - old_deductions, 0)
+    old_taxable = max(total_income - old_deductions, 0)
     old_result = _total_tax(old_taxable, OLD_REGIME_SLABS)
 
     # New regime (standard deduction only, no other deductions allowed)
-    new_taxable = max(gross_income - STANDARD_DEDUCTION_NEW, 0)
+    new_taxable = max(total_income - STANDARD_DEDUCTION_NEW, 0)
 
     # Rebate u/s 87A — new regime: full rebate if taxable income ≤ 7L
     new_result = _total_tax(new_taxable, NEW_REGIME_SLABS)
     if new_taxable <= 700_000:
-        new_result = {**new_result, "total_tax": 0, "take_home": gross_income,
+        new_result = {**new_result, "total_tax": 0, "take_home": total_income,
                       "rebate_applied": True, "effective_rate_pct": 0}
 
     # Old regime 87A rebate: rebate up to ₹12,500 if taxable ≤ 5L
@@ -144,6 +196,8 @@ def calculate_tax(
 
     return {
         "gross_income": gross_income,
+        "dividend_income": dividend_income,
+        "total_income": total_income,
         "old_regime": {
             "taxable_income": old_taxable,
             "total_deductions": old_deductions,
@@ -167,6 +221,7 @@ def capital_gains_tax(
     quantity: float,
     holding_days: int,
     asset_type: str = "equity",
+    is_foreign: bool = False,
 ) -> dict:
     """
     Calculate capital gains tax (India, FY 2024-25).
@@ -177,6 +232,10 @@ def capital_gains_tax(
         quantity:      Number of units/shares
         holding_days:  Days between buy and sell
         asset_type:    "equity", "mutual_fund", "debt_fund", "property", "gold"
+        is_foreign:    True for a foreign-listed asset (e.g. a US stock held by
+                       an Indian resident). No STT is paid on a foreign
+                       purchase, so none of the domestic listed-equity
+                       concessions apply — see the foreign-equity branch below.
 
     Returns:
         gain_type (STCG/LTCG), tax_rate, tax_amount, net_profit
@@ -184,6 +243,38 @@ def capital_gains_tax(
     gain = (sell_price - buy_price) * quantity
     invested = buy_price * quantity
     proceeds = sell_price * quantity
+
+    if is_foreign and asset_type == "equity":
+        # No STT paid on a foreign purchase, so the concessional domestic
+        # listed-equity treatment (12-month threshold, flat 12.5%/20% rate,
+        # Rs 1.25L LTCG exemption) does not apply. Foreign equity instead
+        # gets a 24-month LTCG threshold and is taxed at the investor's
+        # income slab rate — which this tool has no income figure for, so
+        # it reports the gain rather than fabricating a tax amount.
+        is_ltcg = holding_days >= 730  # 24 months
+        return {
+            "asset_type":            "foreign_equity",
+            "buy_price":             buy_price,
+            "sell_price":            sell_price,
+            "quantity":              quantity,
+            "total_invested":        round(invested, 2),
+            "total_proceeds":        round(proceeds, 2),
+            "gross_gain":            round(gain, 2),
+            "holding_days":          holding_days,
+            "gain_type":             "LTCG" if is_ltcg else "STCG",
+            "tax_rate_pct":          None,
+            "taxable_gain":          round(max(gain, 0), 2),
+            "tax_payable":           None,
+            "net_profit_after_tax":  None,
+            "return_pct":            round((gain / invested) * 100, 2) if invested else 0,
+            "note": (
+                "Foreign equity — no STT paid, so none of the domestic listed-equity "
+                "concessions apply: 24-month LTCG threshold (not 12), taxed at your "
+                "income slab rate (not a flat rate), no Rs 1,25,000 LTCG exemption. "
+                "Add taxable_gain to gross_income and call calculate_tax() to get the "
+                "actual rupee tax."
+            ),
+        }
 
     # Determine STCG vs LTCG threshold
     ltcg_threshold = {
@@ -407,5 +498,37 @@ def advance_tax_schedule(
     }
 
 
+def demo() -> None:
+    """ponytail: smallest runnable check — the three bugs fixed this session."""
+    # Foreign equity: 24-month threshold, no numeric tax fabricated
+    domestic = capital_gains_tax(100, 200, 10, 400, asset_type="equity")
+    assert domestic["gain_type"] == "LTCG" and domestic["tax_payable"] is not None
+
+    foreign_400d = capital_gains_tax(100, 200, 10, 400, asset_type="equity", is_foreign=True)
+    assert foreign_400d["gain_type"] == "STCG"  # 400 days < 730-day foreign threshold
+    assert foreign_400d["tax_payable"] is None and "note" in foreign_400d
+
+    foreign_800d = capital_gains_tax(100, 200, 10, 800, asset_type="equity", is_foreign=True)
+    assert foreign_800d["gain_type"] == "LTCG"  # 800 days >= 730
+
+    # Surcharge marginal relief: crossing a threshold by Rs 1 shouldn't add
+    # thousands of rupees of surcharge
+    just_under = calculate_tax(gross_income=4_999_999)
+    just_over  = calculate_tax(gross_income=5_000_001)
+    tax_jump = just_over["new_regime"]["total_tax"] - just_under["new_regime"]["total_tax"]
+    assert tax_jump < 100, f"marginal relief not capping the jump: Rs {tax_jump}"
+
+    # Staleness constant exists and is well-formed
+    assert TAX_RULES_FY == "2024-25"
+
+    # Dividend income folds into taxable income at slab rate (no separate rate)
+    no_div  = calculate_tax(gross_income=1_000_000)
+    with_div = calculate_tax(gross_income=1_000_000, dividend_income=200_000)
+    assert with_div["total_income"] == 1_200_000
+    assert with_div["new_regime"]["total_tax"] > no_div["new_regime"]["total_tax"]
+
+    print("tax_server.py self-check: all cases passed")
+
+
 if __name__ == "__main__":
-    mcp.run()
+    demo()

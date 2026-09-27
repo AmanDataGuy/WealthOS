@@ -11,7 +11,7 @@
 [![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
 
-*9 specialized agents × 5 MCP servers × 21 tools → one personalized investment memo, grounded in real filings and computed math.*
+*9 specialized agents × 6 MCP servers × 25 tools → one personalized investment memo, grounded in real filings and computed math.*
 
 </div>
 
@@ -62,6 +62,7 @@ flowchart LR
 
     N2 -- "MCPClient, fallback direct import" --> MKT[market_server<br>7 tools]:::mcp
     N2 -. "direct import" .-> NEWS[news_server<br>4 tools]:::mcp
+    N2 -. "direct import, Indian tickers" .-> INDIA[india_filings_server<br>4 tools]:::mcp
     N2 --> PG2[(PostgreSQL)]:::data
     N2 --> Redis[(Redis<br>per-tool TTL, 5–60 min)]:::data
 
@@ -79,7 +80,7 @@ flowchart LR
     N7 --> Output
 ```
 
-> Arrows above map to actual imports as of the last fact-check (2026-09-22): `sec_edgar_server`, `news_server`, `tax_server`, and `rebalancing`'s market calls go through **direct Python imports**, not the MCP protocol — only `finance`, `data_and_research`, and `risk_and_code` go through `MCPClient`. Rationale in [`docs/adr/001-mcp-transport-boundary.md`](docs/adr/001-mcp-transport-boundary.md). 18 unused finance tools and 6 unused market tools were deleted 2026-09-16 after a repo-wide grep found zero callers; `tax_server` was deleted the same day for the same reason, then restored and wired up 2026-09-22 via the new Tax Agent.
+> Arrows above map to actual imports as of the last fact-check (2026-09-24): `sec_edgar_server`, `news_server`, `india_filings_server`, `tax_server`, and `rebalancing`'s market calls go through **direct Python imports**, not the MCP protocol — only `finance`, `data_and_research` (`data_agent`'s market fetch), and `risk_and_code` (`code_agent`'s E2B fetch) go through `MCPClient`. Rationale in [`docs/adr/001-mcp-transport-boundary.md`](docs/adr/001-mcp-transport-boundary.md). 18 unused finance tools and 6 unused market tools were deleted 2026-09-16 after a repo-wide grep found zero callers; `tax_server` was deleted the same day for the same reason, then restored and wired up 2026-09-22 via the new Tax Agent. `india_filings_server` (4 tools, built on `nsepython`) was added to bring India to rough parity with the US filings path — see the ⚠️ note in that file on NSE endpoint reliability, which is not SEC-EDGAR-equivalent.
 
 ---
 
@@ -91,7 +92,7 @@ flowchart LR
 |:---:|:---:|:---:|:---:|
 | Router Agent | LLM classification + Qdrant count | Classifies horizon (short/mid/long), company tier; triggers on-demand SEC 10-K download + indexing as background task when tier is `not_indexed` | `investment_horizon`, `company_tier`, `fetch_plan` |
 | Finance Agent | Pure Python + asyncpg | Z-score spending anomaly detection (≥2σ from per-category mean, min 3 data points; severity low/medium/high at 2–2.5/2.5–3/3+σ), 5-dim health score | Health Score 0–100, surplus, risk capacity |
-| Research Agent | asyncio + RAG | Qdrant hybrid search on SEC 10-K filings, news fetch | Qualitative context, sentiment |
+| Research Agent | asyncio + RAG | Qdrant hybrid search on SEC 10-K filings, news fetch; India tickers (.NS/.BO) fetch NSE financial results via `india_filings_server` instead of SEC EDGAR | Qualitative context, sentiment |
 | Data Agent | asyncpg + MCPClient | Schema-validated numbers, Redis 15-min TTL, MCP fallback | `FinancialSnapshot` with confidence flag |
 | Risk Agent | LangGraph 3-node debate | `_get_macro_context()` fetches live VIX / 10Y yield / S&P 500 / Fed Funds Rate; Stock analyst runs in parallel; Scorer injects past decisions (Qdrant) + user risk profile (Postgres); MacroAnalyst cites actual live figures | Risk score 1–10 + Buy/Hold/Avoid |
 | Code Agent | E2B sandbox | Real Python execution — DCF, Monte Carlo (1 000 paths), sensitivity table | Intrinsic value, upside probability |
@@ -114,9 +115,10 @@ flowchart LR
 | `sec_edgar_server` | 5 | SEC EDGAR — 10-K / 10-Q filing URLs + XBRL facts |
 | `news_server` | 4 | NewsAPI + Firecrawl + newspaper3k — headlines, full article body, sentiment, Reddit |
 | `finance_server` | 1 | PostgreSQL — `get_transactions` (raw transaction history). 18 other tools (EMIs, goals, portfolio holdings/P&L/allocation, calculator math) were removed 2026-09-16 — zero live callers found in a repo-wide grep |
-| `tax_server` | 4 | Old vs. new regime comparison, capital gains tax (STCG/LTCG, Budget 2024 rates), 80C/80D/HRA/NPS suggestions, advance tax schedule. Deleted 2026-09-16 as dead code, **restored and wired up 2026-09-22** via the new Tax Agent (`agents/tax_agent.py`) — the tools were real and tested, they just had no caller |
+| `tax_server` | 4 | Old vs. new regime comparison (now also folds in dividend income, slab-taxed since DDT abolition), capital gains tax (STCG/LTCG, Budget 2024 rates, plus a foreign-equity branch — 24-month threshold, no flat-rate/exemption, slab-rate only), 80C/80D/HRA/NPS suggestions, advance tax schedule. Surcharge now applies marginal relief (crossing a threshold can't raise tax more than the income increase). Deleted 2026-09-16 as dead code, **restored and wired up 2026-09-22** via the new Tax Agent (`agents/tax_agent.py`) — the tools were real and tested, they just had no caller. Rates are hardcoded for FY 2024-25 with a `TAX_RULES_FY` staleness check that warns past a one-fiscal-year cutoff |
+| `india_filings_server` | 4 | NSE (via `nsepython`) — company quote/info, quarterly/annual financial results, corporate events, circulars. India's structured-filings equivalent to `sec_edgar_server`; ⚠️ NSE's endpoints are session/cookie-gated and known to rate-limit scraper traffic — not SEC-EDGAR-equivalent reliability |
 
-**21 tools total** across 5 servers — most go through MCPClient stdio subprocess; `sec_edgar_server` (5), `news_server` (4), `rebalancing`'s market calls, and all of `tax_server` (4) bypass MCP entirely via direct Python import, per [`docs/adr/001-mcp-transport-boundary.md`](docs/adr/001-mcp-transport-boundary.md).
+**25 tools total** across 6 servers — most go through MCPClient stdio subprocess; `sec_edgar_server` (5), `news_server` (4), `india_filings_server` (4), `rebalancing`'s market calls, and all of `tax_server` (4) bypass MCP entirely via direct Python import, per [`docs/adr/001-mcp-transport-boundary.md`](docs/adr/001-mcp-transport-boundary.md).
 
 </div>
 
@@ -132,16 +134,16 @@ flowchart LR
 | **Policy Gate** | `harness/risk_policy.py` (node 9, after writer) | Deterministic allow/deny/escalate check on every Buy verdict — no LLM call. Denies a Buy sized past 3× the user's computed monthly surplus; escalates a Buy built on low-confidence data or one that contradicts the user's own risk-score history in `user_risk_profiles`. A denial/escalation renders as a visible banner appended to the memo, not an error |
 | **Live Progress** | `POST /analyze/stream` (SSE) + Streamlit consumer | `astream(stream_mode="updates")` emits a real event as each of the 10 nodes actually finishes — not a fake word-chop of an already-complete response. Streamlit renders each step ⏳→✅ with a one-line summary of what that node produced (e.g. "risk score 7/10"), then reveals the memo. Mem0/Qdrant/risk-profile writes run as background tasks so they don't sit on this response's critical path |
 | **A2A** | `POST /agents/risk_agent/invoke` | The one genuinely callable agent among the 9 cards at `/agents` — a separate process can POST a ticker and get back a real `RiskReport`, independent of the other 9 nodes. Same `verify_api_key` boundary as `/analyze`. Live-verified: NVDA → risk_score 6/10, Hold, real macro figures (10Y yield, VIX) in the analysis text |
-| **Routing** | Router Agent (node 0) | LLM classifies investment horizon; Qdrant chunk-count sets company tier (`well_indexed` / `thin_indexed` / `not_indexed`); fires `_on_demand_index()` as background task for unknown tickers |
-| **MCP Transport** | MCPClient stdio subprocess (`finance`, `data_and_research`/market) | JSON-RPC over stdin/stdout, retry-on-crash; `sec_edgar_server`/`news_server`/`tax_server`/`rebalancing`'s market calls bypass this via direct Python import instead — see ADR 001 |
+| **Routing** | Router Agent (node 0) | LLM classifies investment horizon; Qdrant chunk-count sets company tier (`well_indexed` / `thin_indexed` / `not_indexed`); fires `_on_demand_index()` (US, SEC 10-K) or `_index_indian_ticker()` (India, BSE/IR annual report via `rag.bse_indexer`) as a background task for unknown tickers |
+| **MCP Transport** | MCPClient stdio subprocess (`finance`, `data_and_research`/market) | JSON-RPC over stdin/stdout, retry-on-crash; `sec_edgar_server`/`news_server`/`india_filings_server`/`tax_server`/`rebalancing`'s market calls bypass this via direct Python import instead — see ADR 001 |
 | **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | Key rotation across up to 3 Groq keys; if all fail, falls back to OpenRouter's free `openai/gpt-oss-20b:free` |
 | **RAG** | Qdrant hybrid search + Cohere reranking | `all-MiniLM-L6-v2` 384-dim dense (local CPU, no API key) + BM25 sparse; RRF fusion; SEC 10-K filings indexed for AAPL/MSFT/NVDA/GOOGL/TSLA/AMZN |
 | **Embeddings** | sentence-transformers/all-MiniLM-L6-v2 | 384-dim, runs on CPU, no API key required |
 | **Memory** | Three-layer | (1) Mem0 — 2-line cross-session signal injected at pipeline start; (2) Qdrant `user_analyses` — Final Verdict embedded and written after every run, semantic past-decision retrieval; (3) Postgres `user_risk_profiles` — buy/hold/avoid counts, avg risk score, preferred sectors, updated per run |
 | **Macro Data** | FRED + yfinance fallback | `_get_macro_context()` returns 10Y treasury yield, VIX, S&P 500, fed funds rate, plus derived `vix_regime` and `rate_environment` labels; FRED supplies 10Y yield + fed funds rate when a key is set, VIX and S&P 500 always come from yfinance; macro cache TTL is 15 minutes |
 | **Prompt Optimization** | DSPy BootstrapFewShot | 28 golden examples; compiled to `eval/compiled_writer.json`; structural quality metric (7 sections + verdict) |
-| **Observability** | LangSmith (primary) + W&B Weave (init hook) | `@trace_node` on all 8 nodes; `user_id` masked to first 8 chars in trace metadata (PII); 4-dimension LLM-as-judge scoring (correctness, groundedness, relevance, structure) in `eval/evaluate.py` |
-| **Rate Limiting** | Redis sliding-window log | 10 req/min per `user_id` on `/analyze`; configurable via `ANALYZE_RATE_LIMIT` env var; returns HTTP 429 + `Retry-After`; fails open if Redis is unreachable |
+| **Observability** | LangSmith (primary) + W&B Weave (init hook) | `@trace_node` on all 12 node functions in `graph/nodes.py` (router, finance, data, research, risk, code, validation, rebalancing, writer, tax, policy, error — 10 of these are wired as graph nodes, `data`/`research` and `risk`/`code` run inside the `data_and_research`/`risk_and_code` parallel wrappers); `user_id` masked to first 8 chars in trace metadata (PII); 4-dimension LLM-as-judge scoring (correctness, groundedness, relevance, structure) in `eval/evaluate.py` |
+| **Rate Limiting** | Redis sliding-window log | 10 req/min per `user_id` on `/analyze`; configurable via `ANALYZE_RATE_LIMIT` env var; returns HTTP 429 + `Retry-After`; fails open if Redis is unreachable (fails closed — HTTP 503 — when `WEALTHOS_ENV=production`) |
 | **Personal Docs** | Permanent storage | Uploaded PDFs saved to `data/personal_docs/{user_id}/{filename}`; re-indexed on re-upload without duplication (delete-before-upsert in Qdrant) |
 | **Code Execution** | E2B cloud sandbox | Isolated Docker container per run; DCF, Monte Carlo (1 000 paths), sensitivity grid |
 | **Validation** | Custom Pydantic v2 validators | `validation/validators.py` — risk score 1–10, verdict in {Buy, Hold, Avoid}, memo section presence |
@@ -168,7 +170,7 @@ flowchart LR
 | **Code Execution** | E2B Sandbox |
 | **Database** | PostgreSQL 16 (12 tables — 10 from `scripts/init_db.sql`: transactions, subscriptions, financial\_goals, emis, financial\_facts, portfolio\_holdings, tracked\_symbols, indexed\_tickers, user\_risk\_profiles, llm\_usage; 2 created lazily by the API on startup: users, analysis\_history) |
 | **Vector Store** | Qdrant (local, localhost:6333) — `wealthos_docs` + `user_analyses` collections |
-| **Cache** | Redis (5-min market data TTL · 15-min snapshot TTL · 15-min macro TTL · 30-min sector TTL · 1-hour financials/info/recommendations TTL) |
+| **Cache** | Redis (5-min price/history/options TTL · 15-min Data Agent snapshot TTL · 15-min macro/currency TTL · 1-hour financials/info TTL · 30-min news/sentiment/Reddit TTL · 6/24/12-hour SEC filings/CIK/XBRL-facts TTL) |
 | **MCP Transport** | MCPClient stdio subprocess (services/mcp\_client.py) — not used by all servers, see Under the Hood |
 | **Macro Data** | FRED API (`fredapi`) · yfinance fallback (^TNX, ^VIX, ^GSPC) |
 | **Observability** | LangSmith (pipeline traces · PII-masked user\_id) · W&B Weave (eval quality) |
@@ -259,7 +261,7 @@ See `.env.example` for the full list. `GROQ_API_KEY` also needs to be set as a *
 
 ## Demo
 
-**[Watch the full walkthrough on YouTube](https://youtu.be/6H6aCxz2w0U)** — the 8-agent pipeline explained, then a live run of a real multi-part investment question end to end.
+**[Watch the full walkthrough on YouTube](https://youtu.be/6H6aCxz2w0U)** — the pipeline explained (recorded before the Tax Agent was added, so it walks through 8 agents on screen — the app itself now runs 9), then a live run of a real multi-part investment question end to end.
 
 ![WealthOS Analyze page — ticker, amount, horizon, and document upload inputs](docs/screenshots/analyze-input.png)
 *The Analyze page — set a ticker, investment amount, horizon, and optionally attach loan/EMI documents for personalised context.*
@@ -272,7 +274,7 @@ See `.env.example` for the full list. `GROQ_API_KEY` also needs to be set as a *
 | Market | Tickers | RAG Coverage |
 |--------|---------|----------|
 | US | `NVDA` `MSFT` `AAPL` `AMZN` `GOOGL` `TSLA` | Full SEC 10-K indexed in Qdrant |
-| India | `SBIN` `RELIANCE` `TCS` `INFY` `WIPRO` `HCLTECH` `ICICIBANK` `HDFCBANK` | Live via yfinance (no pre-indexed filing) |
+| India | `SBIN` `RELIANCE` `TCS` `INFY` `WIPRO` `HCLTECH` `ICICIBANK` `HDFCBANK` | Live via yfinance + NSE (`india_filings_server`); annual report auto-indexed into Qdrant on first query for an unindexed ticker, same as US — see ⚠️ NSE reliability note above |
 
 **3-minute script:**
 
