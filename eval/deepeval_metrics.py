@@ -147,7 +147,28 @@ class GeminiJudge(DeepEvalBaseLLM):
                 resp = await client.post(
                     f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent",
                     params={"key": api_key},
-                    json={"contents": [{"parts": [{"text": prompt}]}]},
+                    json={
+                        "contents": [{"parts": [{"text": prompt}]}],
+                        # No generationConfig was set at all before this —
+                        # a likely root cause of the 15/28 empty-response
+                        # errors seen on AnswerRelevancy specifically (the
+                        # only metric here that asks for a verdicts LIST,
+                        # one per extracted statement — the longest
+                        # structured output of the 4 metrics). Gemini 2.5
+                        # models can spend output tokens on internal
+                        # "thinking" before any visible content, same class
+                        # of bug already confirmed this session for a Groq
+                        # reasoning model (max_tokens=150 produced
+                        # completion_tokens=150 but an empty stripped
+                        # result). Disabling thinking for a judge/classifier
+                        # task and giving a generous explicit output budget
+                        # is the standard fix; unverified against a live
+                        # 28-example run — re-check if errors persist.
+                        "generationConfig": {
+                            "maxOutputTokens": 4096,
+                            "thinkingConfig": {"thinkingBudget": 0},
+                        },
+                    },
                 )
                 resp.raise_for_status()
             except httpx.HTTPError as e:

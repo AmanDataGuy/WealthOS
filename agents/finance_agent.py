@@ -137,6 +137,17 @@ class PersonalFinanceSnapshot(BaseModel):
     # ── Health ────────────────────────────────────────────────────────────────
     health_score     : Optional[HealthScore] = None
 
+    # ── Investment capacity ───────────────────────────────────────────────────
+    # Were read downstream (writer_agent.py, risk_agent.py — `d.get("risk_capacity")`
+    # etc.) as if real fields, but this model never declared them and nothing
+    # ever set them — always silently None/absent in every live memo. The
+    # DSPy-compiled prompt was trained on golden examples that DO include
+    # these fields (eval/writer_golden_dataset.json), so the live pipeline
+    # was feeding it a thinner input than what it was actually optimized for.
+    debt_burden_ratio  : float = 0.0     # EMI / monthly_income, 0-1
+    risk_capacity      : str   = "unknown"  # low | medium | high | unknown
+    investable_monthly : float = 0.0     # what's actually available to invest
+
     # ── Confidence — downstream agents check this before trusting the data ────
     data_confidence  : str = "none"      # none | low | medium | high
     data_source      : str = "none"      # db | upload | manual
@@ -154,36 +165,147 @@ class PersonalFinanceSnapshot(BaseModel):
 #  Easy to unit test, easy to swap out, easy to read.
 # ==============================================================================
 
+OLLAMA_URL          = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_VISION_MODEL = os.getenv("OLLAMA_VISION_MODEL", "llava")
+
+
+async def _ollama_vision_extract(image_bytes: bytes, prompt: str):
+    """
+    Send one image to a local Ollama vision model (OLLAMA_VISION_MODEL, e.g.
+    "llava" — must be pulled first via `ollama pull llava`) and parse its
+    JSON reply. Returns None on any failure — Ollama not running, model not
+    pulled, timeout, or a response that isn't valid JSON. Callers fall back
+    to their existing safe defaults; this never raises.
+    """
+    try:
+        import base64
+        import httpx
+        b64 = base64.b64encode(image_bytes).decode("ascii")
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"{OLLAMA_URL}/api/chat",
+                json={
+                    "model": OLLAMA_VISION_MODEL,
+                    "messages": [{"role": "user", "content": prompt, "images": [b64]}],
+                    "format": "json",
+                    "stream": False,
+                },
+            )
+            resp.raise_for_status()
+            content = resp.json().get("message", {}).get("content", "")
+            return json.loads(content) if content else None
+    except Exception as e:
+        print(
+            f"[Finance Agent] Ollama vision extraction failed ({e}) — is "
+            f"{OLLAMA_URL} running with '{OLLAMA_VISION_MODEL}' pulled?"
+        )
+        return None
+
+
 # ── Step 1a — Scan a Receipt ───────────────────────────────────────────────────
 
-def scan_receipt(image_path: str) -> Transaction:
+async def scan_receipt(image_path: str) -> Transaction:
     """
     ## Scan Receipt
 
-    Receipt OCR requires a vision model — currently not configured.
-    Returns a zero-value placeholder transaction.
+    Uses a local Ollama vision model to extract merchant/amount/date/category
+    from a receipt photo. Falls back to a zero-value placeholder if Ollama
+    isn't running, the model isn't pulled, or the response doesn't parse —
+    same degrade contract this function always had, now actually reachable
+    via a real attempt first instead of skipping straight to the fallback.
     """
-    print("[Finance Agent] Ollama not configured — skipping receipt OCR")
-    return Transaction(
+    fallback = Transaction(
         merchant = "Unknown",
         amount   = 0.0,
         date     = datetime.now(timezone.utc).date().isoformat(),
         category = "other",
         source   = "receipt"
     )
+    try:
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+    except Exception as e:
+        print(f"[Finance Agent] Could not read receipt image {image_path}: {e}")
+        return fallback
+
+    prompt = (
+        'Extract this receipt\'s details as JSON with exactly these keys: '
+        '"merchant" (store name), "amount" (total paid, positive number), '
+        '"date" (YYYY-MM-DD), "category" (one of: food, transport, shopping, '
+        'utilities, entertainment, other). Respond with only the JSON object.'
+    )
+    data = await _ollama_vision_extract(image_bytes, prompt)
+    if not data or not isinstance(data, dict):
+        print(f"[Finance Agent] Receipt extraction failed for {image_path} — using placeholder")
+        return fallback
+
+    try:
+        return Transaction(
+            merchant = str(data.get("merchant") or "Unknown"),
+            amount   = float(data.get("amount") or 0.0),
+            date     = str(data.get("date") or datetime.now(timezone.utc).date().isoformat()),
+            category = str(data.get("category") or "other"),
+            source   = "receipt",
+        )
+    except Exception as e:
+        print(f"[Finance Agent] Receipt data malformed for {image_path} ({e}) — using placeholder")
+        return fallback
 
 
 # ── Step 1b — Parse a Bank Statement PDF ──────────────────────────────────────
 
-def parse_bank_statement(pdf_path: str) -> list[Transaction]:
+async def parse_bank_statement(pdf_path: str) -> list[Transaction]:
     """
     ## Parse Bank Statement
 
-    Bank statement PDF parsing requires a vision model — currently not configured.
-    Returns an empty list.
+    Renders each PDF page to an image (pdf2image, same approach
+    rag/indexer.py already uses for scanned-PDF OCR) and asks the Ollama
+    vision model for a JSON list of transactions per page. Falls back to an
+    empty list if Ollama isn't running, the model isn't pulled, poppler
+    isn't installed, or nothing parses — same degrade contract this function
+    always had.
     """
-    print("[Finance Agent] Ollama not configured — skipping bank statement parsing")
-    return []
+    try:
+        from pdf2image import convert_from_path
+        pages = convert_from_path(pdf_path, dpi=200)
+    except Exception as e:
+        print(f"[Finance Agent] Could not render bank statement {pdf_path} to images: {e}")
+        return []
+
+    prompt = (
+        "This is one page of a bank statement. Extract every transaction "
+        'line as a JSON array of objects with exactly these keys: '
+        '"merchant" (payee/description), "amount" (positive number), '
+        '"date" (YYYY-MM-DD), "category" (one of: salary, emi, food, '
+        'transport, shopping, utilities, entertainment, other — use '
+        '"salary" for income/credits, "emi" for loan/EMI debits). If there '
+        "are no transactions on this page, respond with an empty array. "
+        "Respond with only the JSON array."
+    )
+
+    transactions: list[Transaction] = []
+    for i, page in enumerate(pages):
+        import io
+        buf = io.BytesIO()
+        page.save(buf, format="PNG")
+        data = await _ollama_vision_extract(buf.getvalue(), prompt)
+        if not data or not isinstance(data, list):
+            continue
+        for row in data:
+            try:
+                transactions.append(Transaction(
+                    merchant = str(row.get("merchant") or "Unknown"),
+                    amount   = float(row.get("amount") or 0.0),
+                    date     = str(row.get("date") or datetime.now(timezone.utc).date().isoformat()),
+                    category = str(row.get("category") or "other"),
+                    source   = "bank_statement",
+                ))
+            except Exception as e:
+                print(f"[Finance Agent] Skipping malformed transaction on page {i+1}: {e}")
+
+    if not transactions:
+        print(f"[Finance Agent] No transactions extracted from {pdf_path}")
+    return transactions
 
 
 
@@ -224,11 +346,54 @@ async def save_transactions_to_db(user_id: str, transactions: list[Transaction])
     """
     ## Save Transactions to Database
 
-    No MCP save tool exists in finance_server yet — this is a planned
-    extension. Uploads are parsed but not persisted back to DB via this path.
+    Persists uploaded/OCR'd transactions to Postgres so a later session sees
+    them via get_transactions_from_db and gets a "high" confidence tier
+    instead of "medium". Was a confirmed no-op — uploads were parsed but
+    never actually upgraded a user's confidence tier on a subsequent visit,
+    silently defeating the point of asking users to upload statements.
+    Writes directly via asyncpg (matches get_user_tier/get_past_decisions
+    elsewhere in this codebase) rather than adding a new MCP tool for a
+    single INSERT.
     """
-    print("[Finance Agent] save_transactions_to_db: no MCP save tool — skipping")
-    return False
+    if not transactions:
+        return False
+
+    db_url = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
+    if not db_url:
+        print("[Finance Agent] WEALTHOS_DB_URL not set — cannot persist uploaded transactions")
+        return False
+
+    def _parse_date(date_str: str):
+        from datetime import date as date_cls
+        try:
+            return date_cls.fromisoformat(date_str)
+        except Exception:
+            return date_cls.today()
+
+    try:
+        import asyncpg
+        conn = await asyncpg.connect(db_url)
+        try:
+            await conn.executemany(
+                """
+                INSERT INTO transactions (user_id, date, description, amount, type, category, source)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                """,
+                [
+                    (
+                        user_id, _parse_date(t.date), t.merchant, t.amount,
+                        "credit" if t.category == "salary" else "debit",
+                        t.category, t.source,
+                    )
+                    for t in transactions
+                ],
+            )
+        finally:
+            await conn.close()
+        return True
+    except Exception as e:
+        print(f"[Finance Agent] save_transactions_to_db failed: {e}")
+        return False
 
 
 # ── Step 2 — Detect Anomalies ─────────────────────────────────────────────────
@@ -430,12 +595,38 @@ def _build_snapshot(
         emergency_months = emergency_months
     )
 
+    # Same emi_total math as compute_health_score's debt-to-income dimension
+    # (§ Debt-to-Income above) — recomputed here rather than threaded out of
+    # that function, since it's cheap and this is the only other place that
+    # needs the raw ratio instead of the normalized 0-100 sub-score.
+    emi_total = sum(t.amount for t in transactions if t.category == "emi")
+    debt_burden_ratio = round(emi_total / income, 4) if income > 0 else 0.0
+
+    # What's actually available to invest — the surplus, floored at 0 since
+    # a negative surplus means nothing is investable, not a negative amount.
+    investable_monthly = max(round(surplus, 2), 0.0)
+
+    # Tiered from the two signals already computed above — not a new
+    # judgment call, just making the health score and debt ratio legible as
+    # a single word the way every downstream prompt already expects.
+    if score is None:
+        risk_capacity = "unknown"
+    elif debt_burden_ratio > 0.4 or score.overall < 40:
+        risk_capacity = "low"
+    elif score.overall >= 75 and debt_burden_ratio < 0.2:
+        risk_capacity = "high"
+    else:
+        risk_capacity = "medium"
+
     return PersonalFinanceSnapshot(
         user_id          = user_id,
         monthly_income   = round(income,      2),
         monthly_expenses = round(expenses,    2),
         monthly_surplus  = round(surplus,     2),
         savings_rate_pct = round(savings_pct, 2),
+        debt_burden_ratio = debt_burden_ratio,
+        risk_capacity      = risk_capacity,
+        investable_monthly = investable_monthly,
         transactions     = transactions,
         anomalies        = anomalies,
         top_categories   = top_categories,
@@ -536,12 +727,24 @@ async def run_finance_agent(
             emergency_months = emergency_months
         )
 
+        # No transaction detail on the manual path, so debt_burden_ratio
+        # stays at its 0.0 default (unknown, not assumed zero) — risk
+        # capacity is derived from health score alone here, without the
+        # debt-ratio gate _build_snapshot uses when real EMI data exists.
+        manual_risk_capacity = (
+            "low" if score.overall < 40 else
+            "high" if score.overall >= 75 else
+            "medium"
+        )
+
         return PersonalFinanceSnapshot(
             user_id          = user_id,
             monthly_income   = manual_income,
             monthly_expenses = manual_expenses,
             monthly_surplus  = surplus,
             savings_rate_pct = round(savings_pct, 2),
+            risk_capacity       = manual_risk_capacity,
+            investable_monthly  = max(round(surplus, 2), 0.0),
             health_score     = score,
             data_confidence  = "low",
             data_source      = "manual",
@@ -563,11 +766,11 @@ async def run_finance_agent(
 
             if ext == "pdf":
                 print(f"[Finance Agent]   Parsing PDF       : {file_path}")
-                upload_transactions.extend(parse_bank_statement(file_path))
+                upload_transactions.extend(await parse_bank_statement(file_path))
 
             elif ext in ("jpg", "jpeg", "png", "webp"):
                 print(f"[Finance Agent]   Scanning receipt  : {file_path}")
-                upload_transactions.append(scan_receipt(file_path))
+                upload_transactions.append(await scan_receipt(file_path))
 
             else:
                 print(f"[Finance Agent]   Skipping unsupported file: {file_path}")
@@ -619,7 +822,34 @@ if __name__ == "__main__":
             emergency_months = 2.5
         )
 
+    async def _check_upload_paths():
+        """
+        ponytail: smallest runnable check for the vision-parsing/persistence
+        path — doesn't require Ollama or Postgres to actually be running,
+        just confirms every failure mode degrades safely instead of raising.
+        """
+        receipt = await scan_receipt("nonexistent_receipt.jpg")
+        assert receipt.merchant == "Unknown" and receipt.amount == 0.0, \
+            "scan_receipt should fall back safely on an unreadable file"
+
+        statement = await parse_bank_statement("nonexistent_statement.pdf")
+        assert statement == [], \
+            "parse_bank_statement should fall back to [] when the PDF can't be rendered"
+
+        saved = await save_transactions_to_db("test_user_001", [])
+        assert saved is False, "save_transactions_to_db should no-op on an empty list"
+
+        print("  [self-check] scan_receipt / parse_bank_statement / save_transactions_to_db degrade safely")
+
+    _asyncio.run(_check_upload_paths())
+
     snapshot = _asyncio.run(_main())
+
+    assert snapshot.risk_capacity in ("low", "medium", "high"), \
+        f"risk_capacity should be populated on the manual path, got {snapshot.risk_capacity!r}"
+    assert snapshot.investable_monthly == max(snapshot.monthly_surplus, 0.0), \
+        "investable_monthly should track the floored surplus"
+    print(f"  [self-check] risk_capacity={snapshot.risk_capacity} investable_monthly=Rs.{snapshot.investable_monthly:,.0f} — both real, not phantom fields")
 
     print(f"\n  {'User':<20}: {snapshot.user_id}")
     print(f"  {'Income':<20}: Rs.{snapshot.monthly_income:>10,.0f}")
