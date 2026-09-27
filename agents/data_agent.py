@@ -388,19 +388,36 @@ async def run_data_agent(ticker: str, use_rag: bool = True) -> FinancialSnapshot
             dividend_yield=market_data.get("dividend_yield"),
         )
     
-        # Track missing fields
+        # Track missing fields — was only 6 fields (income/price/debt/FCF/PE),
+        # so gross_profit, operating_income, ebitda, cash_equivalents,
+        # market_cap, week_52_high/low, dividend_yield, eps_diluted, and all
+        # of GrowthMetrics could be entirely None while confidence still
+        # reported "high". Widened to every numeric field this snapshot
+        # actually carries; thresholds are now percentage-based since the
+        # field count can change again without needing a re-tune.
         all_fields = {
             "total_revenue": income.total_revenue,
+            "gross_profit": income.gross_profit,
+            "operating_income": income.operating_income,
             "net_income": income.net_income,
-            "current_price": valuation.current_price,
+            "ebitda": income.ebitda,
             "total_debt": balance.total_debt,
+            "cash_equivalents": balance.cash_equivalents,
             "free_cash_flow": cashflow.free_cash_flow,
+            "current_price": valuation.current_price,
             "pe_ratio": valuation.pe_ratio,
+            "eps_diluted": valuation.eps_diluted,
+            "market_cap": valuation.market_cap,
+            "week_52_high": valuation.week_52_high,
+            "week_52_low": valuation.week_52_low,
+            "dividend_yield": valuation.dividend_yield,
+            "revenue_cagr_3y": growth.revenue_cagr_3y,
         }
         missing_fields = [k for k, v in all_fields.items() if v is None]
-    
-        confidence = "high" if len(missing_fields) == 0 else \
-                     "medium" if len(missing_fields) <= 2 else "low"
+        missing_pct = len(missing_fields) / len(all_fields)
+
+        confidence = "high" if missing_pct == 0 else \
+                     "medium" if missing_pct <= 0.25 else "low"
     
         snapshot = FinancialSnapshot(
             ticker=ticker,

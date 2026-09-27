@@ -19,7 +19,8 @@ class WealthOSState(TypedDict):
     fetch_plan:         Optional[dict]  # {"use_technicals": bool, ...} — set by router
 
     # ── Phase 6: Mem0 long-term memory ─────────────────────
-    user_memory:    Optional[str]   # injected at start of finance_node
+    user_memory:         Optional[str]   # injected at start of finance_node
+    memory_unavailable:  Optional[bool]  # True if the Mem0 read failed (vs. genuinely no memories yet)
 
     # ── Past decisions context (Qdrant user_analyses) ──────
     past_decisions_ctx: Optional[str]  # 3 most recent analyses for this user
