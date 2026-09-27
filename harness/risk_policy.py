@@ -81,9 +81,21 @@ def validate_recommendation(
     and the same user_risk_profile dict risk_node/writer_node already fetch
     from Postgres user_risk_profiles.
 
-    Only a "Buy" is ever denied or escalated — Hold/Avoid carry no downside
-    risk of the kind this gate exists to catch.
+    The low-confidence-data escalation applies to every verdict, not just
+    Buy — was Buy-only, so a Hold or Avoid built on the exact same
+    low-confidence data passed through unchecked. Bad data can cause real
+    harm either direction: wrongly telling someone to avoid (or hold off on)
+    a stock is a missed-opportunity harm, not a lesser one than a bad Buy.
+    The surplus-sizing and risk-vs-track-record checks stay Buy-only below —
+    they're only meaningful when money is actually being deployed, so a
+    Hold/Avoid has nothing for them to contradict.
     """
+    if data_confidence == "low":
+        return PolicyResult.escalate(
+            f"{verdict} verdict built on low-confidence financial data — "
+            "route to human review before acting on this memo."
+        )
+
     if verdict != "Buy":
         return PolicyResult.allow()
 
@@ -94,12 +106,6 @@ def validate_recommendation(
                 f"{_MAX_SURPLUS_MULTIPLE:.0f}× the user's computed monthly "
                 f"surplus (₹{monthly_surplus:,.0f}) — recommendation withheld."
             )
-
-    if data_confidence == "low":
-        return PolicyResult.escalate(
-            "Buy verdict built on low-confidence financial data — "
-            "route to human review before acting on this memo."
-        )
 
     if risk_score is not None and risk_score >= _HIGH_RISK_SCORE and user_risk_profile:
         total = user_risk_profile.get("total_analyses") or 0
@@ -116,8 +122,12 @@ def validate_recommendation(
 
 def demo() -> None:
     """ponytail: smallest runnable check — one assert per branch."""
-    # Hold/Avoid always pass through untouched.
+    # Hold/Avoid pass through untouched when data confidence is fine...
     assert validate_recommendation("Hold", 9, 100_000, 10_000).decision == PolicyDecision.ALLOW
+
+    # ...but a Hold/Avoid built on low-confidence data escalates too, same as Buy.
+    r = validate_recommendation("Avoid", 9, 100_000, 10_000, data_confidence="low")
+    assert r.decision == PolicyDecision.ESCALATE, r
 
     # Buy sized way past surplus → deny.
     r = validate_recommendation("Buy", 3, invest_amount=100_000, monthly_surplus=10_000)
@@ -140,7 +150,7 @@ def demo() -> None:
     r = validate_recommendation("Buy", 9, invest_amount=5_000, monthly_surplus=10_000, user_risk_profile=None)
     assert r.decision == PolicyDecision.ALLOW, r
 
-    print("harness/risk_policy.py self-check: all 6 cases passed")
+    print("harness/risk_policy.py self-check: all 7 cases passed")
 
 
 if __name__ == "__main__":
