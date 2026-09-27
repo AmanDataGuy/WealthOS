@@ -229,18 +229,65 @@ async def fetch_news(symbols: list[str], days: int = 7) -> list[NewsItem]:
 
 # ── Tool 4 ────────────────────────────────────────────────────────────────────
 
+def _is_indian_ticker(symbol: str) -> bool:
+    return symbol.upper().endswith((".NS", ".BO"))
+
+
+def _extract_result_date(record: dict) -> str:
+    """
+    India's two nse_results sources use different date field names
+    (nse_past_results: 're_create_dt'; the nse_results fallback:
+    'broadCastDate'/'filingDate') — try the known candidates in order.
+    """
+    for key in ("re_create_dt", "broadCastDate", "filingDate", "toDate"):
+        value = record.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
 async def fetch_sec_insights(symbols: list[str]) -> list[SECInsight]:
     """
-    Fetch the latest 10-K or 10-Q for each symbol via sec_edgar_server's
-    get_filings_list (CIK resolution, caching, and HTTP calls all live there —
-    same directly-callable-MCP-tool pattern router_agent.py uses for get_10k).
-    Only works for US-listed tickers — Indian tickers are silently skipped.
+    Fetch the latest 10-K or 10-Q for each US-listed symbol via
+    sec_edgar_server's get_filings_list (CIK resolution, caching, and HTTP
+    calls all live there — same directly-callable-MCP-tool pattern
+    router_agent.py uses for get_10k). Indian tickers (.NS/.BO suffix) are
+    routed to india_filings_server instead — see the note on that module for
+    NSE's known reliability limitations.
     """
     from mcp_servers.sec_edgar_server import get_filings_list
+    from mcp_servers.india_filings_server import get_financial_results
 
     insights = []
     for symbol in symbols:
-        # Strip exchange suffix — "RELIANCE.NS" → "RELIANCE" (won't resolve, skipped below)
+        if _is_indian_ticker(symbol):
+            clean = symbol.split(".")[0].upper()
+            try:
+                data = await asyncio.to_thread(get_financial_results, clean)
+            except Exception as e:
+                logger.error("India filings fetch failed for %s: %s", symbol, e)
+                continue
+
+            if data.get("error"):
+                logger.info("%s — no financial results from NSE: %s", symbol, data["error"])
+                continue
+
+            results = data.get("results", [])
+            if not results:
+                continue
+
+            latest = results[0]
+            filing = SECInsight(
+                ticker       = symbol,
+                form         = f"NSE {data.get('period', 'Quarterly')} Results",
+                filed_date   = _extract_result_date(latest),
+                document_url = latest.get("xbrl") or "",
+            )
+            insights.append(filing)
+            logger.info("%s — latest NSE results: %s", symbol, filing.filed_date)
+            continue
+
+        # Strip exchange suffix — defensive, US tickers don't carry one
         clean = symbol.split(".")[0].upper()
 
         try:
@@ -273,7 +320,35 @@ async def fetch_sec_insights(symbols: list[str]) -> list[SECInsight]:
 # ── Tool 5 ────────────────────────────────────────────────────────────────────
 
 async def summarize_with_llm(text: str, instruction: str) -> str:
-    return ""
+    """
+    Was a confirmed no-op stub returning "" unconditionally — every one of
+    this function's 5 call sites (news headline summaries, SEC/NSE filing
+    revenue-trend one-liners, the ticker-tracking macro summary) made real
+    structured calls with clear intent, but silently got back blank text in
+    the live pipeline, with nothing in the output signaling that "enrichment"
+    never actually ran.
+    """
+    if not text:
+        return ""
+    from services.llm_client import call_llm, GROQ_MODEL_FAST
+    try:
+        result = await call_llm(
+            system="You are a concise financial analyst. Follow the instruction exactly — no preamble, no restating the instruction.",
+            user=f"{instruction}\n\nText:\n{text}",
+            model=GROQ_MODEL_FAST,
+            # gpt-oss-20b is a reasoning model — it burns tokens on hidden
+            # chain-of-thought before any visible content, confirmed live:
+            # a 150-token budget produced completion_tokens=150 but an
+            # empty stripped result (all budget spent reasoning, none left
+            # for the answer). services/llm_client.py's OpenRouter fallback
+            # already pads to 300 for the same reason; match it here.
+            max_tokens=300,
+            temperature=0.3,
+        )
+        return result.strip() if result else ""
+    except Exception as e:
+        logger.warning("summarize_with_llm failed: %s", e)
+        return ""
 
 
 # ── Tool 6b ───────────────────────────────────────────────────────────────────

@@ -5,11 +5,11 @@
 
 ## Context
 
-WealthOS has 5 MCP servers (`market_server`, `sec_edgar_server`, `news_server`,
-`finance_server`, `tax_server`, 21 tools total). Only some pipeline calls go
-through them via `services/mcp_client.py`'s `MCPClient`; others call the same
-server modules' functions directly as plain Python imports. As of the current
-graph (`graph/nodes.py`):
+WealthOS has 6 MCP servers (`market_server`, `sec_edgar_server`, `news_server`,
+`finance_server`, `tax_server`, `india_filings_server`, 25 tools total). Only
+some pipeline calls go through them via `services/mcp_client.py`'s
+`MCPClient`; others call the same server modules' functions directly as plain
+Python imports. As of the current graph (`graph/nodes.py`):
 
 | Call | Transport |
 |---|---|
@@ -18,6 +18,7 @@ graph (`graph/nodes.py`):
 | `risk_and_code_node` → `market_server` | `MCPClient` |
 | `router_node` → `sec_edgar_server` | direct Python import |
 | `data_and_research_node` → `news_server` | direct Python import |
+| `data_and_research_node` → `india_filings_server` (Indian tickers) | direct Python import |
 | `rebalancing_node` → `market_server` | direct Python import |
 | `tax_node` → `tax_server` | direct Python import |
 

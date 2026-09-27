@@ -187,7 +187,7 @@ async def _on_demand_index(ticker: str) -> None:
             file_path=str(dest), ticker=ticker,
             filing_type="10-K", filing_date=filing_date,
         )
-        chunk_count = result.get("chunks_indexed", 0)
+        chunk_count = result.get("total_points", 0)
         logger.info("[router] indexed %d chunks for %s", chunk_count, ticker)
 
         db_url = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
@@ -232,6 +232,54 @@ async def _on_demand_index(ticker: str) -> None:
             pass
 
 
+def _is_indian_ticker(ticker: str) -> bool:
+    return ticker.upper().endswith((".NS", ".BO"))
+
+
+async def _index_indian_ticker(ticker: str) -> None:
+    """
+    Background task: index the latest annual report for an Indian company.
+    rag.bse_indexer.index_indian_company() already does its own
+    indexed_tickers upsert and Qdrant indexing — this is a thin wrapper so
+    the fire point below has the same asyncio.create_task(...) shape for
+    both markets.
+    """
+    logger.info("[router] on-demand India indexing triggered for %s", ticker)
+    try:
+        from rag.bse_indexer import index_indian_company
+        count = await index_indian_company(ticker)
+        if count:
+            logger.info("[router] indexed %d chunks for %s", count, ticker)
+        else:
+            logger.warning("[router] India indexing found nothing for %s", ticker)
+    except Exception as e:
+        logger.error("[router] India on-demand indexing failed for %s: %s", ticker, e)
+
+
+def _try_acquire_index_lock(ticker: str, ttl: int = 600) -> bool:
+    """
+    Redis SET-NX lock — dedups on-demand indexing when multiple requests for
+    the same brand-new ticker land within the same few seconds. The Qdrant
+    tier check that gates indexing (_get_company_tier) is a plain count, not
+    exclusive, so without this lock N concurrent requests for a new ticker
+    fire N duplicate indexing jobs: N filing fetches, N racing writes to the
+    same data/filings/{ticker} path, N overlapping Qdrant upserts.
+
+    ponytail: TTL-only lock, no release on completion — a failed job blocks
+    re-indexing for up to `ttl` seconds rather than releasing immediately.
+    Simpler than threading a release through every exception branch in
+    _on_demand_index/_index_indian_ticker; upgrade if that turnaround time
+    becomes a real problem.
+    """
+    try:
+        import redis
+        r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
+        return bool(r.set(f"index_lock:{ticker.upper()}", "1", nx=True, ex=ttl))
+    except Exception as e:
+        logger.warning("[router] index lock check failed (%s) — proceeding without dedup", e)
+        return True  # fail open: risking duplicate work beats blocking indexing entirely
+
+
 async def run_router_agent(
     query: str,
     ticker: str,
@@ -256,8 +304,14 @@ async def run_router_agent(
 
     # Fire-and-forget indexing for unknown companies — pipeline continues immediately
     if company_tier == "not_indexed":
-        asyncio.create_task(_on_demand_index(ticker))
-        logger.info("[router] background indexing scheduled for %s", ticker)
+        if _try_acquire_index_lock(ticker):
+            if _is_indian_ticker(ticker):
+                asyncio.create_task(_index_indian_ticker(ticker))
+            else:
+                asyncio.create_task(_on_demand_index(ticker))
+            logger.info("[router] background indexing scheduled for %s", ticker)
+        else:
+            logger.info("[router] indexing already in progress for %s — skipping duplicate", ticker)
 
     fetch_plan = _build_fetch_plan(horizon, company_tier)
 
