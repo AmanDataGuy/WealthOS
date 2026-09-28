@@ -240,6 +240,20 @@ def capital_gains_tax(
     Returns:
         gain_type (STCG/LTCG), tax_rate, tax_amount, net_profit
     """
+    # Found live via stress-testing: quantity=-10 (a nonsensical negative
+    # share count) produced a fully-computed result with no error, including
+    # a misleadingly confident "return_pct: 100.0" (gain/invested both
+    # negative, so the ratio came out positive) for what's actually garbage
+    # input. This tool had no input validation at all before this — matches
+    # the {"error": ...} contract every other MCP tool in this codebase uses
+    # for a bad-input/failure case.
+    if quantity <= 0:
+        return {"error": f"quantity must be positive, got {quantity}"}
+    if buy_price < 0 or sell_price < 0:
+        return {"error": "buy_price and sell_price must be non-negative"}
+    if holding_days < 0:
+        return {"error": f"holding_days must be non-negative, got {holding_days}"}
+
     gain = (sell_price - buy_price) * quantity
     invested = buy_price * quantity
     proceeds = sell_price * quantity
@@ -500,6 +514,12 @@ def advance_tax_schedule(
 
 def demo() -> None:
     """ponytail: smallest runnable check — the three bugs fixed this session."""
+    # Found live via stress-testing: negative/invalid inputs used to produce
+    # a fully-computed but nonsensical result instead of an error.
+    assert "error" in capital_gains_tax(100, 200, -10, 400)
+    assert "error" in capital_gains_tax(-100, 200, 10, 400)
+    assert "error" in capital_gains_tax(100, 200, 10, -5)
+
     # Foreign equity: 24-month threshold, no numeric tax fabricated
     domestic = capital_gains_tax(100, 200, 10, 400, asset_type="equity")
     assert domestic["gain_type"] == "LTCG" and domestic["tax_payable"] is not None

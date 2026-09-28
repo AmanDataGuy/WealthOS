@@ -110,8 +110,11 @@ def check_secrets():
         required=False,
     )
 
-    groq_keys = [k for k in [os.getenv("GROQ_API_KEY"), os.getenv("GROQ_API_KEY_2"), os.getenv("GROQ_API_KEY_3")] if k]
-    report("At least one GROQ_API_KEY", bool(groq_keys), "no Groq keys configured — every agent LLM call will fail")
+    # Same scan range as services/llm_client.py's _GROQ_KEYS — was hardcoded
+    # to just _2/_3 and would miss keys set only at _4 or beyond.
+    groq_keys = [os.getenv("GROQ_API_KEY")] + [os.getenv(f"GROQ_API_KEY_{i}") for i in range(2, 21)]
+    groq_keys = [k for k in groq_keys if k]
+    report(f"Groq keys configured ({len(groq_keys)} found)", bool(groq_keys), "no Groq keys configured — every agent LLM call will fail")
 
     optional = {
         "COHERE_API_KEY": "RAG reranking will fall back to raw hybrid-search order",

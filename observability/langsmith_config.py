@@ -92,9 +92,19 @@ def verify_langsmith():
     """
     Call once at app startup to confirm credentials are working.
     Prints a clear status line — easy to spot in server logs.
+
+    Found live via stress-testing: these prints used to include ✅/❌/⚠️.
+    api/main.py's lifespan() calls this with no try/except (unlike the two
+    DB-setup calls next to it, which already degrade gracefully), and stdout
+    under a restrictive console encoding (cp1252, the Windows console
+    default unless UTF-8 mode is explicitly enabled) raises
+    UnicodeEncodeError on those emoji — completely unhandled. A soft,
+    expected failure (LangSmith unreachable) was turning into "Application
+    startup failed. Exiting.": the server never bound to a port. Plain ASCII
+    status words avoid the whole class of risk rather than catching it.
     """
     if not LANGSMITH_ENABLED:
-        print("[langsmith] ⚠️  LANGCHAIN_API_KEY not set — tracing disabled")
+        print("[langsmith] WARNING: LANGCHAIN_API_KEY not set — tracing disabled")
         return False
 
     try:
@@ -103,10 +113,10 @@ def verify_langsmith():
         # List projects to confirm the key is valid
         projects = [p.name for p in client.list_projects()]
         if LANGSMITH_PROJECT in projects:
-            print(f"[langsmith] ✅ Connected — project '{LANGSMITH_PROJECT}' found")
+            print(f"[langsmith] OK: Connected — project '{LANGSMITH_PROJECT}' found")
         else:
-            print(f"[langsmith] ✅ Connected — project '{LANGSMITH_PROJECT}' will be created on first trace")
+            print(f"[langsmith] OK: Connected — project '{LANGSMITH_PROJECT}' will be created on first trace")
         return True
     except Exception as e:
-        print(f"[langsmith] ❌ Connection failed: {e}")
+        print(f"[langsmith] FAILED: Connection failed: {e}")
         return False

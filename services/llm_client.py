@@ -11,14 +11,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# All configured Groq keys, in priority order, with empty values filtered out.
-_GROQ_KEYS = [
-    k for k in [
-        os.getenv("GROQ_API_KEY",   ""),
-        os.getenv("GROQ_API_KEY_2", ""),
-        os.getenv("GROQ_API_KEY_3", ""),
-    ] if k
-]
+# All configured Groq keys, in priority order, with empty values filtered
+# out. Was hardcoded to exactly 3 (GROQ_API_KEY/_2/_3) — scans up to
+# GROQ_API_KEY_20 instead so adding another key to .env doesn't require
+# another edit here. GROQ_API_KEY (unsuffixed) is key 1.
+_GROQ_KEYS = [os.getenv("GROQ_API_KEY", "")]
+_GROQ_KEYS += [os.getenv(f"GROQ_API_KEY_{i}", "") for i in range(2, 21)]
+_GROQ_KEYS = [k for k in _GROQ_KEYS if k]
 
 # Fallback provider, tried only if every Groq key fails. OpenRouter's API is
 # OpenAI-compatible (same request/response shape as Groq's), verified live
