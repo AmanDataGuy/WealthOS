@@ -136,7 +136,7 @@ flowchart LR
 | **A2A** | `POST /agents/risk_agent/invoke` | The one genuinely callable agent among the 9 cards at `/agents` — a separate process can POST a ticker and get back a real `RiskReport`, independent of the other 9 nodes. Same `verify_api_key` boundary as `/analyze`. Live-verified: NVDA → risk_score 6/10, Hold, real macro figures (10Y yield, VIX) in the analysis text |
 | **Routing** | Router Agent (node 0) | LLM classifies investment horizon; Qdrant chunk-count sets company tier (`well_indexed` / `thin_indexed` / `not_indexed`); fires `_on_demand_index()` (US, SEC 10-K) or `_index_indian_ticker()` (India, BSE/IR annual report via `rag.bse_indexer`) as a background task for unknown tickers |
 | **MCP Transport** | MCPClient stdio subprocess (`finance`, `data_and_research`/market) | JSON-RPC over stdin/stdout, retry-on-crash; `sec_edgar_server`/`news_server`/`india_filings_server`/`tax_server`/`rebalancing`'s market calls bypass this via direct Python import instead — see ADR 001 |
-| **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | Key rotation across up to 3 Groq keys; if all fail, falls back to OpenRouter's free `openai/gpt-oss-20b:free` |
+| **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | Key rotation across as many Groq keys as are configured (`GROQ_API_KEY`, `GROQ_API_KEY_2`...`_20`, currently 5 set); if all fail, falls back to OpenRouter's free `openai/gpt-oss-20b:free` |
 | **RAG** | Qdrant hybrid search + Cohere reranking | `all-MiniLM-L6-v2` 384-dim dense (local CPU, no API key) + BM25 sparse; RRF fusion; SEC 10-K filings indexed for AAPL/MSFT/NVDA/GOOGL/TSLA/AMZN |
 | **Embeddings** | sentence-transformers/all-MiniLM-L6-v2 | 384-dim, runs on CPU, no API key required |
 | **Memory** | Three-layer | (1) Mem0 — 2-line cross-session signal injected at pipeline start; (2) Qdrant `user_analyses` — Final Verdict embedded and written after every run, semantic past-decision retrieval; (3) Postgres `user_risk_profiles` — buy/hold/avoid counts, avg risk score, preferred sectors, updated per run |
@@ -161,7 +161,7 @@ flowchart LR
 | Layer | Technologies |
 |:---:|:---|
 | **Orchestration** | LangGraph (10-node StateGraph) |
-| **LLM** | Groq `openai/gpt-oss-120b` with 3-key rotation |
+| **LLM** | Groq `openai/gpt-oss-120b` with key rotation (5 keys configured) |
 | **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` (384-dim, local CPU) |
 | **RAG** | Qdrant local (hybrid dense + BM25 sparse · RRF fusion) · Cohere reranking |
 | **Memory** | Mem0 (signal) · Qdrant `user_analyses` (semantic past verdicts) · Postgres `user_risk_profiles` (quantitative profile) |

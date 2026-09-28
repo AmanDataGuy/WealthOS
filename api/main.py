@@ -10,6 +10,7 @@ Endpoints:
 """
 
 import os
+import sys
 import json
 import time
 import uuid
@@ -23,6 +24,20 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depe
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# Found live via stress-testing: this codebase prints ₹ and emoji (✅/❌/⚠️)
+# throughout agent/tool code (tax figures, status lines), and the Windows
+# console default (cp1252) can't encode most of it — already confirmed to
+# crash the whole app once (observability/langsmith_config.py's own status
+# print took down lifespan() before a fix). Patching every individual print
+# site across dozens of files is a much larger, more error-prone diff than
+# fixing the one thing they all route through: reconfigure stdout/stderr to
+# accept any Unicode character, replacing anything truly unencodable rather
+# than raising. Python 3.7+ only; must run before any print() call, so it's
+# the first thing this module does.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 from typing import Optional
 import asyncpg
 import redis.asyncio as aioredis
@@ -120,7 +135,16 @@ async def _ensure_analysis_history_table():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    verify_langsmith()
+    # Found live via stress-testing: this was the one unguarded startup
+    # step — unlike the two DB-setup calls below, which already catch their
+    # own exceptions — and a failure inside it (even one as unrelated to
+    # LangSmith itself as a stdout encoding error) took down the entire
+    # app before it could bind to a port. An optional observability check
+    # must never be able to do that.
+    try:
+        verify_langsmith()
+    except Exception as e:
+        logger.warning("[startup] verify_langsmith failed, continuing without it: %s", e)
     # W&B Weave is not initialized here on purpose — nothing in the live
     # request path logs to it. eval/evaluate.py (offline only) initializes
     # its own Weave session when run. See plan_ahead.md Phase 7, item 6.
@@ -428,7 +452,11 @@ async def login(req: LoginRequest):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "2.0.0", "agents": 7}
+    # Found live via stress-testing: this hardcoded "7" was stale — /agents
+    # (list_all_agents(), the actual source of truth) returns 9. A caller
+    # checking /health to confirm the deployed agent count got a wrong
+    # answer. Derived from the same source both endpoints should agree with.
+    return {"status": "ok", "version": "2.0.0", "agents": len(list_all_agents())}
 
 
 # ── Ticker/amount extraction from free text ───────────────────────────────────
