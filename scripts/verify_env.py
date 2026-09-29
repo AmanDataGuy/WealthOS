@@ -120,7 +120,6 @@ def check_secrets():
         "COHERE_API_KEY": "RAG reranking will fall back to raw hybrid-search order",
         "FIRECRAWL_API_KEY": "news/Reddit scraping and earnings-call indexing will skip",
         "E2B_API_KEY": "Code Agent's DCF/Monte Carlo sandbox will be unavailable",
-        "MEM0_API_KEY": "cross-session memory read/write will skip",
     }
     for key, consequence in optional.items():
         report(key, bool(os.getenv(key)), f"unset — {consequence}", required=False)

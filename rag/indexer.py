@@ -623,11 +623,22 @@ async def index_user_analysis(
     verdict: str,
     full_memo: str,
     risk_score: Optional[float] = None,
+    query: str = "",
+    monthly_surplus: Optional[float] = None,
+    health_score: Optional[float] = None,
 ) -> bool:
     """
     Embed and upsert the Final Verdict section of a memo into the
     `user_analyses` Qdrant collection. Called at end of writer_node.
     Returns True on success, False on any failure (non-fatal).
+
+    query/monthly_surplus/health_score: added when Mem0 was removed (deep-
+    dive audit — confirmed redundant with this exact collection, see
+    api/main.py's get_memory() docstring). These three were the only things
+    Mem0 captured that this collection didn't already: the user's literal
+    question text and a point-in-time financial snapshot. Both are already
+    computed Python values by the time writer_node calls this — no new
+    extraction logic needed, just carrying them through.
     """
     try:
         verdict_text = full_memo
@@ -639,9 +650,11 @@ async def index_user_analysis(
         verdict_text = verdict_text[:400]
 
         dense_model = _get_dense_model()
-        vec = await asyncio.to_thread(
-            lambda: dense_model.encode(f"{ticker} {verdict} {verdict_text}").tolist()
-        )
+        # Fold the user's actual question into the embedded text too — this
+        # is what let Mem0-backed semantic recall find "what did you tell me
+        # about GOOGL" by matching question phrasing, not just ticker/verdict.
+        embed_text = f"{ticker} {verdict} {verdict_text} {query}".strip()
+        vec = await asyncio.to_thread(lambda: dense_model.encode(embed_text).tolist())
 
         from qdrant_client import QdrantClient
         from qdrant_client.models import PointStruct, Distance, VectorParams
@@ -659,12 +672,15 @@ async def index_user_analysis(
             id=str(uuid.uuid4()),
             vector={"dense": vec},
             payload={
-                "user_id":       user_id,
-                "ticker":        ticker,
-                "verdict":       verdict,
-                "risk_score":    float(risk_score) if risk_score is not None else None,
-                "analysis_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                "verdict_text":  verdict_text,
+                "user_id":         user_id,
+                "ticker":          ticker,
+                "verdict":         verdict,
+                "risk_score":      float(risk_score) if risk_score is not None else None,
+                "analysis_date":   datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "verdict_text":    verdict_text,
+                "query":           query[:300] if query else None,
+                "monthly_surplus": float(monthly_surplus) if monthly_surplus is not None else None,
+                "health_score":    float(health_score) if health_score is not None else None,
             },
         )
         await asyncio.to_thread(qc.upsert, collection_name="user_analyses", points=[point])

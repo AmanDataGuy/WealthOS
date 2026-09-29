@@ -138,7 +138,6 @@ litellm==1.88.1  # pinned — unpinned, pip's resolver backtracks through 100+ l
                  # 2026-08-20). Confirmed compatible with the full dependency graph.
 # smolagents  # listed but not imported anywhere in the codebase — keeping for future use
 # composio-core  # removed — morning_briefing.py now uses stdlib smtplib directly
-mem0ai==0.1.113
 # agentops  # removed — replaced by LangSmith for tracing
 wandb==0.19.11
 weave==0.51.33

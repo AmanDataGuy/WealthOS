@@ -837,7 +837,7 @@ elif page == "History":
     with tab_memory:
         st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
 
-        # Mem0
+        # Recent analysis history (backed by Qdrant user_analyses, not Mem0 — removed 2026-09-30)
         st.markdown(
             '<span style="font-size:0.875rem;font-weight:600;color:#1f2328;">'
             'What WealthOS knows about you</span>',

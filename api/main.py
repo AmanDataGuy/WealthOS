@@ -577,8 +577,6 @@ async def analyze(req: AnalyzeRequest, authorization: Optional[str] = Header(Non
         "invest_amount":      amount,
         "investment_horizon": req.investment_horizon,
         "fetch_plan":         None,
-        "user_memory":        None,
-        "memory_unavailable": None,
         "past_decisions_ctx": None,
         "personal_finance":   None,
         "financial_snapshot": None,
@@ -740,8 +738,6 @@ async def analyze_stream(req: AnalyzeRequest, authorization: Optional[str] = Hea
         "invest_amount":      amount,
         "investment_horizon": req.investment_horizon,
         "fetch_plan":         None,
-        "user_memory":        None,
-        "memory_unavailable": None,
         "past_decisions_ctx": None,
         "personal_finance":   None,
         "financial_snapshot": None,
@@ -1002,28 +998,56 @@ async def upload_personal_doc(
 
 @app.get("/memory/{user_id}", dependencies=[Depends(verify_user_token)])
 async def get_memory(user_id: str):
-    """Return Mem0 memories for a user as a plain string."""
+    """
+    Return a short text summary of what WealthOS remembers about this user.
+
+    Was backed by Mem0 (a hosted memory service). Removed as part of the
+    deep-dive audit's storage-architecture finding: Mem0 and Qdrant's
+    user_analyses collection were both being queried for the exact same
+    purpose ("recall this user's past decisions") and concatenated into the
+    same prompt in writer_agent.py — confirmed redundant, not just
+    structurally similar. Now reads directly from user_analyses, the same
+    collection index_user_analysis() already writes to at the end of every
+    run — one fewer external dependency and failure mode, same information.
+    """
     try:
-        from memory.mem0_client import read_memory
-        # read_memory() changed from returning a plain str to (text, failed)
-        # earlier this session (to distinguish a Mem0 outage from "new user,
-        # no memories yet") — this caller was missed at the time. It kept
-        # unpacking the old contract, so `mem` was a 2-tuple; FastAPI
-        # serializes a tuple to a JSON array, and the Streamlit frontend's
-        # `mem_data["memory"].replace(...)` crashed with "'list' object has
-        # no attribute 'replace'" — confirmed live against the deployed app.
-        mem, memory_unavailable = read_memory(user_id)
-        return {"memory": mem or "", "has_memory": bool(mem), "memory_unavailable": memory_unavailable}
+        from qdrant_client import QdrantClient
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        qc = QdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+        hits, _ = qc.scroll(
+            collection_name="user_analyses",
+            scroll_filter=Filter(must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]),
+            limit=6,
+            with_payload=True,
+        )
+        hits = sorted(hits, key=lambda h: h.payload.get("analysis_date", ""), reverse=True)
+        lines = [
+            f"- {h.payload.get('analysis_date','?')}: {h.payload.get('ticker','?')} "
+            f"→ {h.payload.get('verdict','?')}: {h.payload.get('verdict_text','')[:120]}"
+            for h in hits
+        ]
+        mem = "\n".join(lines)
+        return {"memory": mem, "has_memory": bool(mem), "memory_unavailable": False}
     except Exception as e:
-        return {"memory": "", "has_memory": False, "error": str(e)}
+        return {"memory": "", "has_memory": False, "memory_unavailable": True, "error": str(e)}
 
 
 @app.delete("/memory/{user_id}", dependencies=[Depends(verify_user_token)])
 async def clear_memory(user_id: str):
-    """Delete all Mem0 memories for a user."""
+    """
+    Delete this user's stored analysis history from user_analyses (see
+    get_memory's docstring for why this moved off Mem0). Same user-facing
+    intent as before ("forget what you know about me") against the new
+    single source of truth.
+    """
     try:
-        from memory.mem0_client import get_client
-        get_client().delete_all(user_id=user_id)
+        from qdrant_client import QdrantClient
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        qc = QdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+        qc.delete(
+            collection_name="user_analyses",
+            points_selector=Filter(must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]),
+        )
         return {"status": "cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
