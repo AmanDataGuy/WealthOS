@@ -163,6 +163,14 @@ Focus on:
 - Earnings quality and consistency
 - Revenue growth sustainability
 - Free cash flow generation
+Only cite a specific number for one of these (e.g. PEG ratio, a growth rate,
+a debt figure) if the Financial Data below actually contains the inputs
+needed to compute it — a PEG ratio needs a growth rate, not just a P/E.
+If the underlying data isn't there, say so explicitly ("PEG unavailable —
+no growth rate data") instead of estimating or inventing a plausible-
+looking number. Confirmed live: this model stated "PEG ≈ 2.5" for a stock
+whose growth data was explicitly flagged low-confidence/unavailable
+elsewhere in the same analysis — that must not happen again.
 Be direct. Give a risk score 1-10 for the stock itself (ignoring personal context).
 Return analysis in 200 words max, ending with: "Stock Risk Score: X/10" """
 

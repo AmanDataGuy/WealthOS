@@ -253,13 +253,20 @@ def format_rebalancing(suggestion, ticker: str = "") -> str:
         # count that doesn't match how many are actually listed is exactly
         # what leaked into the memo as a wrong "N actions" claim, confirmed
         # live 2026-09-12. List everything the header claims.
+        # Found live via fact-checking a real memo: this loop never included
+        # urgency, even though every RebalanceAction has one. The LLM still
+        # confidently claimed "three high-urgency actions" and named the
+        # "most critical" one — pure fabrication, since it had zero urgency
+        # data to draw that from. Give it the real field instead of letting
+        # it guess.
         lines.append(f"\nRebalancing Actions ({len(actions)}):")
         for a in actions:
-            act    = a.get("action", "") if isinstance(a, dict) else a.action
-            sector = a.get("sector", "") if isinstance(a, dict) else a.sector
-            amount = a.get("amount", 0) if isinstance(a, dict) else a.amount
-            reason = a.get("reason", "") if isinstance(a, dict) else a.reason
-            lines.append(f"  - {act.upper()} {sector}: {c}{amount:,.0f} — {reason[:80]}")
+            act     = a.get("action", "")  if isinstance(a, dict) else a.action
+            sector  = a.get("sector", "")  if isinstance(a, dict) else a.sector
+            amount  = a.get("amount", 0)   if isinstance(a, dict) else a.amount
+            reason  = a.get("reason", "")  if isinstance(a, dict) else a.reason
+            urgency = a.get("urgency", "") if isinstance(a, dict) else getattr(a, "urgency", "")
+            lines.append(f"  - [{urgency.upper()}] {act.upper()} {sector}: {c}{amount:,.0f} — {reason[:80]}")
     else:
         lines.append("Portfolio is well balanced. No rebalancing required.")
 
