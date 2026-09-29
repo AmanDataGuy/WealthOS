@@ -356,7 +356,14 @@ Write the {section_name} section now."""
     result = await call_llm(
         system=system,
         user=user,
-        max_tokens=700,
+        # Was 700 — confirmed live too tight for gpt-oss-120b (a reasoning
+        # model) on a synthesis prompt with substantial input context: it
+        # can spend most/all of a small budget on hidden chain-of-thought
+        # before any visible content, which combined with the key-rotation
+        # bug just fixed (a single empty response used to be returned as
+        # final rather than retried) produced 6 of 7 blank sections in one
+        # real run. More headroom lowers how often this happens at all.
+        max_tokens=1500,
         temperature=0.3,
         client=client
     )

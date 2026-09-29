@@ -224,15 +224,33 @@ async def call_llm(
                     message = data["choices"][0]["message"]
                     if tools:
                         return message
-                    return message["content"].strip()
+                    content = message["content"].strip()
+                    if not content:
+                        # A reasoning model (gpt-oss-120b/20b) can spend its
+                        # entire max_tokens budget on hidden chain-of-thought
+                        # and emit no visible content — a 200 OK response
+                        # that used to be returned as-is and treated as a
+                        # real (blank) success, never trying another key.
+                        # Confirmed live: 6 of 7 memo sections came back
+                        # blank in one real run even with 5 keys configured,
+                        # because the first key tried "succeeded" empty and
+                        # nothing else was ever attempted. Retry instead.
+                        logger.warning("[llm_client] Groq key %d/%d returned empty content — trying next key", idx, len(_GROQ_KEYS))
+                        continue
+                    return content
                 except httpx.HTTPStatusError as e:
-                    logger.warning("[llm_client] Groq key %d HTTP %d — skipping", idx, e.response.status_code)
-                    break
+                    # Was `break` — a single transient error (500/502/503)
+                    # or one bad/revoked key killed the ENTIRE rotation on
+                    # the first key tried, so keys 2-5 were never reached
+                    # regardless of what actually went wrong. Only give up
+                    # on Groq entirely after every key has actually failed.
+                    logger.warning("[llm_client] Groq key %d HTTP %d — trying next key", idx, e.response.status_code)
+                    continue
                 except Exception as e:
-                    logger.warning("[llm_client] Groq key %d failed (%s) — skipping", idx, e)
-                    break
+                    logger.warning("[llm_client] Groq key %d failed (%s) — trying next key", idx, e)
+                    continue
             else:
-                logger.warning("[llm_client] All %d Groq key(s) rate-limited", len(_GROQ_KEYS))
+                logger.warning("[llm_client] All %d Groq key(s) failed, rate-limited, or returned empty content", len(_GROQ_KEYS))
         else:
             logger.warning("[llm_client] No Groq keys configured")
 
