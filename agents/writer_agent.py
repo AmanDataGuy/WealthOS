@@ -141,22 +141,34 @@ def format_financial_snapshot(snapshot) -> str:
         )
     lines.append("")
 
+    # Found via the deep-dive audit: only revenue carried its fiscal_year —
+    # net_income/total_debt/FCF (all sourced from the same possibly-stale
+    # Postgres financial_facts row, populated by a manual, unscheduled
+    # script) were presented with no date at all, reading exactly as
+    # current as the live-fetched price/PE/market-cap fields right next to
+    # them. A stale cached number and a live one must not look identical.
     if inc.get("total_revenue"):
         lines.append(f"- Revenue (FY{inc.get('fiscal_year', 'N/A')}): **{c}{inc['total_revenue']:,.0f}M**")
     if inc.get("net_income"):
-        lines.append(f"- Net Income: **{c}{inc['net_income']:,.0f}M**")
+        lines.append(f"- Net Income (FY{inc.get('fiscal_year', 'N/A')}): **{c}{inc['net_income']:,.0f}M**")
     if val.get("current_price"):
-        lines.append(f"- Current Price: **{c}{val['current_price']:.2f}**")
+        lines.append(f"- Current Price (live): **{c}{val['current_price']:.2f}**")
     if val.get("pe_ratio"):
-        lines.append(f"- P/E Ratio: **{val['pe_ratio']:.1f}x**")
+        lines.append(f"- P/E Ratio (live): **{val['pe_ratio']:.1f}x**")
     if val.get("market_cap"):
-        lines.append(f"- Market Cap: **{c}{val['market_cap']/1e9:.1f}B**")
+        lines.append(f"- Market Cap (live): **{c}{val['market_cap']/1e9:.1f}B**")
     if bal.get("total_debt"):
-        lines.append(f"- Total Debt: **{c}{bal['total_debt']:,.0f}M**")
+        lines.append(f"- Total Debt (FY{bal.get('fiscal_year', 'N/A')}): **{c}{bal['total_debt']:,.0f}M**")
     if cf.get("free_cash_flow"):
-        lines.append(f"- Free Cash Flow: **{c}{cf['free_cash_flow']:,.0f}M**")
+        lines.append(f"- Free Cash Flow (FY{cf.get('fiscal_year', 'N/A')}): **{c}{cf['free_cash_flow']:,.0f}M**")
     if gr.get("revenue_cagr_3y"):
         lines.append(f"- Revenue CAGR (3Y): **{gr['revenue_cagr_3y']:.1f}%**")
+
+    lines.append(
+        "\nNote: figures marked (live) are fetched fresh this run; figures "
+        "marked (FY{year}) come from stored filing data and may be older "
+        "than the live price above — do not treat them as equally current."
+    )
 
     return "\n".join(lines)
 

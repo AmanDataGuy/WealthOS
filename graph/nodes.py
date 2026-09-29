@@ -41,16 +41,24 @@ async def _get_past_decisions(user_id: str, ticker: str, query: str = "") -> str
     """
     Retrieve relevant past decisions from Qdrant user_analyses.
 
-    Two retrieval paths, merged:
-    1. Semantic search embedding the user's actual QUESTION (not just the
-       current ticker) — so "what did you tell me about GOOGL" while
-       analyzing MSFT searches for GOOGL-relevant history, not MSFT's.
-    2. Exact ticker-filter lookup for any other ticker symbols explicitly
-       named in the question text — semantic search alone isn't reliable
-       enough to guarantee recall when a specific ticker is named outright.
+    Three retrieval paths, merged:
+    1. Exact ticker-filter lookup for the CURRENT ticker being analyzed —
+       found via the deep-dive audit: this used to be missing entirely.
+       The old code explicitly discarded the current ticker from the
+       exact-match set (`mentioned.discard(ticker)`), so a user with 10
+       prior decisions on the exact ticker they're asking about again had
+       zero guaranteed recall of them — only whatever generic semantic
+       search happened to surface, mixed across all their other tickers.
+       That's backwards from the common case; fixed by always including it.
+    2. Exact ticker-filter lookup for any OTHER ticker symbols explicitly
+       named in the question text — e.g. "what did you tell me about
+       GOOGL" while analyzing MSFT.
+    3. Semantic search embedding the user's actual QUESTION, as a fallback
+       for relevant history neither exact-match path would catch.
     """
     try:
         import os, re, asyncio as _asyncio
+        from datetime import datetime, timezone
         from qdrant_client import QdrantClient
         from qdrant_client.models import Filter, FieldCondition, MatchValue
         qc = QdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
@@ -67,18 +75,33 @@ async def _get_past_decisions(user_id: str, ticker: str, query: str = "") -> str
 
         mentioned = set(re.findall(r"\b[A-Z]{2,5}(?:\.[A-Z]{2})?\b", query.upper()))
         mentioned.discard((ticker or "").upper())
+        # Current ticker always looked up first and deterministically,
+        # separate from the "other tickers mentioned in the text" set.
+        lookup_tickers = ([ticker.upper()] if ticker else []) + list(mentioned)[:3]
         exact_results = []
-        for t in list(mentioned)[:3]:
+        for t in lookup_tickers:
             hits, _ = qc.scroll(
                 collection_name="user_analyses",
                 scroll_filter=Filter(must=[
                     FieldCondition(key="user_id", match=MatchValue(value=user_id)),
                     FieldCondition(key="ticker", match=MatchValue(value=t)),
                 ]),
-                limit=2,
+                limit=3 if t == (ticker or "").upper() else 2,
                 with_payload=True,
             )
             exact_results.extend(hits)
+
+        # Staleness annotation — this raw QdrantClient path bypasses
+        # rag/query_engine.py's _annotate_staleness() entirely (confirmed
+        # via the deep-dive audit). A half-life decay model is overkill for
+        # a 3-8-result single-user lookup; a simple binary "old" flag on
+        # anything >180 days is proportionate here.
+        def _age_flag(analysis_date: str) -> str:
+            try:
+                age_days = (datetime.now(timezone.utc).date() - datetime.fromisoformat(analysis_date).date()).days
+                return " [OLD]" if age_days > 180 else ""
+            except Exception:
+                return ""
 
         seen  = set()
         lines = []
@@ -88,8 +111,9 @@ async def _get_past_decisions(user_id: str, ticker: str, query: str = "") -> str
             if key in seen:
                 continue
             seen.add(key)
+            date = p.get("analysis_date", "?")
             lines.append(
-                f"- {p.get('analysis_date','?')}: {p.get('ticker','?')} "
+                f"- {date}{_age_flag(date)}: {p.get('ticker','?')} "
                 f"→ {p.get('verdict','?')}: {p.get('verdict_text','')[:120]}"
             )
         return "\n".join(lines[:5])
