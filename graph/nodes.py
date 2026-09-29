@@ -190,29 +190,12 @@ async def router_node(state: WealthOSState) -> dict:
 
 
 # ── Finance Node ───────────────────────────────────────────────────────────────
-# Phase 6: reads Mem0 memory before doing anything else.
-# The user_memory string flows into every downstream agent via state.
 
 @trace_node("finance_node")
 async def finance_node(state: WealthOSState) -> dict:
     print("\n[Graph] Finance Node running...")
     try:
-        # Phase 6 — pull long-term memory for this user
         user_id = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
-        user_memory = ""
-        memory_unavailable = False
-        try:
-            from memory.mem0_client import read_memory
-            user_memory, memory_unavailable = read_memory(user_id, query=state.get("query", ""))
-            if user_memory:
-                print(f"  [mem0] Loaded memory for {user_id}")
-            elif memory_unavailable:
-                print(f"  [mem0] ⚠️  Memory read failed for {user_id} — proceeding without personalization history")
-        except Exception as e:
-            # Belt-and-suspenders — read_memory itself never raises, but
-            # keep this in case that contract ever changes.
-            print(f"  [mem0] ⚠️  Could not load memory: {e}")
-            memory_unavailable = True
 
         # Actually run the Finance Agent instead of returning hardcoded data
         try:
@@ -249,13 +232,10 @@ async def finance_node(state: WealthOSState) -> dict:
         except Exception as e:
             print(f"  [past_decisions] ⚠️  Could not load past decisions: {e}")
 
-        memory_status = "yes" if user_memory else ("failed" if memory_unavailable else "none")
         return {
-            "user_memory":         user_memory,
-            "memory_unavailable":  memory_unavailable,
             "personal_finance":    personal_finance,
             "past_decisions_ctx":  past_decisions_ctx,
-            "messages": log(state, f"Finance Node ✅ (confidence={personal_finance.get('data_confidence', 'unknown')}, memory={memory_status})"),
+            "messages": log(state, f"Finance Node ✅ (confidence={personal_finance.get('data_confidence', 'unknown')}, history={'yes' if past_decisions_ctx else 'none'})"),
         }
     except Exception as e:
         return {
@@ -462,8 +442,6 @@ async def writer_node(state: WealthOSState) -> dict:
             rebalance_suggestion=state.get("rebalance_suggestion"),
             personal_finance=state.get("personal_finance"),
             research_snapshot=state.get("research_output"),
-            user_memory=state.get("user_memory", ""),
-            memory_unavailable=bool(state.get("memory_unavailable")),
             investment_horizon=state.get("investment_horizon", "long"),
             past_decisions_ctx=state.get("past_decisions_ctx", ""),
             user_risk_profile=_user_risk_profile,
@@ -482,25 +460,20 @@ async def writer_node(state: WealthOSState) -> dict:
         # handling, just not gating the memo the user is waiting on.
         _uid = state.get("user_id") or "00000000-0000-0000-0000-000000000001"
 
-        async def _write_mem0():
-            try:
-                from memory.mem0_client import write_memory
-                await asyncio.get_running_loop().run_in_executor(
-                    None, write_memory, _uid, {**state, "final_memo": memo.full_memo}
-                )
-            except Exception as e:
-                print(f"  [mem0] ⚠️  write failed: {e}")
-
         async def _index_qdrant():
             try:
                 from rag.indexer import index_user_analysis
                 _ticker = state["tickers"][0] if state.get("tickers") else "UNKNOWN"
+                _pf = state.get("personal_finance") or {}
                 await index_user_analysis(
                     user_id=_uid,
                     ticker=_ticker,
                     verdict=memo.verdict or "Hold",
                     full_memo=memo.full_memo,
                     risk_score=float(memo.risk_score) if memo.risk_score is not None else None,
+                    query=state.get("query", ""),
+                    monthly_surplus=_pf.get("monthly_surplus"),
+                    health_score=(_pf.get("health_score") or {}).get("overall"),
                 )
             except Exception as e:
                 print(f"  [indexer] ⚠️  user_analyses index failed: {e}")
@@ -515,7 +488,7 @@ async def writer_node(state: WealthOSState) -> dict:
             except Exception as e:
                 print(f"  [profile] ⚠️  risk profile upsert failed: {e}")
 
-        for coro in (_write_mem0(), _index_qdrant(), _upsert_profile()):
+        for coro in (_index_qdrant(), _upsert_profile()):
             asyncio.create_task(coro)
 
         return {

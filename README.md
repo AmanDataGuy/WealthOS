@@ -57,8 +57,7 @@ flowchart LR
 
     N1 -- MCPClient --> FIN[finance_server<br>1 tool]:::mcp
     N1 --> PG1[(PostgreSQL)]:::data
-    N1 -. "read, start of run" .-> Mem0[Mem0]:::intel
-    N1 -. "past-decisions lookup" .-> Qdrant
+    N1 -. "past-decisions lookup, start of run" .-> Qdrant
 
     N2 -- "MCPClient, fallback direct import" --> MKT[market_server<br>7 tools]:::mcp
     N2 -. "direct import" .-> NEWS[news_server<br>4 tools]:::mcp
@@ -72,8 +71,7 @@ flowchart LR
 
     N5 -. "direct import" .-> MKT
 
-    N6 -. "write, end of run" .-> Mem0
-    N6 -. "index final verdict" .-> Qdrant
+    N6 -. "index final verdict, end of run" .-> Qdrant
     N6 --> N6b["tax<br>(conditional — tax-shaped queries only)"]:::graphnode
     N6b -. "direct import" .-> TAX[tax_server<br>4 tools]:::mcp
     N6b --> N7[policy<br>harness/risk_policy.py]:::graphnode
@@ -132,14 +130,14 @@ flowchart LR
 |:---:|:---:|:---|
 | **Orchestration** | LangGraph 10-node state machine | `asyncio.gather` for parallel data+research and parallel risk+code — ~2× speedup |
 | **Policy Gate** | `harness/risk_policy.py` (node 9, after writer) | Deterministic allow/deny/escalate check on every Buy verdict — no LLM call. Denies a Buy sized past 3× the user's computed monthly surplus; escalates a Buy built on low-confidence data or one that contradicts the user's own risk-score history in `user_risk_profiles`. A denial/escalation renders as a visible banner appended to the memo, not an error |
-| **Live Progress** | `POST /analyze/stream` (SSE) + Streamlit consumer | `astream(stream_mode="updates")` emits a real event as each of the 10 nodes actually finishes — not a fake word-chop of an already-complete response. Streamlit renders each step ⏳→✅ with a one-line summary of what that node produced (e.g. "risk score 7/10"), then reveals the memo. Mem0/Qdrant/risk-profile writes run as background tasks so they don't sit on this response's critical path |
+| **Live Progress** | `POST /analyze/stream` (SSE) + Streamlit consumer | `astream(stream_mode="updates")` emits a real event as each of the 10 nodes actually finishes — not a fake word-chop of an already-complete response. Streamlit renders each step ⏳→✅ with a one-line summary of what that node produced (e.g. "risk score 7/10"), then reveals the memo. Qdrant/risk-profile writes run as background tasks so they don't sit on this response's critical path |
 | **A2A** | `POST /agents/risk_agent/invoke` | The one genuinely callable agent among the 9 cards at `/agents` — a separate process can POST a ticker and get back a real `RiskReport`, independent of the other 9 nodes. Same `verify_api_key` boundary as `/analyze`. Live-verified: NVDA → risk_score 6/10, Hold, real macro figures (10Y yield, VIX) in the analysis text |
 | **Routing** | Router Agent (node 0) | LLM classifies investment horizon; Qdrant chunk-count sets company tier (`well_indexed` / `thin_indexed` / `not_indexed`); fires `_on_demand_index()` (US, SEC 10-K) or `_index_indian_ticker()` (India, BSE/IR annual report via `rag.bse_indexer`) as a background task for unknown tickers |
 | **MCP Transport** | MCPClient stdio subprocess (`finance`, `data_and_research`/market) | JSON-RPC over stdin/stdout, retry-on-crash; `sec_edgar_server`/`news_server`/`india_filings_server`/`tax_server`/`rebalancing`'s market calls bypass this via direct Python import instead — see ADR 001 |
 | **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | Key rotation across as many Groq keys as are configured (`GROQ_API_KEY`, `GROQ_API_KEY_2`...`_20`, currently 5 set); if all fail, falls back to OpenRouter's free `openai/gpt-oss-20b:free` |
 | **RAG** | Qdrant hybrid search + Cohere reranking | `all-MiniLM-L6-v2` 384-dim dense (local CPU, no API key) + BM25 sparse; RRF fusion; SEC 10-K filings indexed for AAPL/MSFT/NVDA/GOOGL/TSLA/AMZN |
 | **Embeddings** | sentence-transformers/all-MiniLM-L6-v2 | 384-dim, runs on CPU, no API key required |
-| **Memory** | Three-layer | (1) Mem0 — 2-line cross-session signal injected at pipeline start; (2) Qdrant `user_analyses` — Final Verdict embedded and written after every run, semantic past-decision retrieval; (3) Postgres `user_risk_profiles` — buy/hold/avoid counts, avg risk score, preferred sectors, updated per run |
+| **Memory** | Two-layer | (1) Qdrant `user_analyses` — Final Verdict embedded and written after every run (now also carries the user's raw query, monthly surplus, and health score); deterministic same-ticker lookup + semantic past-decision retrieval; (2) Postgres `user_risk_profiles` — buy/hold/avoid counts, avg risk score, preferred sectors, updated per run. Was three-layer with Mem0 as a separate hosted service — removed 2026-09-30 after a deep-dive audit found its output was being concatenated with Qdrant's into the same prompt, pure redundancy |
 | **Macro Data** | FRED + yfinance fallback | `_get_macro_context()` returns 10Y treasury yield, VIX, S&P 500, fed funds rate, plus derived `vix_regime` and `rate_environment` labels; FRED supplies 10Y yield + fed funds rate when a key is set, VIX and S&P 500 always come from yfinance; macro cache TTL is 15 minutes |
 | **Prompt Optimization** | DSPy BootstrapFewShot | 28 golden examples; compiled to `eval/compiled_writer.json`; structural quality metric (7 sections + verdict) |
 | **Observability** | LangSmith (primary) + W&B Weave (init hook) | `@trace_node` on all 12 node functions in `graph/nodes.py` (router, finance, data, research, risk, code, validation, rebalancing, writer, tax, policy, error — 10 of these are wired as graph nodes, `data`/`research` and `risk`/`code` run inside the `data_and_research`/`risk_and_code` parallel wrappers); `user_id` masked to first 8 chars in trace metadata (PII); 4-dimension LLM-as-judge scoring (correctness, groundedness, relevance, structure) in `eval/evaluate.py` |
@@ -164,7 +162,7 @@ flowchart LR
 | **LLM** | Groq `openai/gpt-oss-120b` with key rotation (5 keys configured) |
 | **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` (384-dim, local CPU) |
 | **RAG** | Qdrant local (hybrid dense + BM25 sparse · RRF fusion) · Cohere reranking |
-| **Memory** | Mem0 (signal) · Qdrant `user_analyses` (semantic past verdicts) · Postgres `user_risk_profiles` (quantitative profile) |
+| **Memory** | Qdrant `user_analyses` (semantic + deterministic past verdicts) · Postgres `user_risk_profiles` (quantitative profile) |
 | **Prompt Optimization** | DSPy BootstrapFewShot (28 golden examples) |
 | **Validation** | Custom Pydantic v2 validators |
 | **Code Execution** | E2B Sandbox |
@@ -247,7 +245,6 @@ low` on a fresh DB, `confidence: high` after running this.
 | `REDIS_URL` | Redis (default: `redis://localhost:6379`) |
 | `QDRANT_URL` | Qdrant (default: `http://localhost:6333`) |
 | `E2B_API_KEY` | Code sandbox — DCF / Monte Carlo |
-| `MEM0_API_KEY` | Cross-session memory |
 | `LANGCHAIN_API_KEY` | LangSmith pipeline tracing |
 | `WANDB_API_KEY` | W&B Weave eval tracking |
 | `COHERE_API_KEY` | RAG reranking |

@@ -193,8 +193,6 @@ if __name__ == "__main__":
             "query":               f"Should I invest in {ticker}?",
             "tickers":             [ticker],
             "user_id":             user_id,
-            "user_memory":         None,
-            "memory_unavailable":  None,
             "investment_horizon":  None,
             "company_tier":        None,
             "user_tier":           None,
