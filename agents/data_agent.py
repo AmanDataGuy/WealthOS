@@ -137,18 +137,29 @@ async def cache_set(redis: aioredis.Redis, ticker: str, snapshot: FinancialSnaps
 # ── SQL Fetcher ────────────────────────────────────────────────────────────────
 
 async def fetch_from_db(ticker: str, conn: asyncpg.Connection) -> dict:
-    """Pull all metrics from financial_facts for the most recent fiscal year."""
+    """
+    Pull all metrics from financial_facts for the most recent fiscal year.
+
+    Now also selects updated_at (the table already had this column — it was
+    just never read). Found via the deep-dive audit: nothing anywhere
+    compared a cached fact's age against today, so a 2019 net_income
+    scored identical "high confidence" to a live price. See confidence
+    computation below, which now uses this.
+    """
     rows = await conn.fetch(
         """
         SELECT DISTINCT ON (metric)
-            metric, value, fiscal_year
+            metric, value, fiscal_year, updated_at
         FROM financial_facts
         WHERE ticker = $1
         ORDER BY metric, fiscal_year DESC
         """,
         ticker.upper()
     )
-    return {r["metric"]: {"value": float(r["value"]), "year": r["fiscal_year"]} for r in rows}
+    return {
+        r["metric"]: {"value": float(r["value"]), "year": r["fiscal_year"], "updated_at": r["updated_at"]}
+        for r in rows
+    }
 
 
 # ── Market Data Fetcher ────────────────────────────────────────────────────────
@@ -351,9 +362,15 @@ async def run_data_agent(ticker: str, use_rag: bool = True) -> FinancialSnapshot
     
         def get_metric(metric: str) -> Optional[float]:
             return db_data.get(metric, {}).get("value")
-    
+
         def get_year(metric: str) -> Optional[int]:
             return db_data.get(metric, {}).get("year")
+
+        def get_age_days(metric: str) -> Optional[int]:
+            updated_at = db_data.get(metric, {}).get("updated_at")
+            if not updated_at:
+                return None
+            return (datetime.now(timezone.utc) - updated_at).days
     
         income = IncomeStatement(
             total_revenue=get_metric("total_revenue"),
@@ -418,6 +435,23 @@ async def run_data_agent(ticker: str, use_rag: bool = True) -> FinancialSnapshot
 
         confidence = "high" if missing_pct == 0 else \
                      "medium" if missing_pct <= 0.25 else "low"
+
+        # Found via the deep-dive audit: confidence was based purely on
+        # null-count — a Postgres-cached fact from years ago (financial_facts
+        # is populated by a manual, unscheduled script, see rag/populate_facts.py)
+        # scored identical "high confidence" to a value fetched live this
+        # second. Cap at "medium" once the oldest DB-sourced field actually
+        # used in this snapshot is stale enough to matter (~400 days —
+        # comfortably past a year, so one missed annual refresh doesn't
+        # falsely trip this on a company that just reports slowly).
+        db_field_ages = [
+            age for m in ("total_revenue", "gross_profit", "operating_income", "net_income",
+                          "ebitda", "total_debt", "cash_equivalents", "free_cash_flow",
+                          "operating_cash_flow", "total_assets")
+            if (age := get_age_days(m)) is not None
+        ]
+        if db_field_ages and max(db_field_ages) > 400 and confidence == "high":
+            confidence = "medium"
     
         snapshot = FinancialSnapshot(
             ticker=ticker,

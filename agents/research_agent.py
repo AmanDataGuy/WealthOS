@@ -414,7 +414,25 @@ async def query_rag(question: str, user_id: str, symbols: list[str] | None = Non
                 limit=5,
                 with_payload=True,
             )
-            personal_chunks = [h.payload.get("content", "") for h in hits if h.payload.get("content")]
+            # Found via the deep-dive audit: this raw QdrantClient path
+            # bypasses rag/query_engine.py's _annotate_staleness() entirely,
+            # even though filing_date (here: the upload date) is already in
+            # the payload. A 6-month-old bank statement presented with the
+            # same confidence as one uploaded today is a real correctness
+            # risk for personalized advice — flag it, don't just note it.
+            personal_chunks = []
+            for h in hits:
+                content = h.payload.get("content", "")
+                if not content:
+                    continue
+                upload_date = h.payload.get("filing_date", "")
+                try:
+                    age_days = (datetime.now(timezone.utc).date() - datetime.fromisoformat(upload_date).date()).days
+                    if age_days > 180:
+                        content = f"[uploaded {age_days} days ago — may be outdated] {content}"
+                except Exception:
+                    pass
+                personal_chunks.append(content)
             if personal_chunks:
                 parts.append("[Personal documents]\n" + "\n\n".join(personal_chunks))
         except Exception as e:
