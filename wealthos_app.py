@@ -427,7 +427,7 @@ with st.sidebar:
     st.markdown(
         '<div style="font-size:0.77rem;color:#8c959f;display:flex;align-items:center;gap:0.4rem;">'
         '<span style="width:6px;height:6px;border-radius:50%;background:#22c55e;'
-        'display:inline-block;flex-shrink:0;"></span>8 agents active</div>',
+        'display:inline-block;flex-shrink:0;"></span>9 agents active</div>',
         unsafe_allow_html=True,
     )
     st.markdown("")
@@ -448,7 +448,7 @@ if page == "Analyze":
 
     st.markdown(
         '<h1 style="font-size:1.6rem;font-weight:700;color:#1f2328;margin-bottom:0.25rem;">Analyze</h1>'
-        '<p style="font-size:0.875rem;color:#8c959f;margin-top:0;margin-bottom:1.25rem;">Get a personalized investment memo powered by 8 AI agents.</p>',
+        '<p style="font-size:0.875rem;color:#8c959f;margin-top:0;margin-bottom:1.25rem;">Get a personalized investment memo powered by 9 AI agents.</p>',
         unsafe_allow_html=True,
     )
 

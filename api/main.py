@@ -994,8 +994,15 @@ async def get_memory(user_id: str):
     """Return Mem0 memories for a user as a plain string."""
     try:
         from memory.mem0_client import read_memory
-        mem = read_memory(user_id)
-        return {"memory": mem or "", "has_memory": bool(mem)}
+        # read_memory() changed from returning a plain str to (text, failed)
+        # earlier this session (to distinguish a Mem0 outage from "new user,
+        # no memories yet") — this caller was missed at the time. It kept
+        # unpacking the old contract, so `mem` was a 2-tuple; FastAPI
+        # serializes a tuple to a JSON array, and the Streamlit frontend's
+        # `mem_data["memory"].replace(...)` crashed with "'list' object has
+        # no attribute 'replace'" — confirmed live against the deployed app.
+        mem, memory_unavailable = read_memory(user_id)
+        return {"memory": mem or "", "has_memory": bool(mem), "memory_unavailable": memory_unavailable}
     except Exception as e:
         return {"memory": "", "has_memory": False, "error": str(e)}
 
