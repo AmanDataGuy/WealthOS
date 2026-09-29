@@ -20,13 +20,22 @@ _GROQ_KEYS += [os.getenv(f"GROQ_API_KEY_{i}", "") for i in range(2, 21)]
 _GROQ_KEYS = [k for k in _GROQ_KEYS if k]
 
 # Fallback provider, tried only if every Groq key fails. OpenRouter's API is
-# OpenAI-compatible (same request/response shape as Groq's), verified live
-# 2026-08-20 — openai/gpt-oss-20b:free responds correctly. It's a reasoning
-# model: completion_tokens_details showed 32 reasoning tokens consumed before
-# any visible content on a trivial prompt, so the fallback call pads
-# max_tokens rather than reusing the caller's original (often small) budget.
+# OpenAI-compatible (same request/response shape as Groq's).
+#
+# ⚠️ openai/gpt-oss-20b:free was retired by OpenRouter sometime after
+# 2026-08-20 (when it was last verified working here) and before
+# 2026-09-29, when it was found completely broken — every fallback call
+# returned HTTP 404 with "This model is unavailable for free. The paid
+# version is available now - use this slug instead: openai/gpt-oss-20b".
+# This meant the ENTIRE safety net for total-Groq-exhaustion silently did
+# nothing for however long that window lasted; confirmed live the same day
+# total Groq exhaustion actually happened (all 5 keys 429'd from cumulative
+# testing load) and the fallback failed right alongside it. Switched to the
+# paid slug per OpenRouter's own error message — this is no longer a $0
+# fallback (gpt-oss-20b's per-token rate is low, but non-zero), which is a
+# real change from this fallback's original "free" design intent.
 OPENROUTER_API_KEY     = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL       = "openai/gpt-oss-20b:free"
+OPENROUTER_MODEL       = "openai/gpt-oss-20b"
 _OPENROUTER_MIN_TOKENS = 300
 
 # Single source of truth for Groq model IDs — every agent/eval script should
@@ -168,6 +177,7 @@ async def call_llm(
     model: str = None,
     tools: list[dict] = None,
     messages: list[dict] = None,
+    reasoning_effort: str = "low",
 ):
     """
     Call Groq API. Returns empty string if no keys are configured or all keys fail.
@@ -179,6 +189,18 @@ async def call_llm(
     history) is used in place of the single system/user pair — needed for
     multi-turn tool-calling loops. No OpenRouter fallback when tools are
     requested; the free-tier fallback model doesn't reliably support it.
+
+    reasoning_effort: both GROQ_MODEL and GROQ_MODEL_FAST are gpt-oss
+    reasoning models that can spend most/all of max_tokens on hidden
+    chain-of-thought before any visible content — confirmed live as the
+    root cause behind 4 separate empty-response bugs this session
+    (ticker extraction, summarize_with_llm, write_section, the DeepEval
+    judge), each papered over by raising max_tokens rather than fixing the
+    actual cause. Groq's gpt-oss models accept a reasoning_effort param;
+    tested live at "low" — reasoning_tokens dropped from potentially
+    hundreds to 23 on a realistic prompt, with a full real response still
+    produced. Defaults to "low" for every call; pass a higher value only
+    for a task that genuinely benefits from deeper chain-of-thought.
     """
     await _check_cost_cap()
 
@@ -202,6 +224,7 @@ async def call_llm(
                         "messages": request_messages,
                         "max_tokens": max_tokens,
                         "temperature": temperature,
+                        "reasoning_effort": reasoning_effort,
                     }
                     if tools:
                         payload["tools"] = tools
@@ -282,6 +305,7 @@ async def call_llm(
                         ],
                         "max_tokens": max(max_tokens, _OPENROUTER_MIN_TOKENS),
                         "temperature": temperature,
+                        "reasoning_effort": reasoning_effort,
                     },
                     timeout=30.0,
                 )
@@ -291,9 +315,11 @@ async def call_llm(
                 if content:
                     logger.info("[llm] OpenRouter fallback succeeded")
                     if "usage" in data:
-                        # Free tier — $0 either way, but still worth counting
-                        # tokens so usage history shows fallback activity.
-                        await _track_usage(data["usage"], OPENROUTER_MODEL, provider="openrouter", cost_per_m=(0.0, 0.0))
+                        # No longer free (see OPENROUTER_MODEL's comment) —
+                        # real pricing verified live against OpenRouter's own
+                        # /api/v1/models endpoint 2026-09-29: $0.018/1M input,
+                        # $0.09/1M output tokens for openai/gpt-oss-20b.
+                        await _track_usage(data["usage"], OPENROUTER_MODEL, provider="openrouter", cost_per_m=(0.018, 0.09))
                     return content
             except Exception as e:
                 logger.warning("[llm_client] OpenRouter fallback also failed: %s", e)
