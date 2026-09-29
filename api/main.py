@@ -479,7 +479,13 @@ async def _extract_ticker_and_amount(query: str) -> tuple[Optional[str], Optiona
         'Reply with ONLY a JSON object: {"ticker": "SYMBOL" or null, "amount": '
         'number or null, "currency": "INR"|"USD"|null}. No other text, no markdown.'
     )
-    raw = await call_llm(system=system, user=query, model=GROQ_MODEL_FAST, max_tokens=100, temperature=0)
+    # Was max_tokens=100 — the same reasoning-token-starvation bug found
+    # elsewhere this session (GROQ_MODEL_FAST is a reasoning model that can
+    # spend its whole budget on hidden chain-of-thought before any visible
+    # JSON). Confirmed live: a query containing "NVDA" in plain text still
+    # hit "Please specify a ticker symbol" — raw came back empty,
+    # json.loads("") raised, and the bare except swallowed it silently.
+    raw = await call_llm(system=system, user=query, model=GROQ_MODEL_FAST, max_tokens=300, temperature=0)
     try:
         data = json.loads(raw)
         ticker = (data.get("ticker") or "").strip().upper() or None
@@ -488,7 +494,12 @@ async def _extract_ticker_and_amount(query: str) -> tuple[Optional[str], Optiona
         currency = data.get("currency")
         currency = currency.upper() if isinstance(currency, str) and currency.upper() in ("INR", "USD") else None
         return ticker, amount, currency
-    except Exception:
+    except Exception as e:
+        # Was a bare `except: return None, None, None` — a real extraction
+        # failure (empty/malformed LLM response) was indistinguishable from
+        # "the query genuinely had no ticker in it," which made this exact
+        # bug invisible in logs when it happened live.
+        logger.warning("[extract] ticker/amount extraction failed (raw=%r): %s", raw, e)
         return None, None, None
 
 
