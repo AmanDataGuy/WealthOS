@@ -170,6 +170,44 @@ OLLAMA_URL          = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_VISION_MODEL = os.getenv("OLLAMA_VISION_MODEL", "llava")
 
 
+def _tesseract_extract_text(image_bytes: bytes) -> str:
+    """
+    OCR-first path: classical Tesseract text extraction — fast, free, no
+    external service dependency (unlike Ollama, which requires a separate
+    process running with a multi-GB model pulled). Returns "" on any
+    failure (tesseract binary missing, corrupt image, etc.) so callers can
+    fall back to the vision model.
+    """
+    try:
+        import io
+        import pytesseract
+        from PIL import Image
+        img = Image.open(io.BytesIO(image_bytes))
+        return pytesseract.image_to_string(img).strip()
+    except Exception as e:
+        print(f"[Finance Agent] Tesseract OCR failed ({e}) — falling back to vision model")
+        return ""
+
+
+async def _parse_ocr_text(ocr_text: str, prompt: str) -> Optional[dict | list]:
+    """Feed raw OCR text to the text LLM (cheap/fast) instead of the vision
+    model, and parse its JSON reply. Returns None on any failure."""
+    try:
+        from services.llm_client import call_llm
+        content = await call_llm(
+            system=prompt,
+            user=ocr_text,
+            max_tokens=800,
+        )
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.strip("`").removeprefix("json").strip()
+        return json.loads(content) if content else None
+    except Exception as e:
+        print(f"[Finance Agent] OCR-text parsing failed ({e})")
+        return None
+
+
 async def _ollama_vision_extract(image_bytes: bytes, prompt: str):
     """
     Send one image to a local Ollama vision model (OLLAMA_VISION_MODEL, e.g.
@@ -235,7 +273,15 @@ async def scan_receipt(image_path: str) -> Transaction:
         '"date" (YYYY-MM-DD), "category" (one of: food, transport, shopping, '
         'utilities, entertainment, other). Respond with only the JSON object.'
     )
-    data = await _ollama_vision_extract(image_bytes, prompt)
+
+    # OCR-first: Tesseract + text LLM is faster and needs no Ollama process
+    # running. Only fall back to the vision model when OCR text is near-empty
+    # (blurry photo, handwriting, glare) — a threshold, not an exact parse
+    # check, since a few stray characters aren't a usable receipt.
+    ocr_text = _tesseract_extract_text(image_bytes)
+    data = await _parse_ocr_text(ocr_text, prompt) if len(ocr_text) >= 20 else None
+    if not data or not isinstance(data, dict):
+        data = await _ollama_vision_extract(image_bytes, prompt)
     if not data or not isinstance(data, dict):
         print(f"[Finance Agent] Receipt extraction failed for {image_path} — using placeholder")
         return fallback
@@ -293,7 +339,15 @@ async def parse_bank_statement(pdf_path: str) -> list[Transaction]:
         import io
         buf = io.BytesIO()
         page.save(buf, format="PNG")
-        data = await _ollama_vision_extract(buf.getvalue(), prompt)
+        page_bytes = buf.getvalue()
+
+        # Same OCR-first flip as scan_receipt(): bank statements are
+        # typically clean rendered text (not photos), so Tesseract usually
+        # succeeds and is far cheaper than a vision-model call per page.
+        ocr_text = _tesseract_extract_text(page_bytes)
+        data = await _parse_ocr_text(ocr_text, prompt) if len(ocr_text) >= 20 else None
+        if not data or not isinstance(data, list):
+            data = await _ollama_vision_extract(page_bytes, prompt)
         if not data or not isinstance(data, list):
             continue
         for row in data:
@@ -860,6 +914,24 @@ if __name__ == "__main__":
         assert saved is False, "save_transactions_to_db should no-op on an empty list"
 
         print("  [self-check] scan_receipt / parse_bank_statement / save_transactions_to_db degrade safely")
+
+        # Real OCR check — renders text to an image and confirms Tesseract
+        # actually reads it back, not just that failures degrade safely.
+        from PIL import Image, ImageDraw
+        img = Image.new("RGB", (400, 100), color="white")
+        draw = ImageDraw.Draw(img)
+        draw.text((10, 30), "STARBUCKS TOTAL 250.00", fill="black")
+        import io as _io
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG")
+        ocr_text = _tesseract_extract_text(buf.getvalue())
+        if not ocr_text:
+            print("  [self-check] Tesseract binary not installed on this machine — "
+                  "skipping OCR-read check (Dockerfile.api installs it for prod)")
+        else:
+            assert "STARBUCKS" in ocr_text.upper(), \
+                f"Tesseract should read rendered text back, got: {ocr_text!r}"
+            print(f"  [self-check] Tesseract OCR reads rendered text: {ocr_text!r}")
 
     _asyncio.run(_check_upload_paths())
 
