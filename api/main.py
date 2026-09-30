@@ -868,9 +868,48 @@ async def invoke_risk_agent(req: RiskAgentInvokeRequest):
 
 # ── Analysis history ──────────────────────────────────────────────────────────
 
+def _backtest_verdict(ticker: str, verdict: Optional[str], verdict_date: datetime) -> Optional[dict]:
+    """
+    Was this verdict right? Fetches the close price on (or just after) the
+    verdict date and the latest close via yfinance, and reports the return
+    since. Best-effort — a delisted ticker, a market holiday on that exact
+    date, or a rate limit just means no backtest data for that row, not a
+    broken response. Not cached: this only runs when a caller explicitly
+    opts in via ?backtest=true, and analysis_history rows are looked at
+    rarely enough that a fresh yfinance call each time is fine.
+    """
+    try:
+        import yfinance as yf
+        hist = yf.Ticker(ticker).history(start=verdict_date.date().isoformat())
+        if hist.empty:
+            return None
+        entry_price   = float(hist["Close"].iloc[0])
+        current_price = float(hist["Close"].iloc[-1])
+        if entry_price <= 0:
+            return None
+        return_pct = round((current_price - entry_price) / entry_price * 100, 2)
+        verdict_lower = (verdict or "").lower()
+        if "buy" in verdict_lower:
+            verdict_correct = return_pct > 0
+        elif "avoid" in verdict_lower or "sell" in verdict_lower:
+            verdict_correct = return_pct < 0
+        else:  # "hold" or unrecognized — no clear right/wrong direction
+            verdict_correct = None
+        return {
+            "entry_price": round(entry_price, 2),
+            "current_price": round(current_price, 2),
+            "return_pct": return_pct,
+            "verdict_correct": verdict_correct,
+        }
+    except Exception as e:
+        logger.warning("[backtest] %s failed: %s", ticker, e)
+        return None
+
+
 @app.get("/history/{user_id}", dependencies=[Depends(verify_user_token)])
-async def analysis_history(user_id: str, limit: int = 20):
-    """Return the last N analysis runs for a user."""
+async def analysis_history(user_id: str, limit: int = 20, backtest: bool = False):
+    """Return the last N analysis runs for a user. With backtest=true, each
+    row also gets a lazily-computed return-since-verdict (see _backtest_verdict)."""
     if not DB_URL:
         return {"user_id": user_id, "history": []}
     try:
@@ -890,9 +929,16 @@ async def analysis_history(user_id: str, limit: int = 20):
             )
         finally:
             await conn.close()
+        history = [dict(r) for r in rows]
+        if backtest:
+            for row in history:
+                if row.get("ticker") and row.get("created_at"):
+                    row["backtest"] = await asyncio.to_thread(
+                        _backtest_verdict, row["ticker"], row.get("verdict"), row["created_at"]
+                    )
         return {
             "user_id": user_id,
-            "history": [dict(r) for r in rows],
+            "history": history,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
