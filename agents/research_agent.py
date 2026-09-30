@@ -81,6 +81,7 @@ class SECInsight(BaseModel):
     revenue_trend : str = ""        # LLM-generated one-liner
     risk_flags  : list[str] = []    # notable risks mentioned
     document_url : str = ""
+    insider_trades : list[dict] = []  # last 90d Form 4 filings, US tickers only
 
 
 class ResearchSnapshot(BaseModel):
@@ -205,9 +206,24 @@ async def fetch_news(symbols: list[str], days: int = 7) -> list[NewsItem]:
     Fetch recent news articles for all tracked symbols using news_server MCP tools.
     """
     from mcp_servers.news_server import search_news
-    
-    # Build a combined query — e.g. "AAPL OR TSLA OR Reliance"
-    query = " OR ".join(symbols[:5])  # NewsAPI handles up to 5 well
+    from mcp_servers.market_server import get_info
+
+    # Build a combined query. Was raw ticker strings joined as-is (e.g.
+    # "RELIANCE.NS OR TCS.NS") — for Indian tickers this never matched
+    # anything, since no real news article ever contains the literal
+    # ".NS"/".BO" suffix. Strip the suffix and pair each ticker with its
+    # company name (get_info is Redis-cached, so this costs nothing on a
+    # repeat call) for a query a news search engine can actually match.
+    terms = []
+    for symbol in symbols[:5]:  # NewsAPI/RSS handle up to 5 terms well
+        clean = symbol.split(".")[0]
+        try:
+            name = (get_info(symbol) or {}).get("name")
+        except Exception as e:
+            logger.warning("get_info failed for %s (news query pairing): %s", symbol, e)
+            name = None
+        terms.append(f'{clean} OR "{name}"' if name else clean)
+    query = " OR ".join(terms)
 
     try:
         data = search_news(query, days=days, count=10)
@@ -255,7 +271,7 @@ async def fetch_sec_insights(symbols: list[str]) -> list[SECInsight]:
     routed to india_filings_server instead — see the note on that module for
     NSE's known reliability limitations.
     """
-    from mcp_servers.sec_edgar_server import get_filings_list
+    from mcp_servers.sec_edgar_server import get_filings_list, get_insider_trades
     from mcp_servers.india_filings_server import get_financial_results
 
     insights = []
@@ -305,14 +321,32 @@ async def fetch_sec_insights(symbols: list[str]) -> list[SECInsight]:
             continue
 
         latest = filings[0]
+
+        # get_insider_trades existed in sec_edgar_server.py with zero callers
+        # anywhere — a free, already-built signal (director/officer Form 4
+        # buys/sells) that was never actually surfaced to a memo.
+        insider_trades = []
+        try:
+            # get_insider_trades is async def (uses httpx.AsyncClient
+            # internally) — unlike get_filings_list above, which is sync
+            # and needs asyncio.to_thread. Awaiting it directly here.
+            insider_data = await get_insider_trades(clean, 90)
+            insider_trades = insider_data.get("transactions", [])
+        except Exception as e:
+            logger.warning("Insider trades fetch failed for %s: %s", symbol, e)
+
         filing = SECInsight(
-            ticker       = symbol,
-            form         = latest["form"],
-            filed_date   = latest["filed_date"],
-            document_url = latest.get("document_url") or "",
+            ticker         = symbol,
+            form           = latest["form"],
+            filed_date     = latest["filed_date"],
+            document_url   = latest.get("document_url") or "",
+            insider_trades = insider_trades,
         )
         insights.append(filing)
-        logger.info("%s — latest filing: %s on %s", symbol, filing.form, filing.filed_date)
+        logger.info(
+            "%s — latest filing: %s on %s, %d insider filings (90d)",
+            symbol, filing.form, filing.filed_date, len(insider_trades),
+        )
 
     return insights
 
@@ -652,7 +686,8 @@ async def _startup_check():
 
     print(f"\n  SEC Filings     : {len(snapshot.sec_insights)}")
     for s in snapshot.sec_insights:
-        print(f"    • {s.ticker} — {s.form} filed {s.filed_date}")
+        print(f"    • {s.ticker} — {s.form} filed {s.filed_date}, {len(s.insider_trades)} insider filings (90d)")
+        assert isinstance(s.insider_trades, list), "insider_trades should degrade to [] on failure, never raise"
 
     print(f"\n  RAG Context     : {'found' if snapshot.rag_context else 'none (table may not exist yet)'}")
     print(f"  Macro Summary   : {snapshot.macro_summary[:120]}..." if snapshot.macro_summary else "  Macro Summary   : (LLM not called in test mode)")
