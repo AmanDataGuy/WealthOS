@@ -931,7 +931,10 @@ async def analysis_history(user_id: str, limit: int = 20, backtest: bool = False
             await conn.close()
         history = [dict(r) for r in rows]
         if backtest:
-            for row in history:
+            # ponytail: sequential yfinance calls, one per row — fine for the
+            # ~15 most recent, would drag past that. Cap rather than pay for
+            # a batch-fetch API that this scale doesn't need yet.
+            for row in history[:15]:
                 if row.get("ticker") and row.get("created_at"):
                     row["backtest"] = await asyncio.to_thread(
                         _backtest_verdict, row["ticker"], row.get("verdict"), row["created_at"]
