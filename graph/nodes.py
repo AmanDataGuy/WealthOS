@@ -524,6 +524,7 @@ async def tax_node(state: WealthOSState) -> dict:
     try:
         tax_context = await run_tax_agent(
             monthly_income=personal_finance.get("monthly_income", 0),
+            emi_by_type=personal_finance.get("emi_by_type") or {},
         )
     except Exception as e:
         # Never let a tax-calculation bug take down a memo that's otherwise
