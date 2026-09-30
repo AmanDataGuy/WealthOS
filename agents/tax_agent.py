@@ -35,19 +35,45 @@ def involves_taxable_decision(query: str) -> bool:
 async def run_tax_agent(
     monthly_income: float,
     current_80c: float = 0,
+    emi_by_type: Optional[dict] = None,
 ) -> Optional[dict]:
     """
     Args mirror what graph/nodes.py already has from personal_finance
-    (Finance Agent's monthly_income). Returns None if there's no income
-    figure to compute against (e.g. cold-start user with no transactions).
+    (Finance Agent's monthly_income + emi_by_type). Returns None if there's
+    no income figure to compute against (e.g. cold-start user with no
+    transactions).
+
+    emi_by_type (e.g. {"emi_home": 39650, "emi_auto": 14850}) holds one
+    month's EMI payment per loan type — principal and interest are not
+    split out anywhere upstream (no amortization schedule exists), so the
+    full monthly EMI is annualized (x12) and used as a conservative proxy
+    for annual interest paid. This overstates true interest (which is only
+    a portion of the EMI and shrinks over the loan's life), so the resulting
+    deduction estimate skews generous, not fabricated-low.
     """
     if not monthly_income or monthly_income <= 0:
         return None
 
     gross_income = round(monthly_income * 12, 2)
 
-    regime_comparison = calculate_tax(gross_income=gross_income, section_80c=current_80c)
-    suggestions = tax_saving_suggestions(gross_income=gross_income, current_80c=current_80c)
+    emi_by_type = emi_by_type or {}
+    home_loan_interest = round(emi_by_type.get("emi_home", 0) * 12, 2)
+    education_loan_interest = round(emi_by_type.get("emi_education", 0) * 12, 2)
+    auto_personal_interest = round(
+        (emi_by_type.get("emi_auto", 0) + emi_by_type.get("emi_personal", 0)) * 12, 2
+    )
+
+    regime_comparison = calculate_tax(
+        gross_income=gross_income, section_80c=current_80c,
+        home_loan_interest=home_loan_interest,
+        education_loan_interest=education_loan_interest,
+    )
+    suggestions = tax_saving_suggestions(
+        gross_income=gross_income, current_80c=current_80c,
+        home_loan_interest=home_loan_interest,
+        education_loan_interest=education_loan_interest,
+        auto_or_personal_loan_interest=auto_personal_interest,
+    )
 
     return {
         "gross_annual_income": gross_income,
@@ -71,6 +97,15 @@ def demo() -> None:
     assert result["tax_saving_suggestions"]["suggestions"]
 
     assert asyncio.run(run_tax_agent(monthly_income=0)) is None
+
+    # emi_by_type flows through to a real Section 24(b)/80E deduction
+    with_loans = asyncio.run(run_tax_agent(
+        monthly_income=150_000,
+        emi_by_type={"emi_home": 30_000, "emi_education": 5_000, "emi_auto": 10_000},
+    ))
+    assert with_loans["regime_comparison"]["old_regime"]["total_tax"] < result["regime_comparison"]["old_regime"]["total_tax"]
+    sections = [s["section"] for s in with_loans["tax_saving_suggestions"]["suggestions"]]
+    assert "24(b)" in sections and "80E" in sections
 
     print("agents/tax_agent.py self-check: all cases passed")
 

@@ -143,6 +143,8 @@ def calculate_tax(
     hra_exemption: float = 0,
     other_deductions: float = 0,
     dividend_income: float = 0,
+    home_loan_interest: float = 0,
+    education_loan_interest: float = 0,
 ) -> dict:
     """
     Compare old vs new income tax regime for FY 2024-25.
@@ -153,6 +155,17 @@ def calculate_tax(
         section_80d:        80D health insurance premium (max 25,000 self / 50,000 senior parents)
         hra_exemption:      HRA exemption if living in rented accommodation
         other_deductions:   Any other eligible deductions
+        home_loan_interest: Annual home loan interest paid, self-occupied property
+                             (₹) — Section 24(b), capped at 2,00,000 and OLD REGIME
+                             ONLY. Confirmed via the deep-dive audit: this deduction
+                             does not exist under the new regime at all — do not
+                             pass this expecting any new-regime effect.
+        education_loan_interest: Annual education loan interest paid (₹) — Section
+                             80E, uncapped, OLD REGIME ONLY, deductible for 8
+                             consecutive years from the start of repayment. Auto
+                             and personal loan interest are deliberately not
+                             accepted here — not deductible for personal-use loans
+                             under Indian tax law regardless of amount.
         dividend_income:    Dividend income received (₹) — taxable at slab rate
                              since DDT was abolished in 2020, no separate
                              concessional rate or exemption. Added to
@@ -166,13 +179,16 @@ def calculate_tax(
     """
     total_income = gross_income + dividend_income
 
-    # Old regime
+    # Old regime — home loan interest (§24(b), capped) and education loan
+    # interest (§80E, uncapped) only apply here; both are old-regime-only.
     old_deductions = (
         STANDARD_DEDUCTION_OLD
         + min(section_80c, 150_000)
         + min(section_80d, 75_000)
         + hra_exemption
         + other_deductions
+        + min(home_loan_interest, 200_000)
+        + education_loan_interest
     )
     old_taxable = max(total_income - old_deductions, 0)
     old_result = _total_tax(old_taxable, OLD_REGIME_SLABS)
@@ -356,7 +372,9 @@ def tax_saving_suggestions(
     gross_income: float,
     current_80c: float = 0,
     has_health_insurance: bool = False,
-    has_home_loan: bool = False,
+    home_loan_interest: float = 0,
+    education_loan_interest: float = 0,
+    auto_or_personal_loan_interest: float = 0,
     is_renting: bool = False,
     monthly_rent: float = 0,
     monthly_hra_received: float = 0,
@@ -368,7 +386,15 @@ def tax_saving_suggestions(
         gross_income:           Annual gross income (₹)
         current_80c:            Already invested under 80C (₹)
         has_health_insurance:   Whether health insurance premium is being paid
-        has_home_loan:          Whether repaying a home loan
+        home_loan_interest:     Annual home loan interest paid, self-occupied
+                                 property (₹) — Section 24(b), capped at 2,00,000
+        education_loan_interest: Annual education loan interest paid (₹) —
+                                 Section 80E, uncapped, 8 years from repayment start
+        auto_or_personal_loan_interest: Annual interest paid on a car/personal
+                                 loan (₹) — informational only. Not deductible
+                                 for personal use under Indian tax law regardless
+                                 of amount, so this never generates a suggestion;
+                                 passed only so the response can say so explicitly.
         is_renting:             Whether living in a rented house
         monthly_rent:           Monthly rent paid (₹)
         monthly_hra_received:   Monthly HRA component in salary (₹)
@@ -404,14 +430,39 @@ def tax_saving_suggestions(
         })
         total_potential_saving += saving
 
-    # 80EE / 24(b) home loan interest
-    if has_home_loan:
+    # 24(b) home loan interest — old regime only, capped at 2,00,000
+    if home_loan_interest > 0:
+        deductible = min(home_loan_interest, 200_000)
+        saving = round(deductible * 0.30, 2)
         suggestions.append({
             "section": "24(b)",
-            "description": "Home loan interest deduction up to ₹2,00,000 under Section 24(b)",
+            "description": "Home loan interest deduction under Section 24(b) (old regime only)",
             "max_deduction": 200_000,
-            "potential_tax_saving": round(200_000 * 0.30, 2),
+            "deductible_amount": deductible,
+            "potential_tax_saving": saving,
             "note": "Ensure you claim this when filing ITR",
+        })
+        total_potential_saving += saving
+
+    # 80E education loan interest — old regime only, uncapped, 8 years
+    if education_loan_interest > 0:
+        saving = round(education_loan_interest * 0.30, 2)
+        suggestions.append({
+            "section": "80E",
+            "description": "Education loan interest deduction under Section 80E (old regime only, no cap, claimable for 8 years from start of repayment)",
+            "deductible_amount": education_loan_interest,
+            "potential_tax_saving": saving,
+            "note": "Ensure you claim this when filing ITR",
+        })
+        total_potential_saving += saving
+
+    # Auto/personal loan interest — not deductible for personal use, ever
+    if auto_or_personal_loan_interest > 0:
+        suggestions.append({
+            "section": None,
+            "description": "Auto/personal loan interest is NOT tax-deductible for personal-use loans under Indian tax law, regardless of amount",
+            "deductible_amount": 0,
+            "potential_tax_saving": 0,
         })
 
     # HRA
@@ -546,6 +597,33 @@ def demo() -> None:
     with_div = calculate_tax(gross_income=1_000_000, dividend_income=200_000)
     assert with_div["total_income"] == 1_200_000
     assert with_div["new_regime"]["total_tax"] > no_div["new_regime"]["total_tax"]
+
+    # Home loan interest (§24(b)): deductible only in old regime, capped at
+    # 2,00,000 — was miscapped at 1,50,000 (the unrelated §80C cap) at first.
+    no_loan   = calculate_tax(gross_income=1_500_000)
+    with_loan = calculate_tax(gross_income=1_500_000, home_loan_interest=250_000)
+    assert with_loan["old_regime"]["total_tax"] < no_loan["old_regime"]["total_tax"]
+    assert with_loan["new_regime"]["total_tax"] == no_loan["new_regime"]["total_tax"]
+    capped_saving = no_loan["old_regime"]["total_tax"] - with_loan["old_regime"]["total_tax"]
+    at_cap = calculate_tax(gross_income=1_500_000, home_loan_interest=200_000)
+    assert with_loan["old_regime"]["total_tax"] == at_cap["old_regime"]["total_tax"], (
+        "home_loan_interest above 2,00,000 must not reduce tax further than the cap"
+    )
+
+    # Education loan interest (§80E): old-regime-only, uncapped
+    edu = calculate_tax(gross_income=1_500_000, education_loan_interest=300_000)
+    assert edu["old_regime"]["total_tax"] < no_loan["old_regime"]["total_tax"]
+    assert edu["new_regime"]["total_tax"] == no_loan["new_regime"]["total_tax"]
+
+    # tax_saving_suggestions: auto/personal loan interest is never deductible
+    suggestions = tax_saving_suggestions(
+        gross_income=1_500_000, home_loan_interest=250_000,
+        education_loan_interest=100_000, auto_or_personal_loan_interest=50_000,
+    )
+    sections = [s["section"] for s in suggestions["suggestions"]]
+    assert "24(b)" in sections and "80E" in sections
+    auto_note = next(s for s in suggestions["suggestions"] if s["section"] is None)
+    assert auto_note["potential_tax_saving"] == 0
 
     print("tax_server.py self-check: all cases passed")
 

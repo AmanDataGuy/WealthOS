@@ -147,6 +147,7 @@ class PersonalFinanceSnapshot(BaseModel):
     debt_burden_ratio  : float = 0.0     # EMI / monthly_income, 0-1
     risk_capacity      : str   = "unknown"  # low | medium | high | unknown
     investable_monthly : float = 0.0     # what's actually available to invest
+    emi_by_type   : dict[str, float] = {}   # e.g. {"emi_home": 39650, "emi_auto": 14850} — feeds tax_node's per-type deduction logic
 
     # ── Confidence — downstream agents check this before trusting the data ────
     data_confidence  : str = "none"      # none | low | medium | high
@@ -276,11 +277,15 @@ async def parse_bank_statement(pdf_path: str) -> list[Transaction]:
         "This is one page of a bank statement. Extract every transaction "
         'line as a JSON array of objects with exactly these keys: '
         '"merchant" (payee/description), "amount" (positive number), '
-        '"date" (YYYY-MM-DD), "category" (one of: salary, emi, food, '
-        'transport, shopping, utilities, entertainment, other — use '
-        '"salary" for income/credits, "emi" for loan/EMI debits). If there '
-        "are no transactions on this page, respond with an empty array. "
-        "Respond with only the JSON array."
+        '"date" (YYYY-MM-DD), "category" (one of: salary, emi_home, emi_auto, '
+        'emi_personal, emi_education, emi_other, food, transport, shopping, '
+        'utilities, entertainment, other — use "salary" for income/credits; '
+        'for a loan/EMI debit, pick the specific emi_* type from the merchant '
+        'name/description if you can tell (e.g. "HDFC Home Loan" -> emi_home, '
+        '"Car Loan EMI" -> emi_auto, "Education Loan" -> emi_education), '
+        'otherwise use emi_other rather than guessing). If there are no '
+        "transactions on this page, respond with an empty array. Respond "
+        "with only the JSON array."
     )
 
     transactions: list[Transaction] = []
@@ -480,7 +485,10 @@ def compute_health_score(
 
     # ── Debt-to-Income (25%) ──────────────────────────────────────────────────
     # Total EMI as % of income. Under 30% is healthy. Above 50% is dangerous.
-    emi_total  = sum(t.amount for t in transactions if t.category == "emi")
+    # Matches "emi" (legacy flat category) and every "emi_*" sub-type (home/
+    # auto/personal/education/other) — debt-to-income sums all loan types
+    # regardless of tax deductibility, unlike the tax-specific breakdown below.
+    emi_total  = sum(t.amount for t in transactions if t.category == "emi" or t.category.startswith("emi_"))
     dti_pct    = (emi_total / monthly_income * 100) if monthly_income > 0 else 0
     dti_score  = min(100, max(0, (1 - dti_pct / 50) * 100))
 
@@ -599,8 +607,19 @@ def _build_snapshot(
     # (§ Debt-to-Income above) — recomputed here rather than threaded out of
     # that function, since it's cheap and this is the only other place that
     # needs the raw ratio instead of the normalized 0-100 sub-score.
-    emi_total = sum(t.amount for t in transactions if t.category == "emi")
+    emi_total = sum(t.amount for t in transactions if t.category == "emi" or t.category.startswith("emi_"))
     debt_burden_ratio = round(emi_total / income, 4) if income > 0 else 0.0
+
+    # Per-loan-type EMI breakdown — found via the deep-dive audit: loan type
+    # (home/auto/personal/education) determines tax deductibility under
+    # Indian law, but every EMI used to be bucketed into one flat "emi"
+    # category that never reached tax logic at all. This is what lets
+    # tax_node apply the correct section-specific deduction per type
+    # instead of guessing or ignoring it.
+    emi_by_type: dict[str, float] = {}
+    for t in transactions:
+        if t.category == "emi" or t.category.startswith("emi_"):
+            emi_by_type[t.category] = emi_by_type.get(t.category, 0.0) + t.amount
 
     # What's actually available to invest — the surplus, floored at 0 since
     # a negative surplus means nothing is investable, not a negative amount.
@@ -627,6 +646,7 @@ def _build_snapshot(
         debt_burden_ratio = debt_burden_ratio,
         risk_capacity      = risk_capacity,
         investable_monthly = investable_monthly,
+        emi_by_type      = emi_by_type,
         transactions     = transactions,
         anomalies        = anomalies,
         top_categories   = top_categories,
