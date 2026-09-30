@@ -59,13 +59,76 @@ def to_cache(key: str, data: dict, ttl: int):
         pass
 
 
+def _fetch_google_news_rss(query: str, days: int = 7, count: int = 10) -> list[dict]:
+    """
+    Second news source — Google News RSS. No API key, no quota, works even
+    when NEWSAPI_KEY is unset or NewsAPI's free 100/day tier is exhausted
+    (both confirmed real failure modes for this app: NEWSAPI_KEY is
+    optional in .env.example, and every news tool goes silently empty
+    without it). Uses stdlib XML parsing only — same approach
+    sec_edgar_server.py already uses for its own feed parsing, no new
+    dependency needed.
+    """
+    try:
+        import xml.etree.ElementTree as ET
+        resp = httpx.get(
+            "https://news.google.com/rss/search",
+            params={"q": query, "hl": "en-IN", "gl": "IN", "ceid": "IN:en"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        root = ET.fromstring(resp.text)
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        articles = []
+        for item in root.findall(".//item"):
+            title = (item.findtext("title") or "").strip()
+            link  = (item.findtext("link") or "").strip()
+            pub   = (item.findtext("pubDate") or "").strip()
+            source_el = item.find("source")
+            source = source_el.text.strip() if source_el is not None and source_el.text else "Google News"
+
+            published_date = ""
+            if pub:
+                try:
+                    from email.utils import parsedate_to_datetime
+                    dt = parsedate_to_datetime(pub)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    if dt < cutoff:
+                        continue
+                    published_date = dt.strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+
+            if not title:
+                continue
+            articles.append({
+                "title":       title,
+                "description": "",
+                "source":      source,
+                "url":         link,
+                "published":   published_date,
+                "body":        "",
+            })
+            if len(articles) >= count:
+                break
+        return articles
+
+    except Exception as e:
+        logger.error("Google News RSS fetch failed for query '%s': %s", query, e)
+        return []
+
+
 def fetch_articles(query: str, days: int = 7, count: int = 10) -> list[dict]:
     """
-    Fetch articles from NewsAPI for a given query.
+    Fetch articles from NewsAPI for a given query, falling back to Google
+    News RSS when NewsAPI is unconfigured or returns nothing (rate-limited,
+    quota exhausted, or a query NewsAPI just has no results for).
     Returns a list of cleaned article dicts.
     """
     if not NEWSAPI_KEY:
-        return []
+        return _fetch_google_news_rss(query, days=days, count=count)
 
     from_date = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
 
@@ -97,11 +160,12 @@ def fetch_articles(query: str, days: int = 7, count: int = 10) -> list[dict]:
             # Try to fetch full article body (newspaper3k primary, Firecrawl fallback)
             body = _fetch_article_body(a.get("url", ""))
             articles[-1]["body"] = body
-        return articles
+
+        return articles if articles else _fetch_google_news_rss(query, days=days, count=count)
 
     except Exception as e:
-        logger.error("fetch_articles failed for query '%s': %s", query, e)
-        return []
+        logger.error("fetch_articles failed for query '%s' (falling back to Google News RSS): %s", query, e)
+        return _fetch_google_news_rss(query, days=days, count=count)
 
 
 def _fetch_article_body(url: str) -> str:
