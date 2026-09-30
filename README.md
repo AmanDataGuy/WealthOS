@@ -89,14 +89,14 @@ flowchart LR
 | Agent | Approach | Key Capability | Output |
 |:---:|:---:|:---:|:---:|
 | Router Agent | LLM classification + Qdrant count | Classifies horizon (short/mid/long), company tier; triggers on-demand SEC 10-K download + indexing as background task when tier is `not_indexed` | `investment_horizon`, `company_tier`, `fetch_plan` |
-| Finance Agent | Pure Python + asyncpg | Z-score spending anomaly detection (≥2σ from per-category mean, min 3 data points; severity low/medium/high at 2–2.5/2.5–3/3+σ), 5-dim health score | Health Score 0–100, surplus, risk capacity |
-| Research Agent | asyncio + RAG | Qdrant hybrid search on SEC 10-K filings, news fetch; India tickers (.NS/.BO) fetch NSE financial results via `india_filings_server` instead of SEC EDGAR | Qualitative context, sentiment |
-| Data Agent | asyncpg + MCPClient | Schema-validated numbers, Redis 15-min TTL, MCP fallback | `FinancialSnapshot` with confidence flag |
+| Finance Agent | Pure Python + asyncpg | Z-score spending anomaly detection (≥2σ from per-category mean, min 3 data points; severity low/medium/high at 2–2.5/2.5–3/3+σ), 5-dim health score; receipt/statement OCR is Tesseract-first with a vision-model (Ollama) fallback only on near-empty OCR text; EMI transactions classified by loan type (home/auto/personal/education) for the Tax Agent | Health Score 0–100, surplus, risk capacity, `emi_by_type` |
+| Research Agent | asyncio + RAG | Qdrant hybrid search on SEC 10-K filings, news fetch (NewsAPI, falling back to free Google News RSS when unconfigured/exhausted); news queries pair each ticker with its company name for real match relevance; SEC Form 4 insider trades (90d) for US tickers; India tickers (.NS/.BO) fetch NSE financial results via `india_filings_server` instead of SEC EDGAR; uploaded personal-document context flags anything over 180 days old | Qualitative context, sentiment, insider activity |
+| Data Agent | asyncpg + MCPClient | Schema-validated numbers, Redis 15-min TTL, MCP fallback; reads each field's `updated_at` and caps confidence at "medium" if the oldest DB-sourced field used is over 400 days old, even when nothing else is missing | `FinancialSnapshot` with confidence flag |
 | Risk Agent | LangGraph 3-node debate | `_get_macro_context()` fetches live VIX / 10Y yield / S&P 500 / Fed Funds Rate; Stock analyst runs in parallel; Scorer injects past decisions (Qdrant) + user risk profile (Postgres); MacroAnalyst cites actual live figures | Risk score 1–10 + Buy/Hold/Avoid |
 | Code Agent | E2B sandbox | Real Python execution — DCF, Monte Carlo (1 000 paths), sensitivity table | Intrinsic value, upside probability |
 | Rebalancing Agent | Pure Python | Flags any sector drifting >5 percentage points from its target allocation | Rebalance actions with urgency |
 | Writer Agent | DSPy BootstrapFewShot | Compiled few-shot prompt (28 golden examples); source citation trust hierarchy; injects user risk profile (buy/hold/avoid history) into Personal Finance Fit section; Final Verdict indexed to Qdrant `user_analyses` after each run | 7-section investment memo |
-| Tax Agent | Pure Python (`tax_server` direct import) | Runs only when the query is tax-shaped (regex gate on tax/80C/HRA/regime/capital gains keywords — no LLM call to decide); old vs. new regime comparison + 80C/80D/HRA/NPS headroom for the user's annual income | Appended "Tax Impact" section on the memo |
+| Tax Agent | Pure Python (`tax_server` direct import) | Runs only when the query is tax-shaped (regex gate on tax/80C/HRA/regime/capital gains keywords — no LLM call to decide); old vs. new regime comparison + 80C/80D/HRA/NPS headroom; loan-type-specific deductions (Section 24(b) home loan interest, capped ₹2L, and Section 80E education loan interest, uncapped) derived from EMI transactions classified by type, with an explicit non-deductibility note for auto/personal loans | Appended "Tax Impact" section on the memo |
 
 
 </div>
@@ -110,10 +110,10 @@ flowchart LR
 | Server | Tools | Data Source |
 |:---:|:---:|:---:|
 | `market_server` | 7 | yfinance — price, financials, history, info, currency rates, technicals, options data |
-| `sec_edgar_server` | 5 | SEC EDGAR — 10-K / 10-Q filing URLs + XBRL facts |
-| `news_server` | 4 | NewsAPI + Firecrawl + newspaper3k — headlines, full article body, sentiment, Reddit |
+| `sec_edgar_server` | 5 | SEC EDGAR — 10-K / 10-Q filing URLs, XBRL facts, and Form 4 insider trades (director/officer buys/sells, 90-day window) — wired into the Research Agent 2026-09-30, previously had zero callers |
+| `news_server` | 4 | NewsAPI (falls back to free, keyless Google News RSS when unconfigured/exhausted/empty) + Firecrawl + newspaper3k — headlines, full article body, sentiment, Reddit |
 | `finance_server` | 1 | PostgreSQL — `get_transactions` (raw transaction history). 18 other tools (EMIs, goals, portfolio holdings/P&L/allocation, calculator math) were removed 2026-09-16 — zero live callers found in a repo-wide grep |
-| `tax_server` | 4 | Old vs. new regime comparison (now also folds in dividend income, slab-taxed since DDT abolition), capital gains tax (STCG/LTCG, Budget 2024 rates, plus a foreign-equity branch — 24-month threshold, no flat-rate/exemption, slab-rate only), 80C/80D/HRA/NPS suggestions, advance tax schedule. Surcharge now applies marginal relief (crossing a threshold can't raise tax more than the income increase). Deleted 2026-09-16 as dead code, **restored and wired up 2026-09-22** via the new Tax Agent (`agents/tax_agent.py`) — the tools were real and tested, they just had no caller. Rates are hardcoded for FY 2024-25 with a `TAX_RULES_FY` staleness check that warns past a one-fiscal-year cutoff |
+| `tax_server` | 4 | Old vs. new regime comparison (folds in dividend income, slab-taxed since DDT abolition; now also Section 24(b) home loan interest — capped ₹2,00,000 — and Section 80E education loan interest — uncapped — both old-regime-only), capital gains tax (STCG/LTCG, Budget 2024 rates, plus a foreign-equity branch — 24-month threshold, no flat-rate/exemption, slab-rate only), 80C/80D/HRA/NPS/24(b)/80E suggestions with an explicit non-deductibility note for auto/personal loan interest, advance tax schedule. Surcharge applies marginal relief (crossing a threshold can't raise tax more than the income increase). Deleted 2026-09-16 as dead code, **restored and wired up 2026-09-22** via the Tax Agent, **extended with loan-type deductions 2026-09-30**. Rates are hardcoded for FY 2024-25 with a `TAX_RULES_FY` staleness check that warns past a one-fiscal-year cutoff |
 | `india_filings_server` | 4 | NSE (via `nsepython`) — company quote/info, quarterly/annual financial results, corporate events, circulars. India's structured-filings equivalent to `sec_edgar_server`; ⚠️ NSE's endpoints are session/cookie-gated and known to rate-limit scraper traffic — not SEC-EDGAR-equivalent reliability |
 
 **25 tools total** across 6 servers — most go through MCPClient stdio subprocess; `sec_edgar_server` (5), `news_server` (4), `india_filings_server` (4), `rebalancing`'s market calls, and all of `tax_server` (4) bypass MCP entirely via direct Python import, per [`docs/adr/001-mcp-transport-boundary.md`](docs/adr/001-mcp-transport-boundary.md).
@@ -134,7 +134,7 @@ flowchart LR
 | **A2A** | `POST /agents/risk_agent/invoke` | The one genuinely callable agent among the 9 cards at `/agents` — a separate process can POST a ticker and get back a real `RiskReport`, independent of the other 9 nodes. Same `verify_api_key` boundary as `/analyze`. Live-verified: NVDA → risk_score 6/10, Hold, real macro figures (10Y yield, VIX) in the analysis text |
 | **Routing** | Router Agent (node 0) | LLM classifies investment horizon; Qdrant chunk-count sets company tier (`well_indexed` / `thin_indexed` / `not_indexed`); fires `_on_demand_index()` (US, SEC 10-K) or `_index_indian_ticker()` (India, BSE/IR annual report via `rag.bse_indexer`) as a background task for unknown tickers |
 | **MCP Transport** | MCPClient stdio subprocess (`finance`, `data_and_research`/market) | JSON-RPC over stdin/stdout, retry-on-crash; `sec_edgar_server`/`news_server`/`india_filings_server`/`tax_server`/`rebalancing`'s market calls bypass this via direct Python import instead — see ADR 001 |
-| **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | Key rotation across as many Groq keys as are configured (`GROQ_API_KEY`, `GROQ_API_KEY_2`...`_20`, currently 5 set); if all fail, falls back to OpenRouter's free `openai/gpt-oss-20b:free` |
+| **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | Key rotation across as many Groq keys as are configured (`GROQ_API_KEY`, `GROQ_API_KEY_2`...`_20`, currently 5 set); if all fail, falls back to OpenRouter's paid `openai/gpt-oss-20b` (the `:free` slug was retired by OpenRouter — confirmed live 404, fixed 2026-09-29). Every call sets `reasoning_effort: "low"` — both models are reasoning models that can otherwise spend their whole `max_tokens` budget on hidden chain-of-thought before any visible output, the root cause behind several "empty response" bugs fixed this session |
 | **RAG** | Qdrant hybrid search + Cohere reranking | `all-MiniLM-L6-v2` 384-dim dense (local CPU, no API key) + BM25 sparse; RRF fusion; SEC 10-K filings indexed for AAPL/MSFT/NVDA/GOOGL/TSLA/AMZN |
 | **Embeddings** | sentence-transformers/all-MiniLM-L6-v2 | 384-dim, runs on CPU, no API key required |
 | **Memory** | Two-layer | (1) Qdrant `user_analyses` — Final Verdict embedded and written after every run (now also carries the user's raw query, monthly surplus, and health score); deterministic same-ticker lookup + semantic past-decision retrieval; (2) Postgres `user_risk_profiles` — buy/hold/avoid counts, avg risk score, preferred sectors, updated per run. Was three-layer with Mem0 as a separate hosted service — removed 2026-09-30 after a deep-dive audit found its output was being concatenated with Qdrant's into the same prompt, pure redundancy |
@@ -145,6 +145,8 @@ flowchart LR
 | **Personal Docs** | Permanent storage | Uploaded PDFs saved to `data/personal_docs/{user_id}/{filename}`; re-indexed on re-upload without duplication (delete-before-upsert in Qdrant) |
 | **Code Execution** | E2B cloud sandbox | Isolated Docker container per run; DCF, Monte Carlo (1 000 paths), sensitivity grid |
 | **Validation** | Custom Pydantic v2 validators | `validation/validators.py` — risk score 1–10, verdict in {Buy, Hold, Avoid}, memo section presence |
+| **Verdict Backtesting** | `GET /history/{user_id}?backtest=true` | Lazily fetches the close price on the verdict date and the latest close via yfinance per past analysis, reports the return since, and flags whether the verdict direction played out — capped at the 15 most recent rows, computed on request, not stored. Surfaced in the Streamlit History tab as a `+N.N% since verdict ✅/❌` badge |
+| **Data Staleness / Trust** | Per-field `updated_at` + half-life decay | Data Agent caps confidence at "medium" if the oldest DB-sourced field is over 400 days old; RAG's `_annotate_staleness()` (half-life exponential decay) covers all 3 Qdrant retrieval paths — SEC filings, uploaded personal documents (flagged past 180 days), and past-decision recall (flagged `[OLD]` past 180 days) |
 | **Auth** | bcrypt 5.x + PostgreSQL `users` table + JWT | passlib removed (incompatible with bcrypt 5.x); 72-byte UTF-8 cap before hash/verify; `/auth/login` and `/auth/signup` issue an HS256 JWT (30-day expiry) that every `{user_id}`-scoped endpoint verifies against the requested `user_id` |
 | **Session** | streamlit-cookies-controller | 30-day browser cookies; restored on every refresh; cleared on sign-out |
 
@@ -159,7 +161,7 @@ flowchart LR
 | Layer | Technologies |
 |:---:|:---|
 | **Orchestration** | LangGraph (10-node StateGraph) |
-| **LLM** | Groq `openai/gpt-oss-120b` with key rotation (5 keys configured) |
+| **LLM** | Groq `openai/gpt-oss-120b` with key rotation (5 of up to 20 keys configured) + OpenRouter `openai/gpt-oss-20b` fallback |
 | **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` (384-dim, local CPU) |
 | **RAG** | Qdrant local (hybrid dense + BM25 sparse · RRF fusion) · Cohere reranking |
 | **Memory** | Qdrant `user_analyses` (semantic + deterministic past verdicts) · Postgres `user_risk_profiles` (quantitative profile) |
@@ -241,6 +243,7 @@ low` on a fresh DB, `confidence: high` after running this.
 | Variable | Purpose |
 |---|---|
 | `GROQ_API_KEY` | Primary LLM (required) |
+| `OPENROUTER_API_KEY` | Fallback LLM provider if every configured Groq key fails — recommended; without it, total Groq exhaustion has no safety net |
 | `WEALTHOS_DB_URL` | PostgreSQL connection string (required) |
 | `REDIS_URL` | Redis (default: `redis://localhost:6379`) |
 | `QDRANT_URL` | Qdrant (default: `http://localhost:6333`) |
