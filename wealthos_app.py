@@ -759,7 +759,7 @@ elif page == "History":
     with tab_analyses:
         st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
 
-        history_data = _api("get", f"/history/{USER_ID}?limit=50")
+        history_data = _api("get", f"/history/{USER_ID}?limit=50&backtest=true")
         history      = (history_data or {}).get("history", [])
 
         fc1, fc2 = st.columns([3, 1])
@@ -785,10 +785,18 @@ elif page == "History":
                 risk     = h.get("risk_score")
                 dcf      = h.get("dcf_value")
                 date     = fmt_date(h.get("created_at", ""))
+                backtest = h.get("backtest") or {}
+                bt_str   = ""
+                if backtest.get("return_pct") is not None:
+                    sign = "+" if backtest["return_pct"] >= 0 else ""
+                    correct = backtest.get("verdict_correct")
+                    mark = " ✅" if correct is True else (" ❌" if correct is False else "")
+                    bt_str = f"{sign}{backtest['return_pct']}% since verdict{mark}"
                 meta     = " · ".join(filter(None, [
                     f"Risk {risk}/10" if risk else "",
                     f"DCF ${dcf:,.2f}" if dcf else "",
                     date,
+                    bt_str,
                 ]))
                 c_info, c_btn = st.columns([6, 1])
                 with c_info:
