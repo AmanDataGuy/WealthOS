@@ -87,7 +87,7 @@ class SECInsight(BaseModel):
 class ResearchSnapshot(BaseModel):
     """
     Final output of the Research Agent.
-    LangGraph reads this in Phase 4.
+    LangGraph reads this.
     """
     user_id          : str
     symbols_tracked  : list[str]
@@ -482,7 +482,7 @@ async def query_rag(question: str, user_id: str, symbols: list[str] | None = Non
 #
 #  SECTION 3 — Orchestrator
 #  Runs all tools in the right order. Handles every cold start case.
-#  This is what LangGraph calls in Phase 4.
+#  This is what LangGraph calls.
 #
 # ═════════════════════════════════════════════════════════════════════════════
 

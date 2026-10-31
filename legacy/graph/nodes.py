@@ -4,12 +4,12 @@ One async function per agent.
 Each node pulls what it needs from state, calls the agent, writes result back.
 Errors are caught per-node so one failure doesn't kill the whole pipeline.
 
-## Phase 5 addition
+## Addition
 `validation_node` added between risk_and_code and rebalancing. It now
 actually gates the pipeline: a failed check routes to `error_node` instead
 of just logging a warning and continuing.
 
-## Phase 6 addition
+## Addition
 `finance_node` now reads Mem0 memory at the start.
 `writer_node` now writes results to Mem0 at the end.
 """
@@ -424,7 +424,7 @@ async def rebalancing_node(state: WealthOSState) -> dict:
 
 
 # ── Writer Node ────────────────────────────────────────────────────────────────
-# Phase 6: writes results to Mem0 after memo is complete.
+# Writes results to Mem0 after memo is complete.
 
 @trace_node("writer_node")
 async def writer_node(state: WealthOSState) -> dict:

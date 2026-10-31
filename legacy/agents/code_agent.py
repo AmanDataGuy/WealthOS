@@ -333,7 +333,7 @@ async def run_code_agent(
     fetch_plan: Optional[dict] = None,
 ) -> CodeAgentOutput:
     """
-    Main entry point. Called by LangGraph in Phase 4.
+    Main entry point. Called by LangGraph.
 
     Runs DCF → Monte Carlo → Sensitivity in sequence.
     Each model runs in its own E2B sandbox for isolation.

@@ -5,7 +5,7 @@ Writer Agent — Groq + DSPy
 
 Synthesizes all agent outputs into a personalized investment memo.
 
-## What changed in Phase 5
+## What changed
 - At startup, checks if `eval/compiled_writer.json` exists.
 - If yes: uses the DSPy-compiled prompt (one optimized call, all sections at once).
 - If no: falls back to the original 7-section approach below. Nothing else changes.
@@ -506,7 +506,7 @@ async def run_writer_agent(
     user_risk_profile:  Optional[dict] = None,
 ) -> InvestmentMemo:
     """
-    Main entry point. Called by LangGraph in Phase 4.
+    Main entry point. Called by LangGraph.
 
     ## Flow
     1. Try DSPy compiled prompt (one call, all sections)

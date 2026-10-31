@@ -2,16 +2,16 @@
 """
 WealthOS LangGraph orchestrator.
 
-## Phase 5 change
+## Change
 `validation_node` added between risk_and_code and rebalancing. It is a real
 gate: on failure it routes to `error_node` via `add_conditional_edges`
 instead of just logging and continuing.
 
-## Phase 3/4 change
+## Change
 `router_node` added as first node — classifies horizon, company tier, user tier.
 
 Execution order:
-  router_node         ← Phase 3/4: classifies horizon + tiers
+  router_node         ← classifies horizon + tiers
       │
   finance_node
       │
@@ -24,7 +24,7 @@ Execution order:
               │                      │
               └───────────┬──────────┘
                           ▼
-                  validation_node     ← Phase 5: guardrails gate
+                  validation_node     ← guardrails gate
                           │
                     (pass / fail)
                           ├──────────────► error_node ─► END
@@ -117,7 +117,7 @@ def route_on_error(state: WealthOSState) -> str:
 
 
 def route_on_validation(state: WealthOSState) -> str:
-    """Phase 5 gate: stop if validation_node found a hard failure."""
+    """Gate: stop if validation_node found a hard failure."""
     if state.get("validation_passed") is False:
         return "error"
     return "continue"
@@ -132,7 +132,7 @@ def build_graph():
     graph.add_node("finance",           finance_node)
     graph.add_node("data_and_research", data_and_research_node)
     graph.add_node("risk_and_code",     risk_and_code_node)
-    graph.add_node("validation",        validation_node)       # Phase 5
+    graph.add_node("validation",        validation_node)
     graph.add_node("rebalancing",       rebalancing_node)
     graph.add_node("writer",            writer_node)
     graph.add_node("tax",               tax_node)          # agents/tax_agent.py, conditional
@@ -153,7 +153,7 @@ def build_graph():
         }
     )
 
-    graph.add_edge("risk_and_code", "validation")     # Phase 5
+    graph.add_edge("risk_and_code", "validation")
 
     graph.add_conditional_edges(
         "validation",

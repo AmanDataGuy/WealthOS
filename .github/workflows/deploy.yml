@@ -1,13 +1,13 @@
 name: Deploy to EC2
 
-# Deploy is manual-only until Phase 1 replaces it with the CI-gated AWS deploy (PORTFOLIO_PLAN P1.2).
-# Reason: the old job reset --hard + rebuilt on EC2 on every push to main with no tests (audit 2026-10-31).
+# Deploy is manual-only until a deploy gated on CI replaces it.
+# Reason: the old job reset --hard + rebuilt on EC2 on every push to main with no tests.
 on:
   workflow_dispatch:
 
 jobs:
   deploy:
-    if: false   # second lock: remove only in P1.2, together with a `needs: ci` gate
+    if: false   # second lock: remove only together with a `needs: ci` gate
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH

@@ -1,4 +1,4 @@
-"""The deploy workflow must never run on push again (audit 2026-10-31: it reset --hard on EC2 with no tests)."""
+"""The deploy workflow must never run on push again (it used to reset --hard on EC2 with no tests)."""
 from pathlib import Path
 
 import yaml

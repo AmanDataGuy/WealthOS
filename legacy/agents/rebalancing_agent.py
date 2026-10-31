@@ -422,7 +422,7 @@ async def run_rebalancing_agent(
     risk_capacity: Optional[str] = None,
 ) -> RebalanceSuggestion:
     """
-    Main entry point. Called by LangGraph in Phase 4.
+    Main entry point. Called by LangGraph.
 
     Args:
         user_id:            User identifier

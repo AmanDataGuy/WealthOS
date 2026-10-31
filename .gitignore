@@ -26,3 +26,6 @@ data/
 .DS_Store
 Thumbs.db
 *.log
+
+# Private working notes
+PORTFOLIO_PLAN.md

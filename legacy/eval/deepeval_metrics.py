@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # eval/deepeval_metrics.py
 """
-## DeepEval Metrics — WealthOS Phase 2
+## DeepEval Metrics — WealthOS
 
 Agent-quality evaluation for the full WealthOS 8-agent pipeline.
 

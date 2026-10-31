@@ -1,5 +1,5 @@
 # A workspace database connection can't reach this server, its network, the metadata endpoint or our own database
-# (audit 2026-10-31 D-01: the connector could ATTACH the app's Postgres and read the users table).
+# (the connector could otherwise ATTACH the app's own Postgres and read the users table).
 import socket
 
 import pytest

@@ -1,6 +1,6 @@
 """
 ================================================================================
-  WealthOS v2.0 — Finance Agent
+  WealthOS — Finance Agent
   agents/finance_agent.py
 ================================================================================
 
@@ -716,7 +716,7 @@ def _build_snapshot(
 #
 #  Pure Python. Calls the tool functions above in the right order.
 #  No framework, no hidden dependencies, no magic.
-#  In Phase 4, LangGraph calls run_finance_agent() as one node.
+#  LangGraph calls run_finance_agent() as one node.
 # ==============================================================================
 
 async def run_finance_agent(
@@ -750,7 +750,7 @@ async def run_finance_agent(
         snapshot = run_finance_agent("user_123", manual_income=80000, manual_expenses=55000)
 
     ─────────────────────────────────────────────────────────────────────────
-    In Phase 4, LangGraph calls this as a single node:
+    LangGraph calls this as a single node:
 
         def finance_node(state: WealthOSState) -> WealthOSState:
             snapshot = run_finance_agent(state["user_id"], state["uploads"])

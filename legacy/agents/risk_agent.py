@@ -382,7 +382,7 @@ async def run_risk_agent(
     user_risk_profile: Optional[dict] = None,
 ) -> RiskReport:
     """
-    Main entry point. Called by LangGraph in Phase 4.
+    Main entry point. Called by LangGraph.
 
     Args:
         ticker:             Stock ticker

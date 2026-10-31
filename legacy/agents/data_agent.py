@@ -276,7 +276,7 @@ async def compute_growth_metrics(ticker: str, conn: asyncpg.Connection) -> Growt
 
 async def run_data_agent(ticker: str, use_rag: bool = True) -> FinancialSnapshot:
     """
-    Main entry point. Called by LangGraph in Phase 4.
+    Main entry point. Called by LangGraph.
     Returns a fully validated FinancialSnapshot.
     """
     start = time.time()

@@ -1,7 +1,7 @@
 # eval/_verdict_utils.py
 """
-Shared verdict/risk-score extraction — used by both DeepEval (Phase 2) and
-reliability eval (Phase 3), which both need to parse the same memo output.
+Shared verdict/risk-score extraction — used by both DeepEval and
+reliability eval, which both need to parse the same memo output.
 """
 
 import re
