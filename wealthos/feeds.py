@@ -25,11 +25,9 @@ import csv
 import hashlib
 import hmac
 import io
-import ipaddress
 import json
 import re
 import secrets
-import socket
 import threading
 import time
 import uuid
@@ -42,7 +40,7 @@ import duckdb
 import httpx
 import pandas as pd
 
-from wealthos import engine
+from wealthos import engine, netguard
 from wealthos.ingest.tabular import SHAPES
 
 MAX_ROWS_PER_BATCH = 5000
@@ -213,13 +211,7 @@ def check_url(url: str) -> None:
     p = urlsplit(url.strip())
     if p.scheme != "https" or not p.hostname:
         raise ValueError("a pull feed needs an https:// URL")
-    try:
-        addresses = {info[4][0] for info in socket.getaddrinfo(p.hostname, p.port or 443)}
-    except socket.gaierror:
-        raise ValueError(f"can't find the host {p.hostname}") from None
-    for a in addresses:
-        if not ipaddress.ip_address(a.split("%")[0]).is_global:
-            raise ValueError("that URL points at a private or local address, which feeds may not fetch")
+    netguard.public_ips(p.hostname, p.port or 443)
     # ponytail: DNS could change between this check and the fetch; pin the resolved IP if this ever serves strangers
 
 

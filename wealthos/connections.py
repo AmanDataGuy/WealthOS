@@ -27,20 +27,28 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 import duckdb
 from cryptography.fernet import Fernet, InvalidToken
 
-from wealthos import engine
+from wealthos import engine, netguard
+
+log = logging.getLogger(__name__)
 
 SNAPSHOT_ROW_CAP = 1_000_000  # ponytail: rows per table per snapshot; raise it (or go incremental) for bigger tables
 BUILT_IN_SHAPES = {"transactions", "trades", "holdings", "prices", "statements"}
 SQLITE_FILE = "database.sqlite"  # where an uploaded SQLite file is kept, next to connection.json
+# libpq query parameters a connection string may carry; the rest (host, hostaddr, port, service, sslrootcert...) could
+# redirect the connection past the host check or read server files.
+PG_PARAMS = {"sslmode", "connect_timeout", "application_name"}
+CONNECT_FAILED = ("could not connect to the database (check host, port, credentials and that it accepts connections "
+                  "from this server)")
 
 
 # ── Secrets ─────────────────────────────────────────────────────────────────────────────
@@ -63,20 +71,42 @@ def redact(url: str) -> str:
 
 # ── Talking to the database ─────────────────────────────────────────────────────────────
 
-# Which DuckDB extension reads this string, and the text to hand to ATTACH.
+# Which DuckDB extension reads this string, and the text to hand to ATTACH. Postgres/MySQL hosts must be public and not
+# our own database (netguard), on an allowed port; the connection is then pinned to the address that was checked, so a
+# DNS answer that changes after the check (rebinding) is never used.
 def _target(url: str) -> tuple[str, str]:
     scheme = url.split("://", 1)[0].split("+", 1)[0].lower()  # "postgresql+asyncpg" -> "postgresql"
+    p, ip = urlsplit(url), None
+    if scheme in ("postgres", "postgresql", "mysql") and "://" in url:
+        ip = _checked_ip(p.hostname or "", p.port or (3306 if scheme == "mysql" else 5432))
     if scheme in ("postgres", "postgresql") and "://" in url:
+        extra = {k for k, _ in parse_qsl(p.query, keep_blank_values=True)} - PG_PARAMS
+        if extra:
+            raise ValueError(f"connection string options not allowed: {sorted(extra)} (allowed: {sorted(PG_PARAMS)})")
         url = "postgresql://" + url.split("://", 1)[1]
-        return "postgres", url if "connect_timeout" in url else url + ("&" if "?" in url else "?") + "connect_timeout=10"
+        if "connect_timeout" not in url:
+            url += ("&" if "?" in url else "?") + "connect_timeout=10"
+        # libpq connects to hostaddr and still uses host for TLS verification
+        return "postgres", url if ip is None else f"{url}&hostaddr={ip}"
     if scheme == "mysql" and "://" in url:  # DuckDB's MySQL reader takes "key=value" pairs, not a URL
-        p = urlsplit(url)
-        pairs = {"host": p.hostname, "port": p.port, "user": unquote(p.username or ""),
+        pairs = {"host": ip or p.hostname, "port": p.port, "user": unquote(p.username or ""),
                  "passwd": unquote(p.password or ""), "database": p.path.lstrip("/")}
         return "mysql", " ".join(f"{k}={v}" for k, v in pairs.items() if v)
     if scheme == "sqlite":
         return "sqlite", url.split(":///", 1)[-1]
     raise ValueError("the connection string must start with postgresql:// or mysql:// (or upload a SQLite file)")
+
+
+# The checked public address to connect to, or None when private hosts are allowed (local development only).
+def _checked_ip(host: str, port: int) -> str | None:
+    if os.getenv("WEALTHOS_ENV", "production").lower() == "dev" and os.getenv("WEALTHOS_ALLOW_PRIVATE_DB") == "1":
+        return None
+    allowed = {5432, 3306} | {int(x) for x in os.getenv("WEALTHOS_DB_ALLOWED_PORTS", "").split(",") if x.strip()}
+    if port not in allowed:
+        raise ValueError(f"database port {port} is not allowed (allowed: {sorted(allowed)})")
+    ips = netguard.public_ips(host, port)
+    netguard.refuse_own_db(host, ips)
+    return ips[0]
 
 
 # A fresh in-memory DuckDB with the user's database attached READ_ONLY as "src". Errors never show the password.
@@ -93,7 +123,9 @@ def _attach(url: str) -> tuple[duckdb.DuckDBPyConnection, str]:
         password = urlsplit(url).password if kind != "sqlite" else None
         for secret in {password, unquote(password or "")} - {None, ""}:
             message = message.replace(secret, "***")
-        raise ValueError(f"could not connect: {message}") from None
+        # the driver's message (refused / timed out / no route) would make this a port scanner: log it, answer generically
+        log.warning("database attach failed (%s): %s", kind, message)
+        raise ValueError(CONNECT_FAILED) from None
     return con, kind
 
 
