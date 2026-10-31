@@ -1,0 +1,4 @@
+# requirements-dev.txt - what the tests need on top of the app
+-r requirements.txt
+pytest==9.0.3
+pymupdf==1.27.2.3   # builds small sample PDFs inside the tests (not used by the app)
