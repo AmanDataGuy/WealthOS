@@ -1,146 +1,31 @@
-aiofile==3.9.0
-aiohappyeyeballs==2.6.1
-aiohttp==3.13.5
-aiosignal==1.4.0
-annotated-types==0.7.0
-anyio==4.13.0
-asyncpg==0.31.0
-bcrypt==5.0.0
-attrs==26.1.0
-beartype==0.22.9
-beautifulsoup4==4.14.3
-cachetools==7.0.5
-caio==0.9.25
-certifi==2026.2.25
-cffi==2.0.0
-charset-normalizer==3.4.7
-click==8.3.2
-cryptography==46.0.6
-curl_cffi==0.13.0
-cyclopts==4.10.1
-dnspython==2.8.0
-docstring_parser==0.17.0
-docutils==0.22.4
-email-validator==2.3.0
-exceptiongroup==1.3.1
-fastmcp==3.2.0
-frozendict==2.4.7
-frozenlist==1.8.0
-greenlet==3.3.2
-grpcio==1.80.0
-h11==0.16.0
-h2==4.3.0
-hpack==4.1.0
-httpcore==1.0.9
-httpx==0.28.1
-httpx-sse==0.4.3
-hyperframe==6.1.0
-idna==3.11
-importlib_metadata==8.7.1
-iniconfig==2.3.0
-jaraco.classes==3.4.0
-jaraco.context==6.1.2
-jaraco.functools==4.4.0
-jeepney==0.9.0
-jsonref==1.1.0
-jsonschema==4.26.0
-jsonschema-path==0.4.5
-jsonschema-specifications==2025.9.1
-# kafka-python==2.3.0  # removed — Kafka not implemented; use Redis pub/sub if alerts are needed
-keyring==25.7.0
-markdown-it-py==4.0.0
-mcp==1.27.0
-mdurl==0.1.2
-more-itertools==11.0.1
-multidict==6.7.1
-multitasking==0.0.12
-numpy==2.4.4
-openapi-pydantic==0.5.1
-opentelemetry-api==1.40.0
-packaging==26.0
-pandas==3.0.2
-pathable==0.5.0
-platformdirs==4.9.4
-pluggy==1.6.0
-portalocker==3.2.0
-propcache==0.4.1
-protobuf>=3.19.0,<7
-py-key-value-aio==0.4.4
-pycparser==3.0
-pydantic==2.12.5
-pydantic-settings==2.13.1
-pydantic_core==2.41.5
-Pygments==2.20.0
-PyJWT==2.12.1
-pypdf==6.9.2
-pyperclip==1.11.0
-pytest==9.0.3
-pytest-asyncio==1.3.0
-python-dateutil==2.9.0.post0
-python-dotenv==1.2.2
-python-multipart==0.0.24
-pytz==2026.1.post1
-PyYAML==6.0.3
-qdrant-client           # vector store — local Qdrant hybrid search (dense + sparse)
-sentence-transformers   # all-MiniLM-L6-v2 384-dim embeddings (local CPU, no API key)
-cohere                  # rerank-english-v3.0 for post-retrieval reranking
-fastembed               # BM25 sparse vectors (Qdrant/bm25 model)
-pdfplumber              # table extraction from PDFs (supplements pypdf prose extraction)
-pytesseract             # OCR wrapper for tesseract (image-based PDFs)
-pdf2image               # converts PDF pages to images for OCR
-newspaper3k             # full article body extraction in news_server.py (newspaper3k primary, Firecrawl fallback)
-nsepython                # NSE public JSON endpoints — india_filings_server.py (session/cookie handling built in)
+# requirements.txt - only what the app imports (pip resolves the rest).
 
-# Eval framework (eval/evaluate.py, eval/deepeval_metrics.py, eval/ragas_eval.py, eval/reliability_eval.py)
-deepeval                # FaithfulnessMetric, AnswerRelevancyMetric, HallucinationMetric, GEval (Groq judge)
-langchain-groq          # ChatGroq judge for evaluate.py, ragas_eval.py, and deepeval_metrics.py
-langchain-huggingface   # local HuggingFaceEmbeddings for ragas_eval.py (no OpenAI needed)
-ragas                   # RAG pipeline eval — context precision/recall, faithfulness, relevancy
-datasets                # HuggingFace Dataset object required by ragas.evaluate()
-bert-score               # semantic memo consistency across runs, eval/reliability_eval.py
-redis==7.4.0
-referencing==0.37.0
-requests==2.33.1
-rich==14.3.3
-rich-rst==1.3.2
-rpds-py==0.30.0
-scipy==1.17.1
-SecretStorage==3.5.0
-six==1.17.0
-soupsieve==2.8.3
-SQLAlchemy==2.0.49
-sse-starlette==3.3.4
-starlette==1.0.0
-typing-inspection==0.4.2
-typing_extensions==4.15.0
-uncalled-for==0.3.0
-urllib3==2.6.3
+# API
+fastapi==0.136.3
 uvicorn==0.44.0
-watchfiles==1.1.1
-websockets==16.0
-yarl==1.23.0
-yfinance==1.2.0
-zipp==3.23.0
+python-multipart==0.0.24      # file uploads
+pydantic==2.12.5
+python-dotenv==1.2.2
+httpx==0.28.1                 # LLM calls, Google Sheets, news
+asyncpg==0.31.0               # users table (sign-in)
+bcrypt==5.0.0
+PyJWT==2.12.1
+cryptography==46.0.6          # Fernet: database connection strings encrypted at rest
 
-langgraph
-fastapi
-firecrawl-py
+# Engine (every number comes from here)
+duckdb==2.0.0
+sqlglot==30.25.0              # SQL guard
+pandas==3.0.2
+pyarrow==24.0.0               # Parquet files (pandas)
+numpy==2.4.4
+PyYAML==6.0.3                 # metrics.yaml, templates.yaml
 
-e2b-code-interpreter
+# Reading files
+openpyxl==3.1.5               # Excel in and out
+defusedxml==0.7.1             # openpyxl refuses XML-bomb workbooks
+casparser==1.4.1              # CAMS / KFintech / NSDL / CDSL statements
+pypdfium2==5.14.0             # PDF text (finx)
 
-pymupdf
-streamlit
-streamlit-cookies-controller
-dspy-ai
-litellm==1.88.1  # pinned — unpinned, pip's resolver backtracks through 100+ litellm
-                 # releases trying to satisfy dspy/weave's version ranges alongside our
-                 # other hard pins, which timed out the EC2 deploy step (verified live
-                 # 2026-08-20). Confirmed compatible with the full dependency graph.
-# smolagents  # listed but not imported anywhere in the codebase — keeping for future use
-# composio-core  # removed — morning_briefing.py now uses stdlib smtplib directly
-# agentops  # removed — replaced by LangSmith for tracing
-wandb==0.19.11
-weave==0.51.33
 
-# Observability
-langsmith           # used in observability/langsmith_config.py (from langsmith import traceable, Client)
+# Outward MCP server (mcp_server.py)
+mcp==1.27.2

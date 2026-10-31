@@ -1,0 +1,190 @@
+# templates.yaml - ready-made dashboards, for businesses and for individuals.
+#
+# A template never hard-codes column names. It lists the **slots** it needs ("a date", "an amount", "a region"),
+# each with a role (date / measure / dimension / id) and names files often use for it. Applying a template
+# (templates.py) fills the slots from one table of the workspace (suggested from the Semantic Builder's column roles,
+# confirmed by the user), saves the template's metrics as workspace metrics, and adds the tiles.
+#
+#   slots:    name, role, description, names (to match column names), optional (tiles needing it are skipped)
+#   metrics:  SQL with {slot} placeholders; becomes a workspace metric "<metric>_<table>" with date = the date slot
+#   tiles:    metrics (template or built-in), dimensions (a column "{slot}", or month / year), layout [x, y, w, h]
+#   table:    retail templates read a fixed table with built-in metrics (metrics.yaml) and need no slots
+#   time:     the dashboard's starting period
+
+# ── Business ─────────────────────────────────────────────────────────────────────────
+
+mis_pnl:
+  title: Monthly MIS / P&L overview
+  audience: business
+  description: Revenue, cost, profit and margin month by month.
+  time: trailing_12m
+  slots:
+    - {name: date, role: date, description: Date of the entry, names: [date, month, period, posting date, invoice date]}
+    - {name: revenue, role: measure, description: Revenue / income amount, names: [revenue, sales, income, turnover]}
+    - {name: cost, role: measure, description: Cost / expense amount, names: [cost, expense, expenses, cogs, spend]}
+    - {name: category, role: dimension, description: Business line or account group, optional: true, names: [category, segment, department, account, business unit]}
+  metrics:
+    revenue: {name: Revenue, unit: INR, sql: "SUM({revenue})"}
+    cost: {name: Cost, unit: INR, sql: "SUM({cost})"}
+    profit: {name: Profit, unit: INR, sql: "SUM({revenue}) - SUM({cost})"}
+    margin_pct: {name: Profit margin (%), unit: pct, sql: "100.0 * (SUM({revenue}) - SUM({cost})) / NULLIF(SUM({revenue}), 0)"}
+  tiles:
+    - {title: Revenue, kind: kpi, metrics: [revenue], layout: [0, 0, 3, 3]}
+    - {title: Cost, kind: kpi, metrics: [cost], layout: [3, 0, 3, 3]}
+    - {title: Profit, kind: kpi, metrics: [profit], layout: [6, 0, 3, 3]}
+    - {title: Margin, kind: kpi, metrics: [margin_pct], layout: [9, 0, 3, 3]}
+    - {title: Revenue and cost by month, kind: line, metrics: [revenue, cost], dimensions: [month], layout: [0, 3, 8, 5]}
+    - {title: Profit by month, kind: bar, metrics: [profit], dimensions: [month], layout: [8, 3, 4, 5]}
+    - {title: Profit by category, kind: table, metrics: [revenue, cost, profit], dimensions: ["{category}"], layout: [0, 8, 12, 5]}
+
+sales:
+  title: Sales performance
+  audience: business
+  description: Revenue, orders, average order value and where sales come from.
+  time: trailing_12m
+  slots:
+    - {name: date, role: date, description: Order or invoice date, names: [order date, date, invoice date, created at]}
+    - {name: amount, role: measure, description: Order value, names: [amount, revenue, sales, total, order value, value]}
+    - {name: customer, role: id, description: Customer, optional: true, names: [customer id, customer, client id, buyer]}
+    - {name: product, role: dimension, description: Product or category, optional: true, names: [product, sku, item, category]}
+    - {name: region, role: dimension, description: Region, city or channel, optional: true, names: [region, city, state, country, channel, store]}
+  metrics:
+    revenue: {name: Revenue, unit: INR, sql: "SUM({amount})"}
+    orders: {name: Orders, unit: count, sql: "COUNT(*)"}
+    avg_order: {name: Average order value, unit: INR, sql: "SUM({amount}) / NULLIF(COUNT(*), 0)"}
+    customers: {name: Customers, unit: count, sql: "COUNT(DISTINCT {customer})"}
+  tiles:
+    - {title: Revenue, kind: kpi, metrics: [revenue], layout: [0, 0, 3, 3]}
+    - {title: Orders, kind: kpi, metrics: [orders], layout: [3, 0, 3, 3]}
+    - {title: Average order value, kind: kpi, metrics: [avg_order], layout: [6, 0, 3, 3]}
+    - {title: Customers, kind: kpi, metrics: [customers], layout: [9, 0, 3, 3]}
+    - {title: Revenue by month, kind: line, metrics: [revenue], dimensions: [month], layout: [0, 3, 12, 5]}
+    - {title: Revenue by region, kind: bar, metrics: [revenue], dimensions: ["{region}"], layout: [0, 8, 6, 5]}
+    - {title: Revenue by product, kind: bar, metrics: [revenue], dimensions: ["{product}"], layout: [6, 8, 6, 5]}
+
+cash_flow:
+  title: Cash flow & working capital
+  audience: business
+  description: Money in, money out and net cash by month.
+  time: trailing_12m
+  slots:
+    - {name: date, role: date, description: Date of the cash movement, names: [date, value date, posting date, txn date]}
+    - {name: inflow, role: measure, description: Money received, names: [inflow, receipts, credit, cash in, received]}
+    - {name: outflow, role: measure, description: Money paid, names: [outflow, payments, debit, cash out, paid]}
+    - {name: category, role: dimension, description: What the money was for, optional: true, names: [category, head, account, type, description]}
+  metrics:
+    cash_in: {name: Cash in, unit: INR, sql: "SUM({inflow})"}
+    cash_out: {name: Cash out, unit: INR, sql: "SUM({outflow})"}
+    net_cash: {name: Net cash flow, unit: INR, sql: "SUM({inflow}) - SUM({outflow})"}
+  tiles:
+    - {title: Cash in, kind: kpi, metrics: [cash_in], layout: [0, 0, 4, 3]}
+    - {title: Cash out, kind: kpi, metrics: [cash_out], layout: [4, 0, 4, 3]}
+    - {title: Net cash flow, kind: kpi, metrics: [net_cash], layout: [8, 0, 4, 3]}
+    - {title: In vs out by month, kind: bar, metrics: [cash_in, cash_out], dimensions: [month], layout: [0, 3, 8, 5]}
+    - {title: Net cash by month, kind: line, metrics: [net_cash], dimensions: [month], layout: [8, 3, 4, 5]}
+    - {title: Cash out by category, kind: pie, metrics: [cash_out], dimensions: ["{category}"], layout: [0, 8, 6, 5]}
+
+budget_vs_actual:
+  title: Budget vs actual
+  audience: business
+  description: Actual against budget, the gap, and where it comes from.
+  time: fy
+  slots:
+    - {name: date, role: date, description: Month or date of the line, names: [date, month, period]}
+    - {name: actual, role: measure, description: Actual amount, names: [actual, actuals, actual amount, spent]}
+    - {name: budget, role: measure, description: Budgeted amount, names: [budget, plan, planned, target]}
+    - {name: category, role: dimension, description: Budget line, optional: true, names: [category, head, line item, department, account]}
+  metrics:
+    actual: {name: Actual, unit: INR, sql: "SUM({actual})"}
+    budget: {name: Budget, unit: INR, sql: "SUM({budget})"}
+    variance: {name: Actual minus budget, unit: INR, sql: "SUM({actual}) - SUM({budget})"}
+    variance_pct: {name: Variance (% of budget), unit: pct, sql: "100.0 * (SUM({actual}) - SUM({budget})) / NULLIF(SUM({budget}), 0)"}
+  tiles:
+    - {title: Actual, kind: kpi, metrics: [actual], layout: [0, 0, 3, 3]}
+    - {title: Budget, kind: kpi, metrics: [budget], layout: [3, 0, 3, 3]}
+    - {title: Variance, kind: kpi, metrics: [variance], layout: [6, 0, 3, 3]}
+    - {title: Variance %, kind: kpi, metrics: [variance_pct], layout: [9, 0, 3, 3]}
+    - {title: Actual vs budget by month, kind: bar, metrics: [actual, budget], dimensions: [month], layout: [0, 3, 12, 5]}
+    - {title: Variance by line, kind: table, metrics: [actual, budget, variance], dimensions: ["{category}"], layout: [0, 8, 12, 5]}
+
+expenses:
+  title: Expense analysis
+  audience: business
+  description: Where the money goes, by category, vendor and month.
+  time: trailing_12m
+  slots:
+    - {name: date, role: date, description: Expense date, names: [date, bill date, invoice date, txn date]}
+    - {name: amount, role: measure, description: Expense amount, names: [amount, expense, cost, spend, value]}
+    - {name: category, role: dimension, description: Expense category, names: [category, head, expense head, account, type]}
+    - {name: vendor, role: dimension, description: Vendor or payee, optional: true, names: [vendor, supplier, payee, merchant, party]}
+  metrics:
+    spend: {name: Total spend, unit: INR, sql: "SUM({amount})"}
+    bills: {name: Number of expenses, unit: count, sql: "COUNT(*)"}
+    avg_bill: {name: Average expense, unit: INR, sql: "SUM({amount}) / NULLIF(COUNT(*), 0)"}
+  tiles:
+    - {title: Total spend, kind: kpi, metrics: [spend], layout: [0, 0, 4, 3]}
+    - {title: Number of expenses, kind: kpi, metrics: [bills], layout: [4, 0, 4, 3]}
+    - {title: Average expense, kind: kpi, metrics: [avg_bill], layout: [8, 0, 4, 3]}
+    - {title: Spend by category, kind: bar, metrics: [spend], dimensions: ["{category}"], layout: [0, 3, 6, 5]}
+    - {title: Spend by month, kind: line, metrics: [spend], dimensions: [month], layout: [6, 3, 6, 5]}
+    - {title: Top vendors, kind: table, metrics: [spend, bills], dimensions: ["{vendor}"], layout: [0, 8, 12, 5]}
+
+customers:
+  title: Customer KPIs
+  audience: business
+  description: Active customers, revenue per customer and repeat buying.
+  time: trailing_12m
+  slots:
+    - {name: date, role: date, description: Order date, names: [order date, date, invoice date]}
+    - {name: amount, role: measure, description: Order value, names: [amount, revenue, sales, total, value]}
+    - {name: customer, role: id, description: Customer, names: [customer id, customer, client id, buyer, user id]}
+  metrics:
+    active_customers: {name: Active customers, unit: count, sql: "COUNT(DISTINCT {customer})"}
+    revenue_per_customer: {name: Revenue per customer, unit: INR, sql: "SUM({amount}) / NULLIF(COUNT(DISTINCT {customer}), 0)"}
+    orders_per_customer: {name: Orders per customer, unit: ratio, sql: "COUNT(*) / NULLIF(COUNT(DISTINCT {customer}), 0)"}
+  tiles:
+    - {title: Active customers, kind: kpi, metrics: [active_customers], layout: [0, 0, 4, 3]}
+    - {title: Revenue per customer, kind: kpi, metrics: [revenue_per_customer], layout: [4, 0, 4, 3]}
+    - {title: Orders per customer, kind: kpi, metrics: [orders_per_customer], layout: [8, 0, 4, 3]}
+    - {title: Active customers by month, kind: line, metrics: [active_customers], dimensions: [month], layout: [0, 3, 12, 5]}
+
+# ── Retail (your own money; built-in metrics on the standard tables) ─────────────────
+
+portfolio:
+  title: Portfolio
+  audience: retail
+  description: What you own today, what it cost, and how it is spread.
+  table: holdings
+  time: fy
+  tiles:
+    - {title: Portfolio value, kind: kpi, metrics: [portfolio_value], layout: [0, 0, 3, 3]}
+    - {title: Invested, kind: kpi, metrics: [invested_value], layout: [3, 0, 3, 3]}
+    - {title: Unrealized P&L, kind: kpi, metrics: [unrealized_pnl], layout: [6, 0, 3, 3]}
+    - {title: Unrealized P&L %, kind: kpi, metrics: [unrealized_pnl_pct], layout: [9, 0, 3, 3]}
+    - {title: Allocation, kind: donut, metrics: [allocation_pct], dimensions: [symbol_or_scheme], layout: [0, 3, 6, 6]}
+    - {title: Holdings, kind: table, metrics: [portfolio_value, unrealized_pnl], dimensions: [symbol_or_scheme], layout: [6, 3, 6, 6]}
+
+spending:
+  title: Spending
+  audience: retail
+  description: Money in, money out and savings rate, month by month.
+  table: transactions
+  time: fy
+  tiles:
+    - {title: Spent, kind: kpi, metrics: [total_spend], layout: [0, 0, 3, 3]}
+    - {title: Money in, kind: kpi, metrics: [total_income], layout: [3, 0, 3, 3]}
+    - {title: Saved, kind: kpi, metrics: [net_savings], layout: [6, 0, 3, 3]}
+    - {title: Savings rate, kind: kpi, metrics: [savings_rate_pct], layout: [9, 0, 3, 3]}
+    - {title: In vs out by month, kind: bar, metrics: [total_income, total_spend], dimensions: [month], layout: [0, 3, 12, 5]}
+    - {title: Biggest spends, kind: table, metrics: [total_spend], dimensions: [description], layout: [0, 8, 12, 6]}
+
+capital_gains:
+  title: Capital gains (FY)
+  audience: retail
+  description: Realized short and long term gains this financial year (FIFO), by stock.
+  table: trades
+  time: fy
+  tiles:
+    - {title: Realized gains, kind: kpi, metrics: [realized_gains], layout: [0, 0, 6, 3]}
+    - {title: Trades, kind: kpi, metrics: [trade_count], layout: [6, 0, 6, 3]}
+    - {title: Gains by stock, kind: table, metrics: [realized_gains], dimensions: [symbol], layout: [0, 3, 12, 6]}

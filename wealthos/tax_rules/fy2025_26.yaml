@@ -1,0 +1,36 @@
+# tax_rules/fy2025_26.yaml - individual income-tax for FY 2025-26 (AY 2026-27), Income-tax Act 1961 as amended.
+# Every number below was checked on 2026-10-31 against the Income Tax Department's own pages (sources at the end).
+# Amounts in rupees; a slab is [upper limit of income, rate %]; the last slab has no limit (null).
+fy: "2025-26"
+verified: true
+new_regime:                       # section 115BAC(1A), the default regime
+  slabs: [[400000, 0], [800000, 5], [1200000, 10], [1600000, 15], [2000000, 20], [2400000, 25], [null, 30]]
+  standard_deduction: 75000       # salaried / pensioners
+  rebate_87a: {max: 60000, income_limit: 1200000, marginal_relief: true, excludes_special_rate_income: true}
+  surcharge: [[5000000, 0], [10000000, 10], [20000000, 15], [null, 25]]   # 25% top rate for the new regime (see note)
+old_regime:
+  slabs:
+    below_60: [[250000, 0], [500000, 5], [1000000, 20], [null, 30]]
+    60_to_80: [[300000, 0], [500000, 5], [1000000, 20], [null, 30]]
+    above_80: [[500000, 0], [1000000, 20], [null, 30]]
+  standard_deduction: 50000
+  rebate_87a: {max: 12500, income_limit: 500000, marginal_relief: false, excludes_special_rate_income: false}
+  surcharge: [[5000000, 0], [10000000, 10], [20000000, 15], [50000000, 25], [null, 37]]
+  deduction_caps: {80C: 150000, 80D_self_below_60: 25000, 80D_self_60_plus: 50000}
+surcharge_cap_special_income: 15  # dividends and gains under 111A / 112 / 112A
+cess_pct: 4                        # health and education cess on tax + surcharge
+capital_gains:                     # sales on or after 23-07-2024
+  stcg_equity_111a_pct: 20         # listed equity / equity MF, STT paid, held <= 12 months
+  ltcg_equity_112a_pct: 12.5       # held > 12 months, on gains above the exemption
+  ltcg_equity_112a_exemption: 125000
+  ltcg_other_112_pct: 12.5
+  equity_long_term_after_months: 12
+  other_long_term_after_months: 24
+notes:
+  - "The department's tax-rates page lists 37% above Rs 5 crore in its new-regime surcharge table, but its own notes (marginal relief only up to Rs 2 crore and above) and Finance Act 2023 cap the new-regime surcharge at 25%; 25% is used here."
+  - "Unused basic exemption of a resident can absorb 111A / 112A gains; that is applied."
+sources:
+  - "https://wm.incometaxindia.gov.in/w/%E2%80%8Btax-rates-1 (Income-tax Act 1961 as amended by the Finance Act 2026: slabs, surcharge, cess, 87A, marginal relief)"
+  - "https://wm.incometaxindia.gov.in/w/computation-of-tax-for-individual-1 (111A 20%, 112A 12.5% above Rs 1.25 lakh, 112 12.5%, from 23-07-2024)"
+  - "https://www.incometax.gov.in/iec/foportal/help/all-topics/e-filing-services/itr-2/itr-2-faqs (new-regime slabs and Rs 60,000 rebate up to Rs 12 lakh, AY 2026-27; holding periods)"
+  - "https://wm.incometaxindia.gov.in/w/threshold-limits-under-income-tax-act (standard deduction Rs 75,000 new / Rs 50,000 old)"

@@ -1,0 +1,155 @@
+# metrics.yaml - every number WealthOS can show, defined once.
+#
+# Each metric says which table it reads (shape), which date column the time filter uses (date),
+# and the SQL that computes it. "flow" metrics add things up over a period (spending this month);
+# "point_in_time" metrics take the latest snapshot on or before the period end (portfolio value today).
+# Metrics with `python:` are computed in engine.py because SQL alone can't do them (FIFO gains, XIRR).
+#
+# Dashboards, the assistant and alerts all use these same definitions, so a number means the same everywhere.
+
+# ── Bank / card transactions ─────────────────────────────────────────────────────────
+total_spend:
+  name: Total spending
+  shape: transactions
+  date: date
+  time_semantics: flow
+  unit: INR
+  sql: SUM(CASE WHEN direction = 'debit' THEN amount ELSE 0 END)
+
+total_income:
+  name: Total money in
+  shape: transactions
+  date: date
+  time_semantics: flow
+  unit: INR
+  sql: SUM(CASE WHEN direction = 'credit' THEN amount ELSE 0 END)
+
+net_savings:
+  name: Money in minus money out
+  shape: transactions
+  date: date
+  time_semantics: flow
+  unit: INR
+  sql: SUM(CASE WHEN direction = 'credit' THEN amount ELSE -amount END)
+
+savings_rate_pct:
+  name: Savings rate (% of money in that was kept)
+  shape: transactions
+  date: date
+  time_semantics: flow
+  unit: pct
+  sql: 100.0 * SUM(CASE WHEN direction = 'credit' THEN amount ELSE -amount END) / NULLIF(SUM(CASE WHEN direction = 'credit' THEN amount ELSE 0 END), 0)
+
+avg_monthly_spend:
+  name: Average spending per month
+  shape: transactions
+  date: date
+  time_semantics: flow
+  unit: INR
+  sql: SUM(CASE WHEN direction = 'debit' THEN amount ELSE 0 END) / NULLIF(COUNT(DISTINCT strftime(date, '%Y-%m')), 0)
+
+transaction_count:
+  name: Number of transactions
+  shape: transactions
+  date: date
+  time_semantics: flow
+  unit: count
+  sql: COUNT(*)
+
+# ── Trades (broker tradebook, CAS mutual fund transactions) ─────────────────────────
+buy_value:
+  name: Money put in (buys)
+  shape: trades
+  date: trade_date
+  time_semantics: flow
+  unit: INR
+  sql: SUM(CASE WHEN side = 'buy' THEN quantity * price ELSE 0 END)
+
+sell_value:
+  name: Money taken out (sells)
+  shape: trades
+  date: trade_date
+  time_semantics: flow
+  unit: INR
+  sql: SUM(CASE WHEN side = 'sell' THEN quantity * price ELSE 0 END)
+
+net_invested:
+  name: Net money invested (buys minus sells)
+  shape: trades
+  date: trade_date
+  time_semantics: flow
+  unit: INR
+  sql: SUM(CASE WHEN side = 'buy' THEN quantity * price ELSE -quantity * price END)
+
+trade_count:
+  name: Number of trades
+  shape: trades
+  date: trade_date
+  time_semantics: flow
+  unit: count
+  sql: COUNT(*)
+
+realized_gains:
+  name: Realized gains (FIFO, short vs long term)
+  shape: trades
+  date: trade_date
+  time_semantics: flow
+  unit: INR
+  python: realized_gains
+
+# ── Holdings (CAS, broker holdings export) ───────────────────────────────────────────
+portfolio_value:
+  name: Portfolio value
+  shape: holdings
+  date: as_of
+  time_semantics: point_in_time
+  unit: INR
+  sql: SUM(value)
+
+invested_value:
+  name: Amount invested in current holdings
+  shape: holdings
+  date: as_of
+  time_semantics: point_in_time
+  unit: INR
+  sql: SUM(quantity * avg_cost)
+
+unrealized_pnl:
+  name: Unrealized profit or loss
+  shape: holdings
+  date: as_of
+  time_semantics: point_in_time
+  unit: INR
+  sql: SUM(CASE WHEN avg_cost IS NOT NULL THEN value - quantity * avg_cost END)
+
+unrealized_pnl_pct:
+  name: Unrealized profit or loss (%)
+  shape: holdings
+  date: as_of
+  time_semantics: point_in_time
+  unit: pct
+  sql: 100.0 * SUM(CASE WHEN avg_cost IS NOT NULL THEN value - quantity * avg_cost END) / NULLIF(SUM(CASE WHEN avg_cost IS NOT NULL THEN quantity * avg_cost END), 0)
+
+allocation_pct:
+  name: Share of portfolio (%), use with a dimension like symbol_or_scheme or asset_class
+  shape: holdings
+  date: as_of
+  time_semantics: point_in_time
+  unit: pct
+  sql: 100.0 * SUM(value) / SUM(SUM(value)) OVER ()
+
+holdings_count:
+  name: Number of holdings
+  shape: holdings
+  date: as_of
+  time_semantics: point_in_time
+  unit: count
+  sql: COUNT(*)
+
+xirr:
+  name: XIRR (annual return of all trades, using today's holdings value)
+  shape: trades
+  date: trade_date
+  time_semantics: flow
+  unit: pct
+  python: xirr
