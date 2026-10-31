@@ -1,37 +1,21 @@
-# Never bake secrets into an image layer
+# .dockerignore - what never goes into a Docker image
+
+# Secrets (the containers read .env at runtime through docker-compose)
 .env
 .env.*
-!.env.example
 
-# Local virtual env / caches — installed fresh inside the image instead
+# Caches, local tools and git
 venv/
-.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
-
-# Git metadata — large, never needed at runtime
 .git/
 .github/
-
-# Large local media — not needed in the image
-*.mp4
-*.mov
-*.mkv
-
-# Personal/local docs — not needed in the image
-notes.md
-CHANGES_REPORT.md
 .claude/
 
-# IDE / OS
-.vscode/
-.DS_Store
-Thumbs.db
-
-# Logs / runtime data generated at container runtime, not build time
-logs/
-qdrant_storage/
-postgres_data/
-redis_data/
+# Built inside the image instead, or mounted at runtime
+web/node_modules/
+web/dist/
+data/
+legacy/

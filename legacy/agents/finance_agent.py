@@ -374,15 +374,15 @@ async def get_transactions_from_db(user_id: str) -> list[Transaction]:
     """
     ## Fetch Transactions from Database
 
-    Calls finance_server via MCPClient stdio to pull this user's stored
+    Calls finance_server's get_transactions directly (a plain function call; the MCP
+    subprocess hop added cost and nothing else) to pull this user's stored
     transaction history from Postgres.
 
     Returns an empty list for new users — cold start logic handles that.
     """
     try:
-        from services.mcp_client import MCPClient
-        async with MCPClient("mcp_servers/finance_server.py") as client:
-            data = await client.call_tool("get_transactions", {"user_id": user_id, "months": 3})
+        from mcp_servers.finance_server import get_transactions
+        data = await get_transactions(user_id=user_id, months=3)
         rows = data.get("transactions", []) if isinstance(data, dict) else []
         return [
             Transaction(

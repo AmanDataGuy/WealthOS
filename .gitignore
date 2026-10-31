@@ -1,97 +1,28 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-.Python
-*.egg-info/
-dist/
-build/
-.eggs/
+# .gitignore - what never goes into git
 
-# Virtual env
-venv/
-.venv/
-env/
-.env
-
-# Environment & secrets — critical
+# Secrets: only the example is committed
 .env
 .env.*
 !.env.example
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
-# pytest / coverage
+# Python and tool caches
+__pycache__/
+*.py[cod]
 .pytest_cache/
-.coverage
-htmlcov/
-
-# Lint cache
 .ruff_cache/
+.coverage
+venv/
 
-# DSPy compiled outputs — keep example, ignore real runs
-eval/compiled_*.json
-!eval/writer_golden_dataset.json
+# Web app: installed packages and build output
+node_modules/
+web/dist/
 
-# Eval run outputs — regenerated per run, not source
-eval/results/
+# Your data, downloads and backups (personal financial data, never committed)
+data/
 
-# Modal
-.modal/
-
-# LangSmith / W&B
-wandb/
-*.weave/
-
-# Qdrant local data
-qdrant_storage/
-
-# Logs
-*.log
-logs/
-
-# OS
+# Local editor / OS / assistant files
+.vscode/
+.claude/
 .DS_Store
 Thumbs.db
-
-# VS Code
-.vscode/
-*.code-workspace
-
-# Planning / audit docs — local only
-project_status.md
-INTERVIEW_DOSSIER.md
-PROJECT_DEEP_DIVE_QA.md
-
-# Session notes & local memory — never commit
-changes1.md
-notes.md
-CHANGES_REPORT.md
-.claude/
-
-# Large local media — not source, don't commit
-*.mp4
-*.mov
-*.mkv
-
-# Local startup scripts (machine-specific)
-start.ps1
-start.sh
-
-# Docker volumes (if you add later)
-postgres_data/
-redis_data/
-
-# Model weights / large files
-*.bin
-*.safetensors
-*.pt
-*.pth
-*.gguf
-
-# PDF uploads / temp files
-*.pdf
-uploads/
-temp/
+*.log

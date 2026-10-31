@@ -221,6 +221,7 @@ CREATE TABLE IF NOT EXISTS llm_usage (
     completion_tokens  INTEGER       NOT NULL,
     total_tokens       INTEGER       NOT NULL,
     estimated_cost_usd NUMERIC       NOT NULL,
+    user_id            TEXT,                          -- which user the call was for (NULL = system/background)
     created_at         TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 

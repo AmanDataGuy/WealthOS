@@ -164,35 +164,14 @@ async def fetch_from_db(ticker: str, conn: asyncpg.Connection) -> dict:
 
 # ── Market Data Fetcher ────────────────────────────────────────────────────────
 
-async def _fetch_via_mcp_client(ticker: str) -> tuple[dict, dict, dict]:
-    """Call market MCP tools through the subprocess protocol."""
-    from services.mcp_client import MCPClient
-    async with MCPClient("mcp_servers/market_server.py") as mcp:
-        price_data = await mcp.call_tool("get_price",      {"ticker": ticker}) or {}
-        fin_data   = await mcp.call_tool("get_financials",  {"ticker": ticker}) or {}
-        info_data  = await mcp.call_tool("get_info",        {"ticker": ticker}) or {}
-    return price_data, fin_data, info_data
-
-
 async def fetch_market_data(ticker: str, client: httpx.AsyncClient) -> dict:
-    """
-    Fetch live market data via MCP protocol (stdio) instead of direct import.
-    Falls back to direct module import if the subprocess doesn't respond within 10s.
-    """
+    """Fetch live market data with market_server's functions (plain calls in threads, 15 s limit each)."""
     price_data, fin_data, info_data = {}, {}, {}
     try:
-        price_data, fin_data, info_data = await asyncio.wait_for(
-            _fetch_via_mcp_client(ticker), timeout=10
-        )
-    except asyncio.TimeoutError:
-        print(f"[data_agent] MCPClient timed out after 10s for {ticker} — falling back to direct import")
-        try:
-            from mcp_servers.market_server import get_price, get_financials, get_info
-            price_data = await asyncio.wait_for(asyncio.to_thread(get_price,      ticker), timeout=15) or {}
-            fin_data   = await asyncio.wait_for(asyncio.to_thread(get_financials,  ticker), timeout=15) or {}
-            info_data  = await asyncio.wait_for(asyncio.to_thread(get_info,        ticker), timeout=15) or {}
-        except Exception as e2:
-            print(f"[data_agent] Direct import fallback also failed: {e2}")
+        from mcp_servers.market_server import get_price, get_financials, get_info
+        price_data, fin_data, info_data = await asyncio.gather(*(
+            asyncio.wait_for(asyncio.to_thread(fn, ticker), timeout=15) for fn in (get_price, get_financials, get_info)))
+        price_data, fin_data, info_data = price_data or {}, fin_data or {}, info_data or {}
     except Exception as e:
         print(f"[data_agent] Market data fetch failed: {e}")
 

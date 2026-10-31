@@ -1,23 +1,6 @@
 # observability/__init__.py
-"""
-Observability stack — two tools, two distinct jobs:
-
-  LangSmith  → pipeline tracing (which node ran, how long, what state in/out)
-  W&B Weave  → eval quality (LLM-as-judge scoring across prompt strategies)
-
-Import from here rather than the individual files:
-    from observability import trace_node, score_memo
-"""
+"""LangSmith pipeline tracing. Import from here: `from observability import trace_node`."""
 
 from observability.langsmith_config import trace_node, verify_langsmith
-from observability.weave_config     import init_weave, score_memo, log_eval_result
 
-__all__ = [
-    # LangSmith
-    "trace_node",
-    "verify_langsmith",
-    # W&B Weave (eval-only)
-    "init_weave",
-    "score_memo",
-    "log_eval_result",
-]
+__all__ = ["trace_node", "verify_langsmith"]

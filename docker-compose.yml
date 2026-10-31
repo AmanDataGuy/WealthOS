@@ -1,53 +1,52 @@
+# docker-compose.yml - the web app, the API, the feed worker and Postgres (sign-in + LLM cost log).
+# User data lives in ./data (mounted into the API and the worker).
+# Start: docker compose up -d --build   ·   App: http://localhost:8080   ·   API docs: http://localhost:8000/docs
 services:
-
-  # ── 1. FastAPI Backend ─────────────────────────────────
   wealthos-api:
     build:
       context: .
       dockerfile: Dockerfile.api
+    image: wealthos-api:latest
     container_name: wealthos-api
     ports:
       - "8000:8000"
     env_file:
       - .env
     environment:
-      # Override .env localhost URLs with Docker service-name URLs
       WEALTHOS_DB_URL: postgresql://wealthos:wealthos_secure_password@wealthos-db:5432/wealthos
-      REDIS_URL: redis://wealthos-redis:6379
-      QDRANT_URL: http://wealthos-qdrant:6333
     volumes:
-      - model_cache:/root/.cache/huggingface
+      - ./data:/app/data
     depends_on:
       wealthos-db:
         condition: service_healthy
-      wealthos-redis:
-        condition: service_healthy
-      wealthos-qdrant:
-        condition: service_started
-    networks:
-      - wealthos-network
     restart: unless-stopped
 
-  # ── 2. Streamlit Frontend ──────────────────────────────
-  # MCP servers are stdio subprocesses inside the API container — no separate container needed
-  wealthos-frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    container_name: wealthos-frontend
-    ports:
-      - "8501:8501"
+  wealthos-worker:   # pulls the "pull" live feeds on their schedule (wealthos/worker.py); reuses the API's image
+    image: wealthos-api:latest
+    pull_policy: never
+    container_name: wealthos-worker
+    command: ["python", "-m", "wealthos.worker"]
     env_file:
       - .env
     environment:
-      WEALTHOS_API_URL: http://wealthos-api:8000
+      WEALTHOS_DB_URL: postgresql://wealthos:wealthos_secure_password@wealthos-db:5432/wealthos
+    volumes:
+      - ./data:/app/data
     depends_on:
       - wealthos-api
-    networks:
-      - wealthos-network
     restart: unless-stopped
 
-  # ── 3. PostgreSQL 16 ───────────────────────────────────
+  wealthos-web:      # the React app on nginx; /api/* is forwarded to wealthos-api
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: wealthos-web
+    ports:
+      - "8080:80"
+    depends_on:
+      - wealthos-api
+    restart: unless-stopped
+
   wealthos-db:
     image: postgres:16-alpine
     container_name: wealthos-db
@@ -59,8 +58,6 @@ services:
       POSTGRES_DB: wealthos
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - wealthos-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wealthos"]
@@ -68,43 +65,5 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── 4. Redis ───────────────────────────────────────────
-  wealthos-redis:
-    image: redis:7-alpine
-    container_name: wealthos-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - wealthos-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ── 5. Qdrant (local vector store) ────────────────────
-  wealthos-qdrant:
-    image: qdrant/qdrant:latest
-    container_name: wealthos-qdrant
-    ports:
-      - "6333:6333"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    networks:
-      - wealthos-network
-    restart: unless-stopped
-
-# ── Volumes ─────────────────────────────────────────────
 volumes:
   postgres_data:
-  redis_data:
-  qdrant_data:
-  model_cache:
-
-# ── Network ─────────────────────────────────────────────
-networks:
-  wealthos-network:
-    driver: bridge

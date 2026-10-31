@@ -296,20 +296,16 @@ async def _run_technicals_path(ticker: str) -> CodeAgentOutput:
     Fetches RSI/MACD/Bollinger Bands + options data from market_server via MCP.
     Skips E2B sandbox entirely.
     """
-    from services.mcp_client import MCPClient
-    import os
-
-    server = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mcp_servers", "market_server.py")
+    from mcp_servers.market_server import get_technicals, get_options_data
 
     technicals = {}
     options    = {}
 
     try:
-        async with MCPClient(server) as client:
-            print(f"  [1/2] Fetching technicals for {ticker}...")
-            technicals = await client.call_tool("get_technicals", {"ticker": ticker, "period": "3mo"}) or {}
-            print(f"  [2/2] Fetching options data for {ticker}...")
-            options = await client.call_tool("get_options_data", {"ticker": ticker}) or {}
+        print(f"  [1/2] Fetching technicals for {ticker}...")
+        technicals = await asyncio.to_thread(get_technicals, ticker, "3mo") or {}
+        print(f"  [2/2] Fetching options data for {ticker}...")
+        options = await asyncio.to_thread(get_options_data, ticker) or {}
     except Exception as e:
         print(f"  ⚠️  Technical/options fetch failed: {e}")
 

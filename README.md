@@ -2,16 +2,16 @@
 
 # WealthOS
 
-**Personal Financial Intelligence Platform**
+**Data to Decisions, for Finance Teams and Indian Investors**
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![LangGraph](https://img.shields.io/badge/LangGraph-Orchestrator-1C3A5E?style=flat-square)](https://langchain.com)
+[![DuckDB](https://img.shields.io/badge/DuckDB-Engine-FFF000?style=flat-square&logo=duckdb&logoColor=black)](https://duckdb.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql&logoColor=white)](https://postgresql.org)
-[![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![ECharts](https://img.shields.io/badge/ECharts-Charts-AA344D?style=flat-square&logo=apacheecharts&logoColor=white)](https://echarts.apache.org)
 
-*9 specialized agents × 6 MCP servers × 25 tools → one personalized investment memo, grounded in real filings and computed math.*
+*Connect your data once, agree what the numbers mean, then ask, build and share dashboards everyone can trace back to the source.*
 
 </div>
 
@@ -19,9 +19,11 @@
 
 ## What It Does
 
-A user asks: **"Should I invest ₹20,000 in Reliance right now?"**
+A finance lead connects the company's Postgres and a budget sheet. WealthOS copies the tables in read-only, suggests what each column means, and builds a Monthly MIS dashboard from a template: revenue, cost, margin, budget vs actual. She asks *"why did June's margin drop?"* and gets an answer whose every number links to the SQL and rows behind it.
 
-WealthOS knows their monthly surplus is ₹18,000, food spending spiked 35% last month, they have an outstanding home loan EMI, and their 80C deduction is unutilized. It remembers their last three analyses across sessions. The output is not generic advice — it is advice for **this person, at this moment in their financial life.**
+An investor drops in a Zerodha tradebook, a CAS PDF and a bank statement. WealthOS reads them, asks him to confirm two columns it isn't sure about, and shows his portfolio, spending and FY capital gains (short vs long term, FIFO). He tests *"buy NIFTYBEES when the 50-day average crosses the 200-day"* against real Indian charges before risking a rupee.
+
+The AI plans and explains. Code computes every number. No buy/sell advice, ever.
 
 ---
 
@@ -39,64 +41,55 @@ flowchart LR
     classDef output fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
     classDef separate fill:#f5f5f4,stroke:#78716c,stroke-width:2px,color:#44403c
 
-    Input[Text query / PDF upload]:::input --> UI[Streamlit UI<br>wealthos_app.py]:::interface
-    UI -- "POST /analyze" --> API[FastAPI<br>api/main.py]:::interface
-    UI -- "POST /upload (PDF/HTML)" --> Upload[Upload endpoint]:::interface
-    Upload --> Indexer[RAG Indexer]:::intel --> Qdrant[(Qdrant<br>wealthos_docs)]:::data
+    Files[CSV / Excel / PDF / CAS]:::input --> Ingest[ingest/ parsers<br>+ sanity checks]:::intel
+    DB[Postgres / MySQL / SQLite]:::input --> Conn[connections.py<br>ATTACH READ_ONLY]:::intel
+    Sheets[Google Sheets link]:::input --> Ingest
+    Feeds["Live feeds · NSE / AMFI daily prices"]:::input --> Worker[worker.py<br>pulls, evening prices]:::intel
 
-    API --> N0[router]:::graphnode
-    N0 --> N1[finance]:::graphnode
-    N1 --> N2["data_and_research<br>(parallel: data + research)"]:::graphnode
-    N2 --> N3["risk_and_code<br>(parallel: risk + code)"]:::graphnode
-    N3 --> N4[validation]:::graphnode
-    N4 --> N5[rebalancing]:::graphnode
-    N5 --> N6[writer]:::graphnode
-    Output[Investment Memo<br>Buy / Hold / Avoid]:::output
+    Ingest --> Map[mapping.py<br>rules, then one AI call, user confirms]:::intel
+    Map --> PQ[(Parquet per workspace<br>data/users/&lt;id&gt;/)]:::data
+    Conn --> PQ
+    Worker --> PQ
 
-    N0 -. "direct import" .-> SEC[sec_edgar_server<br>5 tools]:::mcp
+    UI[React app<br>Data · Semantic · Ask · Dashboards · Reports · Strategy lab]:::interface -- HTTP --> API[FastAPI<br>api/main.py]:::interface
+    API --> Sem[Semantic Builder<br>meanings · joins · metrics]:::graphnode
+    API --> Agent[Assistant<br>plan → run → explain → verify]:::graphnode
+    API --> Dash[Dashboards<br>ops · edit history · refresh]:::graphnode
+    API --> Strat[Strategy lab<br>signal tree → backtest]:::graphnode
+    API --> Research[research.py<br>filing text · BM25 pages · citations]:::graphnode
+    API --> Excel[excel.py<br>your template · LibreOffice recalc]:::graphnode
 
-    N1 -- MCPClient --> FIN[finance_server<br>1 tool]:::mcp
-    N1 --> PG1[(PostgreSQL)]:::data
-    N1 -. "past-decisions lookup, start of run" .-> Qdrant
-
-    N2 -- "MCPClient, fallback direct import" --> MKT[market_server<br>7 tools]:::mcp
-    N2 -. "direct import" .-> NEWS[news_server<br>4 tools]:::mcp
-    N2 -. "direct import, Indian tickers" .-> INDIA[india_filings_server<br>4 tools]:::mcp
-    N2 --> PG2[(PostgreSQL)]:::data
-    N2 --> Redis[(Redis<br>per-tool TTL, 5–60 min)]:::data
-
-    N3 -- MCPClient --> MKT
-    N3 --> Sandbox[E2B Sandbox<br>DCF / WACC / Monte Carlo]:::data
-    N3 -. "no MCP — LLM debate only" .-> RiskNote(( )):::mcpdead
-
-    N5 -. "direct import" .-> MKT
-
-    N6 -. "index final verdict, end of run" .-> Qdrant
-    N6 --> N6b["tax<br>(conditional — tax-shaped queries only)"]:::graphnode
-    N6b -. "direct import" .-> TAX[tax_server<br>4 tools]:::mcp
-    N6b --> N7[policy<br>harness/risk_policy.py]:::graphnode
-    N7 --> Output
+    Sem --> Engine[engine.py<br>locked DuckDB · metrics.yaml · timeexpr]:::graphnode
+    Agent --> Engine
+    MCP[mcp_server.py<br>read-only tools for Claude]:::mcp --> Engine
+    Dash --> Engine
+    Strat --> PQ
+    Engine --> PQ
+    Agent -. "SEC XBRL, news" .-> Tools[tools.py<br>SEC XBRL · Google News · calc]:::mcp
+    Engine --> Out[Rows + provenance<br>SQL · files · data fingerprint]:::output
+    Agent --> Verify[verify.py<br>SQL guard · number check]:::separate
+    API --> PG[(Postgres<br>users · llm_usage)]:::data
 ```
 
-> Most MCP servers are called via **direct Python import**, not the MCP protocol — only `finance`, `data_and_research` (market fetch), and `risk_and_code` (E2B fetch) go through `MCPClient`. Full rationale in [`docs/adr/001-mcp-transport-boundary.md`](docs/adr/001-mcp-transport-boundary.md).
+> The AI never writes a number the user sees. It picks a metric or writes one read-only SELECT; `verify.py` checks the SQL against the real schema, DuckDB runs it on a connection that can only read that user's folder, and every number in the written answer is matched against the returned rows. All Python code lives in `wealthos/`; the web API is `api/main.py` and the React app is `web/`.
 
 ---
 
 <div align="center">
 
-## Agents
+## Pipeline & Modules
 
-| Agent | Approach | Key Capability | Output |
+| Module | Approach | Key Capability | Output |
 |:---:|:---:|:---:|:---:|
-| Router Agent | LLM classification + Qdrant count | Classifies investment horizon and company indexing tier; triggers background filing indexing for unknown tickers | `investment_horizon`, `company_tier` |
-| Finance Agent | Pure Python + asyncpg | Z-score spending anomaly detection, 5-dim health score; Tesseract-first OCR for receipts/statements; EMI transactions classified by loan type | Health Score 0–100, `emi_by_type` |
-| Research Agent | asyncio + RAG | Hybrid search on SEC 10-K filings, news (NewsAPI + Google News RSS fallback), SEC Form 4 insider trades, India NSE results | Qualitative context, sentiment |
-| Data Agent | asyncpg + MCPClient | Schema-validated financial numbers with staleness-aware confidence scoring | `FinancialSnapshot` + confidence flag |
-| Risk Agent | LangGraph 3-node debate | Live macro context (VIX, 10Y yield, S&P 500, Fed Funds) plus past-decision history inform the call | Risk score 1–10 + Buy/Hold/Avoid |
-| Code Agent | E2B sandbox | Real DCF, Monte Carlo (1,000 paths), sensitivity analysis | Intrinsic value, upside probability |
-| Rebalancing Agent | Pure Python | Flags any sector drifting >5 percentage points from target allocation | Rebalance actions with urgency |
-| Writer Agent | DSPy BootstrapFewShot | Compiled few-shot prompt (28 golden examples) writes the memo, citing sources and past decisions | 7-section investment memo |
-| Tax Agent | Pure Python (`tax_server`) | Gated to tax-shaped queries; old vs. new regime comparison plus loan-type deductions (§24(b) home loan, §80E education loan) | Appended "Tax Impact" section |
+| Ingest | Header matching + sanity checks, no AI | Zerodha/Groww tradebooks, bank statements (Indian number formats), holdings, daily prices, CAS PDFs, annual-report PDFs via `finx` | Clean tables with source file + row for every value |
+| Mapping | Rules → one AI call → user confirms | Unknown layouts get a suggested mapping with confidence badges; confirmed layouts map themselves next time | Column map keyed by header fingerprint |
+| Semantic Builder | Type/name rules + user edits | Column roles, table relationships, workspace metrics that are parsed, guarded and test-run before saving | `semantic.json` per workspace |
+| Engine | DuckDB over Parquet, locked | Trusted metrics (spend, savings rate, FIFO gains, XIRR, portfolio value ...), Indian FY time expressions, month/year splits | Rows + provenance (SQL, files, data fingerprint) |
+| Assistant | One fixed pipeline, two AI calls | Plans a metric or guarded SQL, explains from rows only, replaces any sentence with an unmatched number; clarify questions become remembered definitions; chats saved per workspace | Answer with Trusted / Exploratory badge |
+| Dashboards | JSON spec edited only through ops | 9 templates, drag/resize editor, AI edit with preview, undo/redo, refresh with no AI, pin from chat, reports with a number-checked summary | Spec with edit history + report / PDF |
+| Strategy Lab | Signal tree + vectorized daily engine | Next-day fills, NSE delivery/intraday charges, split guard, buy-and-hold benchmark, deflated Sharpe | Equity curve + run card |
+| Research | finx page index + BM25, no vectors | Questions on uploaded 10-Ks and annual reports answered from up to 6 selected pages; every number must be on a cited page | Cited answer |
+| Tax | Per-FY YAML rule tables | Old vs new regime, capital gains from your tradebook, 80C headroom, every rate checked on incometaxindia.gov.in | "Educational, verify with a CA" summary |
 
 </div>
 
@@ -104,18 +97,20 @@ flowchart LR
 
 <div align="center">
 
-## MCP Servers
+## Data Sources & Connectors
 
-| Server | Tools | Data Source |
+| Connector | Formats | Data Source |
 |:---:|:---:|:---:|
-| `market_server` | 7 | yfinance — price, financials, history, technicals, options |
-| `sec_edgar_server` | 5 | SEC EDGAR filings, XBRL facts, Form 4 insider trades |
-| `news_server` | 4 | NewsAPI (free Google News RSS fallback) + Firecrawl Reddit sentiment |
-| `finance_server` | 1 | PostgreSQL transaction history |
-| `tax_server` | 4 | Old vs. new regime comparison, capital gains tax, loan-type deductions, advance tax schedule |
-| `india_filings_server` | 4 | NSE (`nsepython`) — quotes, financial results, corporate events |
+| File upload | CSV, XLSX, PDF | Bank / card statements, broker tradebooks, holdings, daily prices, CAS (with password), filings |
+| Google Sheets | Share-by-link CSV export | Any sheet tab; OAuth for private sheets later |
+| Database | Postgres, MySQL, SQLite | Tables copied in read-only as Parquet snapshots, refreshable; credentials Fernet-encrypted |
+| SEC EDGAR | XBRL company facts | US company revenue, profit, cash flow with filing ids (`tools.py`) |
+| News | Google News RSS | Recent headlines, quoted as data, never followed as instructions |
+| Daily prices | NSE bhavcopy, mfapi.in (AMFI NAVs) | Free, no key; stocks/ETFs and mutual funds, refreshed every evening |
+| Live feeds | Webhook push, https URL pull | Token-checked push, SSRF-guarded pull on a schedule, Parquet part files compacted after 20 |
+| Snowflake / MongoDB *(planned)* | Arrow batches | Only when a real user asks |
 
-**25 tools across 6 servers.** Most go through MCPClient stdio; `sec_edgar_server`, `news_server`, `india_filings_server`, `tax_server`, and `rebalancing`'s market calls bypass MCP via direct Python import — see [ADR 001](docs/adr/001-mcp-transport-boundary.md).
+**Every source lands as Parquet in a workspace.** Chats and dashboards only see their own workspace's tables, and the query connection never touches a live database.
 
 </div>
 
@@ -127,26 +122,25 @@ flowchart LR
 
 | Category | Stack | Detail |
 |:---:|:---|:---|
-| **Orchestration** | LangGraph, 10-node StateGraph | `asyncio.gather` parallelizes data+research and risk+code (~2× speedup) |
-| **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | Key rotation across up to 20 Groq keys (5 configured); `reasoning_effort: "low"` on every call to avoid reasoning-token starvation |
-| **RAG** | Qdrant hybrid search + Cohere rerank | Dense (`all-MiniLM-L6-v2`, local CPU) + BM25 sparse, RRF fusion |
-| **Memory** | Qdrant `user_analyses` + Postgres `user_risk_profiles` | Semantic/exact-ticker recall plus aggregate buy/hold/avoid stats — two layers by design |
-| **Prompt Optimization** | DSPy BootstrapFewShot | 28 golden examples, compiled prompt is the primary memo-writing path |
-| **Code Execution** | E2B cloud sandbox | Real DCF, Monte Carlo, sensitivity grid, isolated per run |
-| **Policy Gate** | `harness/risk_policy.py`, no LLM | Deterministic allow/deny/escalate on every Buy — oversized positions denied, low-confidence or track-record-contradicting calls escalated |
-| **Live Progress** | SSE (`POST /analyze/stream`) | Real per-node events as each of the 10 nodes finishes, not a fake word-chop |
-| **A2A** | `POST /agents/risk_agent/invoke` | One agent independently callable outside the full pipeline |
-| **Verdict Backtesting** | `GET /history?backtest=true` | Lazy yfinance return-since-verdict per past analysis, capped at 15 rows |
-| **Data Trust** | Per-field `updated_at` + staleness decay | Confidence capped when source data is stale; RAG chunks flagged past 180 days |
-| **Macro Data** | FRED + yfinance fallback | 10Y yield, VIX, S&P 500, Fed Funds Rate, 15-min cache |
-| **Database** | PostgreSQL 16, 12 tables | `transactions`, `emis`, `financial_facts`, `user_risk_profiles`, `analysis_history`, etc. |
-| **Vector Store** | Qdrant | `wealthos_docs` + `user_analyses` collections |
-| **Cache** | Redis | Per-tool TTLs, 5 min–24 hr depending on data volatility |
-| **Observability** | LangSmith + W&B Weave | PII-masked `user_id` in traces; 4-dim LLM-as-judge eval scoring |
-| **Validation** | Pydantic v2 | Risk score range, verdict enum, memo section presence |
+| **Engine** | DuckDB 2.0 over Parquet | In-memory connection per request; external access, extension autoload and community extensions off; memory/thread limits; `lock_configuration` last; 10 s timeout |
+| **SQL Guard** | DuckDB parser + sqlglot | Exactly one SELECT, no file/URL/settings functions, every table and column checked against the real schema, 5,000-row cap |
+| **Number Check** | `verify.check_numbers` | Every number in a written answer must match a result (or a simple sum, difference, % change) within 0.5%; ₹ lakh/crore understood |
+| **LLM** | Groq `openai/gpt-oss-120b` (free tier) + free OpenRouter fallback (`nemotron-3-ultra:free`) | One client, JSON answers validated with Pydantic plus one repair retry, daily cost cap, usage logged per user |
+| **Metrics** | `metrics.yaml` + workspace metrics | Same definition everywhere: assistant, dashboards, exports |
+| **Time** | `timeexpr.py` | `today`, `mtd`, `qtd`, `ytd`, `fy` (Apr-Mar), `last_fy`, `trailing_12m`, explicit ranges, Asia/Kolkata dates |
+| **Mapping** | Rules → AI → confirm | PII masked before the AI sees sample values; the AI may only answer with standard column names |
+| **Dashboards** | Spec + ops + edit history | Every edit is an op checked before saving and kept as a new edit; a stale screen can't overwrite newer work |
+| **Refresh** | Parallel, no AI | Each tile re-runs its query; failed tiles show their own error; diff vs the last refresh |
+| **Strategy** | pandas, vectorized | Decide at the close, fill at the next open; NSE STT, stamp duty, exchange and SEBI fees, GST; deflated Sharpe across your earlier tries |
+| **Connections** | DuckDB postgres/mysql/sqlite extensions | Separate short-lived connection, READ_ONLY attach, password scrubbed from every error |
+| **Extraction** | `finx` | PDF statements with verified/unverified badges per number; Indian grouping and lakh/crore units |
+| **Excel Templates** | openpyxl + headless LibreOffice | Upload-time allowlist scan (no macros, OFFSET/INDIRECT, Tables), recalc with a throwaway profile, named output cells, errors reported |
+| **Exports** | openpyxl / browser print | Excel with a provenance sheet (SQL, period, files, data fingerprint); text cells can't become formulas; PDF via print |
+| **Frontend** | React 18 + Vite | react-grid-layout canvas, ECharts, dark theme with a blue-to-warm glow, serif headings; prints black on white |
 | **Auth** | bcrypt + JWT | 30-day sessions; fail-open locally, fail-closed when `WEALTHOS_ENV=production` |
-| **Rate Limiting** | Redis sliding-window log | 10 req/min per user, configurable, fails closed in production |
-| **Backend / Frontend** | FastAPI / Streamlit | Rate-limited API; cookie-session UI with permanent personal-doc storage |
+| **Storage** | Parquet per user + Postgres | `data/users/<id>/` holds raw files, datasets, workspaces, dashboards, runs; Postgres holds users and the LLM cost log |
+| **Outward MCP** | Read-only MCP server (`mcp_server.py`) | `list_workspaces`, `list_metrics`, `query_metric`, `explain_number` on your own data from Claude Desktop; token-checked |
+| **Compliance** | Always on | No buy/sell/hold advice, no price targets, no return claims; "Educational analytics, not investment advice" on every answer |
 
 </div>
 
@@ -156,7 +150,7 @@ flowchart LR
 
 ## Eval Results
 
-**26/28 (93%)** passed the DeepEval quality gate against the full golden dataset, judged by `gemini-2.5-flash-lite`. Faithfulness and Hallucination both at 100% across all 28 examples (US/Indian equities, ETFs, crypto, debt payoff, tax planning). See [`eval_report.md`](eval_report.md) for the full breakdown and known issues.
+**Measured on live outputs only.** `evals/run.py` asks 34 questions over 24 months of synthetic bank rows (one carrying a prompt injection), a Zerodha tradebook and a holdings export; every expected value is summed in plain Python, not by the engine, and must match within 0.5%. Live on Groq `gpt-oss-120b`: **value accuracy 100% (25/25)**, plan match 100%, advice questions refused 100%, 1.7 LLM calls per question (a fresh run with no recorded replies). The first run scored 88% and exposed five bugs, all fixed. CI replays the first 10 from recorded replies with no keys.
 
 </div>
 
@@ -171,52 +165,45 @@ git clone https://github.com/AmanDataGuy/WealthOS
 cd WealthOS
 python -m venv venv && venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-cp .env.example .env                           # fill in GROQ_API_KEY, WEALTHOS_DB_URL, etc.
+cp .env.example .env                           # fill in GROQ_API_KEY at least
+# tests: pip install -r requirements-dev.txt && pytest
 ```
 
-**Start infrastructure (Docker Desktop must be running):**
+**Start Postgres (Docker Desktop must be running; only sign-in and the cost log use it). Or run everything, `docker compose up -d --build`, and open http://localhost:8080:**
 ```bash
-docker start wealthos-postgres wealthos-redis wealthos-qdrant
+docker compose up -d wealthos-db
 ```
 
-**Initialise the database:**
+**Check your setup (the API creates its two tables on first start):**
 ```bash
-psql -h localhost -U wealthos -d wealthos -f scripts/init_db.sql
+python scripts/verify_env.py
 ```
 
-**Start API and UI (Windows — sets UTF-8 encoding required for emoji prints):**
+**Start the API and the web app:**
 ```powershell
-$env:PYTHONIOENCODING='utf-8'
-python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
-# in a second terminal:
-streamlit run wealthos_app.py --server.port 8501
+.\start.ps1          # Windows; bash start.sh on macOS / Linux
 ```
 
-Open **http://localhost:8501** — sign up, or use demo accounts: `admin / wealthos123` · `demo / demo123`.
+Open **http://localhost:5173**. Sign up, or use the demo accounts: `admin / wealthos123` · `demo / demo123`.
 
-**Index SEC filings and populate financial facts (first time only):**
-```bash
-python -m rag.indexer batch AAPL MSFT NVDA GOOGL TSLA AMZN
-python -m rag.populate_facts AAPL MSFT NVDA GOOGL TSLA AMZN
-```
-Skipping the second command leaves `financial_facts` empty — the Data Agent falls back to live-price-only data and every analysis reports `confidence: low`.
+**Add data (first time):**
+Go to **Data** → upload a bank CSV or tradebook, paste a Google Sheet link, or connect a database. Then **Dashboards** → **From template**. Unrecognised files show "needs mapping"; confirm the columns once and the same layout maps itself next time.
 
 **Required environment variables:**
 
 | Variable | Purpose |
 |---|---|
 | `GROQ_API_KEY` | Primary LLM (required) |
-| `OPENROUTER_API_KEY` | Fallback LLM provider if every Groq key fails — recommended |
-| `WEALTHOS_DB_URL` | PostgreSQL connection string (required) |
-| `REDIS_URL` | Redis (default: `redis://localhost:6379`) |
-| `QDRANT_URL` | Qdrant (default: `http://localhost:6333`) |
-| `E2B_API_KEY` | Code sandbox — DCF / Monte Carlo |
-| `LANGCHAIN_API_KEY` | LangSmith pipeline tracing |
-| `WANDB_API_KEY` | W&B Weave eval tracking |
-| `COHERE_API_KEY` | RAG reranking |
-| `FRED_API_KEY` | Macro data — 10Y yield, fed funds rate (optional; yfinance fallback) |
-| `FIRECRAWL_API_KEY` | News/Reddit full-article scraping; earnings call transcript indexing |
-| `WEALTHOS_JWT_SECRET` | Signs JWTs protecting every `{user_id}`-scoped endpoint — recommended |
+| `OPENROUTER_API_KEY` | Fallback LLM provider (free model by default): recommended |
+| `WEALTHOS_DB_URL` | Postgres for sign-in and the LLM cost log |
+| `WEALTHOS_JWT_SECRET` | Signs session tokens; required in production |
+| `WEALTHOS_FERNET_KEY` | Encrypts saved database connection strings |
+| `SEC_USER_AGENT` | Name + email SEC asks every client to send |
+| `WEALTHOS_MAX_DAILY_COST_USD` | Daily LLM spend cap (default 5) |
+| `WEALTHOS_RISK_FREE_RATE` | Sharpe ratio risk-free rate (default 6.5%) |
+| `LLM_MODEL` / `LLM_FALLBACK_MODEL` | Model overrides |
+| `LIBREOFFICE_PATH` | Only if LibreOffice is not in the default place (Excel templates) |
+| `ALLOWED_ORIGINS` | Browser origins allowed to call the API |
 
 See `.env.example` for the full list.
 
@@ -224,28 +211,28 @@ See `.env.example` for the full list.
 
 ## Demo
 
-**[Watch the full walkthrough on YouTube](https://youtu.be/6H6aCxz2w0U)** — the pipeline explained, then a live run of a real multi-part investment question end to end.
+**Walkthrough video:** to be recorded; it follows the script below.
 
-![WealthOS Analyze page — ticker, amount, horizon, and document upload inputs](docs/screenshots/analyze-input.png)
-*The Analyze page — set a ticker, investment amount, horizon, and optionally attach loan/EMI documents for personalised context.*
+The app has four tabs: **Data** to bring files and databases in, **Ask** to chat with a workspace, **Dashboards** for the editor and templates, and **Strategy lab**.
 
-![WealthOS generated investment memo — verdict, risk score, DCF value, and full analysis](docs/screenshots/analyze-result.png)
-*A completed memo — verdict, risk score, and DCF intrinsic value up top, followed by the full 7-section analysis.*
+Each answer shows its badge, the table behind it, and *How this was computed*. Dashboard tiles show *Trusted* or *Exploratory* in the corner.
 
-**Suggested tickers for a live walkthrough:**
+**Suggested data for a live walkthrough:**
 
-| Market | Tickers | RAG Coverage |
+| Audience | Data | What it shows |
 |--------|---------|----------|
-| US | `NVDA` `MSFT` `AAPL` `AMZN` `GOOGL` `TSLA` | Full SEC 10-K indexed in Qdrant |
-| India | `SBIN` `RELIANCE` `TCS` `INFY` `WIPRO` `HCLTECH` `ICICIBANK` `HDFCBANK` | Live via yfinance + NSE; annual report auto-indexed on first query |
+| Retail | Zerodha tradebook, CAS PDF, bank CSV, daily prices | Portfolio, spending, FY capital gains, strategy lab |
+| Business | A SQLite/Postgres sales DB, a budget Google Sheet | Sales performance, MIS / P&L, budget vs actual |
 
 **3-minute script:**
 
-1. **Analyze page** — query e.g. *"I have ₹30k–50k to invest and I'm fairly conservative. Should I add NVDA to my portfolio right now?"* · ticker `NVDA` · **Long-term** horizon · **Run analysis** → Verdict pill, Risk score bar, DCF intrinsic value, full 7-section memo
-2. Expand **Agent log** → walk through each node: Router → Finance → Data → Research → Risk → Code → Rebalancing → Writer → Tax (conditional) → Policy
-3. **History** page → **Memory** sub-tab → investor profile and past-decisions table that feeds every new risk analysis
-4. **`http://<host>:8000/docs`** → the rate-limited `/analyze` endpoint, `/upload-personal-doc`, the 9 agent metadata cards at `/agents`, and `POST /agents/risk_agent/invoke` (try `{"ticker": "NVDA"}`)
+1. **Data** → upload a messy tradebook, a CAS PDF (with password) and a bank CSV → confirm the two columns marked amber
+2. **Dashboards** → **From template** → Portfolio → change the period to `last_fy` → **Refresh** (no AI involved)
+3. **Ask** → *"What were my realized gains this FY, short vs long term?"* → Trusted badge → *How this was computed* (SQL, files) → **Add to dashboard**
+4. **Strategy lab** → *"Buy NIFTYBEES when the 50-day average crosses above the 200-day, sell when it crosses back"* → read the rule → run → equity curve vs buy-and-hold, charges, deflated Sharpe, label
+5. Upload a 10-K PDF → **Ask** *"What are the main risks?"* → answer with page citations, each number checked against the cited page
+6. **`http://<host>:8000/docs`** → every route: workspaces, connections, semantic, dashboards, templates, strategy, sources, feeds, research, query, assistant
 
-Any ticker works — live data via yfinance even without a pre-indexed filing; unknown tickers trigger on-demand indexing in the background.
+Any CSV works: unknown layouts go through mapping once, then behave like built-in ones.
 
 </div>

@@ -9,8 +9,10 @@
 #   get_filings_list      — list recent filings for a company
 #   get_10k               — fetch latest 10-K (annual report) metadata
 #   get_10q               — fetch latest 10-Q (quarterly report) metadata
-#   get_financial_facts   — fetch structured financial figures from XBRL API
-#                           (revenue, net income, operating income, etc.)
+#   get_financial_facts   — fetch structured financial figures from XBRL API via edgarx
+#                           (revenue, net income, operating income, etc.; periods by real dates)
+#   get_insider_trades    — recent Form 4 filings. BEST EFFORT: uses SEC's undocumented full-text
+#                           search endpoint and a ticker text match, so results can be incomplete.
 
 import os
 import logging
@@ -145,34 +147,34 @@ def extract_filings(submissions: dict, form_type: str, count: int = 5) -> list[d
     return filings
 
 
-def extract_xbrl_metric(us_gaap: dict, key: str) -> list[dict]:
-    """
-    Pull annual 10-K entries for a given XBRL metric key.
-    Converts values from USD to millions and returns only 10-K filings.
-    Falls back to empty list if the metric doesn't exist for this company.
-    """
-    entries = us_gaap.get(key, {}).get("units", {}).get("USD", [])
-    results = []
-    seen = set()  # deduplicate by fiscal_year
+# Our metric names -> edgarx field ids. edgarx picks each period by its real start/end dates and merges
+# tag switches (e.g. Revenues -> RevenueFromContractWithCustomer...), which fixes the old fiscal-year bug.
+XBRL_FIELDS = {
+    "total_revenue":            "is.total_revenue",
+    "net_income":               "is.net_income",
+    "operating_income":         "is.operating_income",
+    "gross_profit":             "is.gross_margin",
+    "research_and_development": "is.rnd",
+    "total_assets":             "bs.total_assets",
+    "total_liabilities":        "bs.total_liabilities",
+    "long_term_debt":           "bs.long_term_debt",
+    "cash_and_equivalents":     "bs.cash",
+    "operating_cash_flow":      "cf.operating",
+    "capital_expenditure":      "cf.capex",
+}
 
-    for e in entries:
-        # Only annual 10-K figures, skip amendments (10-K/A) and quarterly
-        if e.get("form") != "10-K":
-            continue
-        fy = e.get("fy")
-        if not fy or fy in seen:
-            continue
-        seen.add(fy)
-        results.append({
-            "value":       round(e["val"] / 1_000_000, 2),  # USD → millions
-            "fiscal_year": fy,
-            "period":      e.get("fp", "FY"),               # FY, Q1, Q2 etc.
-            "filed":       e.get("filed", ""),
-        })
 
-    # Sort by fiscal year descending — most recent first
-    results.sort(key=lambda x: x["fiscal_year"], reverse=True)
-    return results
+# One edgarx row -> our row: value in millions, fiscal year = the year the period ends, plus its source.
+def _to_millions_row(row: dict) -> dict:
+    return {
+        "value":       round(row["value"] / 1_000_000, 2),
+        "fiscal_year": int(row["period"]["end"][:4]),
+        "period":      "FY",
+        "period_end":  row["period"]["end"],
+        "filed":       row["source"]["filed"],
+        "concept":     row["source"]["concept"],
+        "accn":        row["source"]["accn"],
+    }
 
 
 # ── Tools ─────────────────────────────────────────────────────────────────────
@@ -333,86 +335,20 @@ def get_financial_facts(ticker: str) -> dict:
         cached["from_cache"] = True
         return cached
 
-    cik = get_cik(ticker)
-    if not cik:
-        return {"ticker": ticker, "error": f"Ticker '{ticker}' not found in SEC database."}
-
     try:
-        # XBRL company facts endpoint — completely separate from submissions
-        url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
-        resp = httpx.get(url, headers=SEC_HEADERS, timeout=30)
-        resp.raise_for_status()
-        raw = resp.json()
-
-        us_gaap = raw.get("facts", {}).get("us-gaap", {})
-        company_name = raw.get("entityName", ticker)
-
-        # ── Core metrics — XBRL standard keys ─────────────────────────────────
-        # Some companies use different XBRL keys for the same concept.
-        # We try multiple keys and take the first one that returns data.
-
-        def try_keys(*keys) -> list[dict]:
-            for key in keys:
-                result = extract_xbrl_metric(us_gaap, key)
-                if result:
-                    return result
-            return []
-
-        facts = {
-            # Income statement
-            "total_revenue": try_keys(
-                "Revenues",                          # AMZN, GOOGL
-                "RevenueFromContractWithCustomerExcludingAssessedTax",  # TSLA, AAPL
-                "SalesRevenueNet",                   # older filings
-            ),
-            "net_income": try_keys(
-                "NetIncomeLoss",
-                "ProfitLoss",
-            ),
-            "operating_income": try_keys(
-                "OperatingIncomeLoss",
-            ),
-            "gross_profit": try_keys(
-                "GrossProfit",
-            ),
-            "research_and_development": try_keys(
-                "ResearchAndDevelopmentExpense",
-            ),
-
-            # Balance sheet
-            "total_assets": try_keys(
-                "Assets",
-            ),
-            "total_liabilities": try_keys(
-                "Liabilities",
-            ),
-            "long_term_debt": try_keys(
-                "LongTermDebt",
-                "LongTermDebtNoncurrent",
-            ),
-            "cash_and_equivalents": try_keys(
-                "CashAndCashEquivalentsAtCarryingValue",
-                "CashCashEquivalentsAndShortTermInvestments",
-            ),
-
-            # Cash flow
-            "operating_cash_flow": try_keys(
-                "NetCashProvidedByUsedInOperatingActivities",
-            ),
-            "capital_expenditure": try_keys(
-                "PaymentsToAcquirePropertyPlantAndEquipment",
-            ),
-        }
-
-        # Remove metrics with no data for this company
-        facts = {k: v for k, v in facts.items() if v}
+        from edgarx import SecClient, company_financials
+        client = SecClient(user_agent=SEC_HEADERS["User-Agent"])
+        res = company_financials(client, ticker, fields=list(XBRL_FIELDS.values()), period="annual", last=10)
+        by_field = res["fields"]
+        facts = {name: [_to_millions_row(r) for r in by_field[fid]] for name, fid in XBRL_FIELDS.items() if fid in by_field}
 
         data = {
             "ticker":       ticker,
-            "cik":          cik,
-            "company_name": company_name,
+            "cik":          res["company"]["cik"],
+            "company_name": res["company"].get("entity") or ticker,
             "unit":         "millions_usd",
             "facts":        facts,
+            "source":       "sec_edgar_xbrl via edgarx (periods chosen by start/end dates)",
             "from_cache":   False,
         }
 

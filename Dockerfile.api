@@ -1,23 +1,12 @@
 FROM python:3.11-slim
 
 WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ libpq-dev curl \
-    tesseract-ocr poppler-utils && rm -rf /var/lib/apt/lists/*
-
-# Install CPU-only torch first — prevents pip from pulling the 8 GB CUDA build
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
+# LibreOffice Calc recalculates users' Excel templates (excel.py); headless, no GUI packages
+RUN apt-get update && apt-get install -y --no-install-recommends libreoffice-calc && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
-
 COPY . .
-
-# Pre-download embedding model so first pipeline run doesn't stall
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')" || true
 
 ENV PYTHONIOENCODING=utf-8
 EXPOSE 8000
-
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
