@@ -137,7 +137,7 @@ def test_parse_with_fake_llm(tmp_path, monkeypatch):
         asyncio.run(strategy.parse("u", None, "buy tesla"))
 
 
-# When Groq fails and the fallback answers, the spec names the fallback model, not Groq's (D-21).
+# When Groq fails and the fallback answers, the spec names the fallback model, not Groq's.
 def test_generated_by_names_the_model_that_answered(tmp_path, monkeypatch):
     from wealthos.services import llm_client as llm
 

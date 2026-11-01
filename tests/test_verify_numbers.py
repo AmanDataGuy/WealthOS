@@ -1,5 +1,5 @@
 # tests/test_verify_numbers.py
-"""check_numbers v2: the bypasses the audit confirmed by running them are closed (small rupee amounts, years
+"""check_numbers: the bypasses the audit confirmed by running them are closed (small rupee amounts, years
 written as rupees, the wrong currency on matching digits, derivations over unrelated values), honest narrations
 still pass, and a random property check: exact values always pass, a value off by more than 1% never does."""
 import random

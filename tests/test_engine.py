@@ -147,7 +147,7 @@ def test_workspaces_isolated(tmp_path):
     assert set(engine.schema(engine.open_readonly("u"))) == {"transactions"}
 
 
-# The same file uploaded into two workspaces is in both; deleting one workspace keeps the other's copy (D-09).
+# The same file uploaded into two workspaces is in both; deleting one workspace keeps the other's copy.
 def test_same_file_in_two_workspaces(tmp_path):
     from wealthos import workspaces
     biz = workspaces.create_workspace("u", "Company MIS")
