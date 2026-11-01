@@ -238,10 +238,11 @@ async def ask(user_id: str, question: str, previous_plan: dict | None = None,
     period = (provenance or {}).get("period")
     raw = await call_llm(EXPLAINER, f"Question: {question}\nPeriod: {period}\nResults: {json.dumps(shown, default=str)}"
                                     f"\nWarnings: {warnings}", max_tokens=300, temperature=0, user_id=user_id)
-    values = [v for r in rows for v in r.values()] + numbers_in(question)  # numbers the user typed may be repeated
+    values = numbers_in(question)  # numbers the user typed may be repeated
     if plan.kind == "company":  # SEC values are in USD millions, so "215,938 million" must also match 215938
-        values += [v * 1e6 for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)]
-    bad = check_numbers(raw or "", values)
+        values += [v * 1e6 for r in rows for v in r.values() if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    unit = {"company": "USD", "calc": "mixed"}.get(plan.kind, "INR")  # the user's own data is in rupees
+    bad = check_numbers(raw or "", values, unit, rows=rows)
     verified = bool(raw) and not bad
     text = raw if verified else _plain_summary(rows, period)
     if bad:

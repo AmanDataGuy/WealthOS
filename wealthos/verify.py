@@ -69,10 +69,35 @@ def guard_sql(sql: str, schema: dict[str, dict[str, str]], limit: int = MAX_ROWS
     return f"SELECT * FROM ({sql}) AS q LIMIT {int(limit)}"
 
 
-# A number in text: digits with Western or Indian commas and decimals, optionally followed by a size word.
-_NUMBER_IN_TEXT = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{2,3})+|\d+)(\.\d+)?\s*(%|lakhs?|lacs?|crores?|cr|k|thousand|million|mn|billion|bn)?\b", re.I)
+# A number in text: digits with Western or Indian commas and decimals, optionally followed by a size word. The
+# digits may sit right after a currency word ("Rs2000", "INR 5,000") but not after other letters ("FY26", "Q1").
+_NUMBER_IN_TEXT = re.compile(r"(?:(?<![\w.])|(?<=rs)|(?<=rs\.)|(?<=inr)|(?<=usd))(\d{1,3}(?:,\d{2,3})+|\d+)(\.\d+)?"
+                             r"\s*(%|lakhs?|lacs?|crores?|cr|k|thousand|million|mn|billion|bn)?\b", re.I)
 _SIZE = {"lakh": 1e5, "lakhs": 1e5, "lac": 1e5, "lacs": 1e5, "crore": 1e7, "crores": 1e7, "cr": 1e7, "k": 1e3,
          "thousand": 1e3, "million": 1e6, "mn": 1e6, "billion": 1e9, "bn": 1e9}
+_INDIAN_SIZES = {"lakh", "lakhs", "lac", "lacs", "crore", "crores", "cr"}
+# Currency written just before or just after a number.
+_INR_BEFORE = re.compile(r"(?:₹|\b(?:rs\.?|inr))\s?$", re.I)
+_USD_BEFORE = re.compile(r"(?:\$|\busd)\s?$", re.I)
+_INR_AFTER = re.compile(r"^\s*(?:rupees?|inr)\b", re.I)
+_USD_AFTER = re.compile(r"^\s*(?:dollars?|usd)\b", re.I)
+# A plain number (no currency, %, size word, comma or decimals) that counts or dates something is not checked:
+# "3 months", "top 5", "[p. 12]", "in 2026", "FY 2025-26". Dates are blanked out before the scan.
+_COUNT_AFTER = re.compile(r"^\s*(?:months?|days?|years?|weeks?|quarters?|hours?|minutes?|times|trades?|transactions?|"
+                          r"stocks?|holdings?|funds?|schemes?|companies|company|merchants?|categories|category|items?|"
+                          r"rows?|entries|accounts?|payments?|files?|tables?|metrics?|sections?|pages?)\b", re.I)
+_COUNT_BEFORE = re.compile(r"(?:\b(?:top|bottom|first|last|page|pages|note|section|item|rank|q|h)|\bp\.)\s*$", re.I)
+_MONTHS = (r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|"
+           r"oct(?:ober)?|nov(?:ember)?|dec(?:ember)?")
+_YEAR_BEFORE = re.compile(rf"\b(?:fy|in|of|since|from|to|year|by|until|during|before|after|{_MONTHS})\s*$", re.I)
+_DATES = re.compile(rf"\b\d{{4}}-\d{{2}}-\d{{2}}\b|\b\d{{1,2}}[/.-]\d{{1,2}}[/.-]\d{{2,4}}\b"
+                    rf"|\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:{_MONTHS})(?:,?\s+\d{{4}})?\b"
+                    rf"|\b(?:{_MONTHS})\.?\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,?\s+\d{{4}})?\b"
+                    rf"|\[p\.?\s*\d+\]", re.I)
+# Models write dates with non-breaking hyphens (U+2011) and numbers with narrow spaces (U+202F): read them plain.
+_PLAIN = str.maketrans(dict.fromkeys(map(chr, (0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2212)), "-")
+                       | dict.fromkeys(map(chr, (0xA0, 0x202F, 0x2009)), " "))
+MAX_DERIVE = 20  # pairwise sums / differences / % changes are taken over at most this many values per group
 
 
 # Every number written in a piece of text, as plain floats ("₹1.2 lakh" -> 120000.0). Used for numbers the user typed.
@@ -84,27 +109,76 @@ def numbers_in(text: str) -> list[float]:
     return out
 
 
-# Numbers in the text that don't match any computed value (or a sum / difference / % change of two). [] = all good.
-def check_numbers(text: str, values: list[float]) -> list[str]:
-    allowed = {float(v) for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)}
-    vals = list(allowed)[:60]  # ponytail: pairwise derivations are O(n^2), so only over the first 60 values
-    for i, a in enumerate(vals):  # simple derivations the narrative may state
-        for b in vals[i + 1:]:
-            allowed |= {a + b, abs(a - b)}
+# One number check_numbers refused. It compares equal to the text it was written as; `.reason` says why.
+class NumberIssue(str):
+    reason: str
+
+    def __new__(cls, text: str, reason: str):
+        issue = super().__new__(cls, text)
+        issue.reason = reason  # unmatched | currency_mismatch
+        return issue
+
+
+# A real number (bool is an int in Python, but True is not 1 rupee).
+def _is_number(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+# What a narration may state from one group of related numbers: the numbers, optionally their total, and pairwise
+# sums, differences and % changes over the first MAX_DERIVE of them.
+def _derived(group: list[float], total: bool) -> set[float]:
+    out = set(group) | ({sum(group)} if total and group else set())
+    head = group[:MAX_DERIVE]
+    for i, a in enumerate(head):
+        for b in head[i + 1:]:
+            out |= {a + b, abs(a - b)}
             if b:
-                allowed.add((a - b) / abs(b) * 100)
+                out.add((a - b) / abs(b) * 100)
             if a:
-                allowed |= {(b - a) / abs(a) * 100, b / a * 100}
+                out |= {(b - a) / abs(a) * 100, b / a * 100}
+    return out
+
+
+# Is this plain number a count, an ordinal or a year rather than an amount?
+def _is_count_or_year(text: str, m: re.Match) -> bool:
+    before, after, n = text[:m.start()], text[m.end():], int(m.group(1))
+    if _COUNT_AFTER.match(after) or _COUNT_BEFORE.search(before) or re.search(r"(?<!\d)(?:19|20)\d{2}[-–]$", before):
+        return True  # the last one is the "26" of "2025-26"
+    return 1900 <= n <= 2100 and bool(_YEAR_BEFORE.search(before) or re.match(r"[-–]\d{2}\b", after))
+
+
+# Numbers in the text that the results don't support. [] = all good. Each issue is the number as written, with a
+# reason: "unmatched" (not a value, nor a total / sum / difference / % change within one row, one column, or
+# `values`), or "currency_mismatch" ("$" on rupee results, "₹" or "lakh" on dollar results).
+# `unit` is the currency of the results: "INR", "USD", or "mixed" (no currency check).
+def check_numbers(text: str, values: list[float], unit: str = "mixed",
+                  rows: list[dict] | None = None) -> list[NumberIssue]:
+    rows = rows or []
+    allowed = _derived([float(v) for v in values if _is_number(v)], total=False)
+    for row in rows:  # "you kept 61,000 of 90,000": income minus spend, two columns of one row
+        allowed |= _derived([float(v) for v in row.values() if _is_number(v)], total=False)
+    totals = []
+    for col in {k for r in rows for k in r}:  # "12,000 more than TCS": two rows of one column, or the column total
+        cells = [float(r[col]) for r in rows if _is_number(r.get(col))]
+        allowed |= _derived(cells, total=True)
+        totals += [sum(cells)] if cells else []
+    allowed |= _derived(totals, total=True)  # "₹3,000 long-term + ₹1,500 short-term = ₹4,500": two column totals
+    text = _DATES.sub(" ", (text or "").translate(_PLAIN))
     bad = []
     for m in _NUMBER_IN_TEXT.finditer(text):
         whole, decimals, size = m.group(1), m.group(2) or "", (m.group(3) or "").lower()
-        n = float(whole.replace(",", "") + decimals)
-        if not decimals and not size and "," not in whole and (n <= 31 or 1900 <= n <= 2100):
-            continue  # ponytail: small counts ("3 months") and years are not checked; they rarely carry money
+        before, after = text[max(0, m.start() - 5):m.start()], text[m.end():m.end() + 10]
+        inr = bool(_INR_BEFORE.search(before) or _INR_AFTER.match(after)) or size in _INDIAN_SIZES
+        usd = bool(_USD_BEFORE.search(before) or _USD_AFTER.match(after))
+        if (unit == "INR" and usd) or (unit == "USD" and inr):
+            bad.append(NumberIssue(m.group(0).strip(), "currency_mismatch"))
+            continue
+        if not (inr or usd or size or decimals or "," in whole) and _is_count_or_year(text, m):
+            continue
         scale = _SIZE.get(size, 1.0)
-        n *= scale
+        n = float(whole.replace(",", "") + decimals) * scale
         half_step = 0.5 * 10 ** -len(decimals[1:]) * scale if decimals else 0.5 * scale  # rounding shown in the text
         if not any(abs(n - v) <= max(0.005 * abs(v), half_step) or abs(n - abs(v)) <= max(0.005 * abs(v), half_step)
                    for v in allowed):
-            bad.append(m.group(0).strip())
+            bad.append(NumberIssue(m.group(0).strip(), "unmatched"))
     return bad

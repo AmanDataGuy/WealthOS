@@ -54,8 +54,7 @@ async def _narrate(user_id: str, title: str, period: str, data: list[dict]) -> t
                          max_tokens=400, temperature=0, user_id=user_id)
     if not raw:
         return "", True, ["the summary could not be written (the language model did not answer); the numbers below are complete"]
-    values = [v for d in data for r in d["rows"] for v in r.values() if isinstance(v, (int, float)) and not isinstance(v, bool)]
-    bad = check_numbers(raw, values)
+    bad = check_numbers(raw, [], "INR", rows=[r for d in data for r in d["rows"]])
     if bad:
         return (f"This report covers {len(data)} section(s) for the period {period}; the figures are in the sections below.",
                 False, [f"the written summary had numbers not in the data ({', '.join(bad[:3])}), so it was replaced"])
