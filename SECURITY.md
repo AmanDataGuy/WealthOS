@@ -12,6 +12,7 @@ Please report vulnerabilities privately through a GitHub security advisory on th
 | One API process, one worker | Locks and JSON state are per process | Shared state in Postgres |
 | PII redaction is regex-based | Every LLM prompt passes one redactor: PAN, GSTIN, Aadhaar, phones, cards, accounts, IFSC, emails, UPI ids; not names in free text or UPI narrations | Name recognition (NER) |
 | Rate limits are per API process | 10/min per IP on `/auth/*`, 20/min per user on AI routes, 300/min otherwise | Shared buckets in Postgres for more than one replica |
+| Python strategy uploads run in a checked, time-limited child process, not a container | Code is checked before it runs (pandas / numpy / math only, no files, network or internals) and the feature is off in production by default | Run the child in a no-network container (gVisor / Modal / E2B) before enabling for strangers |
 
 ## Fixed issues
 
