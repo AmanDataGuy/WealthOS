@@ -18,13 +18,13 @@ export type MetricDef = { name: string; shape: string; unit: string; python?: st
 export type Semantic = { columns: Record<string, Record<string, { type: string; role: string }>>;
   metrics: Record<string, MetricDef> };
 
-// Chart colours for the dark theme (ECharts can't read CSS variables): the glow's blue -> violet -> orange -> pink,
-// then lighter steps; axis text and grid lines are tuned to read on the dark glass cards.
+// Chart colours for the "mat" theme (ECharts can't read CSS variables): muted cream first, the orange accent second,
+// then sage, wood and sand; axis text and hairlines in cream at low opacity.
 export const CHART = {
-  colors: ["#6f9bff", "#ff9a5a", "#ff6b9a", "#a98bff", "#ffc48a", "#3d63e6"],
-  text: "#c9d1e4", muted: "#9aa5bf", axis: "rgba(255,255,255,.18)", grid: "rgba(255,255,255,.06)",
+  colors: ["#B9B19A", "#C07030", "#8FA58F", "#7A4E24", "#E4DAC4", "#5E7A63"],
+  text: "#F0E8D2", muted: "rgba(240,232,210,.58)", axis: "rgba(240,232,210,.30)", grid: "rgba(240,232,210,.08)",
   axisStyle: () => ({ axisLine: { lineStyle: { color: CHART.axis } }, axisLabel: { color: CHART.muted }, splitLine: { lineStyle: { color: CHART.grid } } }),
-  tooltip: { backgroundColor: "#0d1428", borderColor: "rgba(255,255,255,.14)", textStyle: { color: "#eef1f8" } },
+  tooltip: { backgroundColor: "#2E3D30", borderColor: "rgba(240,232,210,.12)", textStyle: { color: "#F0E8D2" } },
 };
 
 export const KINDS = ["kpi", "line", "bar", "stacked_bar", "area", "pie", "donut", "table", "waterfall", "text"];

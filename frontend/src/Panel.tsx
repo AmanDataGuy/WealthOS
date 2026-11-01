@@ -71,7 +71,7 @@ export default function Panel({ tile, semantic, globalTime, onOps, onClose }: Pr
           </select></label>
         </>
       )}
-      <label>Colour<input type="color" value={t.style.color || "#6f9bff"} onChange={(e) => setT({ ...t, style: { ...t.style, color: e.target.value } })} /></label>
+      <label>Colour<input type="color" value={t.style.color || "#B9B19A"} onChange={(e) => setT({ ...t, style: { ...t.style, color: e.target.value } })} /></label>
       <label>Numbers<select value={t.style.number_format || ""} onChange={(e) => {
         const { number_format, ...rest } = t.style;
         setT({ ...t, style: e.target.value ? { ...rest, number_format: e.target.value } : rest });
