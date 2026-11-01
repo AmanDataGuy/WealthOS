@@ -1,11 +1,10 @@
-# docker-compose.yml - the web app, the API, the feed worker and Postgres (sign-in + LLM cost log).
-# User data lives in ./data (mounted into the API and the worker).
+# docker-compose.yml - the web app, the API, the price worker and Postgres (sign-in + LLM cost log).
+# User data lives in ./backend/storage (mounted into the API and the worker).
 # Start: docker compose up -d --build   ·   App: http://localhost:8080   ·   API docs: http://localhost:8000/docs
 services:
   wealthos-api:
     build:
-      context: .
-      dockerfile: Dockerfile.api
+      context: ./backend
     image: wealthos-api:latest
     container_name: wealthos-api
     ports:
@@ -16,31 +15,30 @@ services:
       WEALTHOS_DB_URL: postgresql://wealthos:wealthos_secure_password@wealthos-db:5432/wealthos
       WEALTHOS_ENV: production
     volumes:
-      - ./data:/app/data
+      - ./backend/storage:/app/storage
     depends_on:
       wealthos-db:
         condition: service_healthy
     restart: unless-stopped
 
-  wealthos-worker:   # pulls the "pull" live feeds on their schedule (wealthos/worker.py); reuses the API's image
+  wealthos-worker:   # refreshes NSE / mutual fund prices each evening (app/worker.py); reuses the API's image
     image: wealthos-api:latest
     pull_policy: never
     container_name: wealthos-worker
-    command: ["python", "-m", "wealthos.worker"]
+    command: ["python", "-m", "app.worker"]
     env_file:
       - .env
     environment:
       WEALTHOS_DB_URL: postgresql://wealthos:wealthos_secure_password@wealthos-db:5432/wealthos
     volumes:
-      - ./data:/app/data
+      - ./backend/storage:/app/storage
     depends_on:
       - wealthos-api
     restart: unless-stopped
 
   wealthos-web:      # the React app on nginx; /api/* is forwarded to wealthos-api
     build:
-      context: .
-      dockerfile: Dockerfile.web
+      context: ./frontend
     container_name: wealthos-web
     ports:
       - "8080:80"

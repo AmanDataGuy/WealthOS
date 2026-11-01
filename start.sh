@@ -8,11 +8,11 @@ PY="$ROOT/venv/bin/python"; [ -x "$PY" ] || PY="$ROOT/venv/Scripts/python"
 docker compose -f "$ROOT/docker-compose.yml" up -d wealthos-db >/dev/null 2>&1 \
   || echo "Postgres not started (Docker off): sign-in needs it, a dev token works without it."
 
-(cd "$ROOT" && PYTHONIOENCODING=utf-8 "$PY" -m uvicorn api.main:app --port 8000) &
+(cd "$ROOT/backend" && PYTHONIOENCODING=utf-8 "$PY" -m uvicorn app.main:app --port 8000) &
 API_PID=$!
-(cd "$ROOT/web" && { [ -d node_modules ] || npm install --no-audit --no-fund; } && npm run dev) &
+(cd "$ROOT/frontend" && { [ -d node_modules ] || npm install --no-audit --no-fund; } && npm run dev) &
 WEB_PID=$!
-(cd "$ROOT" && PYTHONIOENCODING=utf-8 "$PY" -m wealthos.worker) &   # pull feeds and evening prices
+(cd "$ROOT/backend" && PYTHONIOENCODING=utf-8 "$PY" -m app.worker) &   # evening prices
 WORKER_PID=$!
 
 echo "WealthOS: app http://localhost:5173  ·  API docs http://localhost:8000/docs"

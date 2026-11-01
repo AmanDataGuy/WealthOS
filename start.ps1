@@ -7,11 +7,11 @@ docker compose -f "$ROOT\docker-compose.yml" up -d wealthos-db 2>&1 | Out-Null
 if (-not $?) { Write-Host "Postgres not started (Docker off): sign-in needs it, a dev token works without it." }
 
 Start-Process powershell -ArgumentList @("-NoExit", "-Command",
-    "cd '$ROOT'; `$env:PYTHONIOENCODING='utf-8'; .\venv\Scripts\python -m uvicorn api.main:app --port 8000")
+    "cd '$ROOT\backend'; `$env:PYTHONIOENCODING='utf-8'; ..\venv\Scripts\python -m uvicorn app.main:app --port 8000")
 Start-Process powershell -ArgumentList @("-NoExit", "-Command",
-    "cd '$ROOT\web'; if (-not (Test-Path node_modules)) { npm install --no-audit --no-fund }; npm run dev")
+    "cd '$ROOT\frontend'; if (-not (Test-Path node_modules)) { npm install --no-audit --no-fund }; npm run dev")
 
 Start-Process powershell -ArgumentList @("-NoExit", "-Command",
-    "cd '$ROOT'; `$env:PYTHONIOENCODING='utf-8'; .\venv\Scripts\python -m wealthos.worker")   # pull feeds
+    "cd '$ROOT\backend'; `$env:PYTHONIOENCODING='utf-8'; ..\venv\Scripts\python -m app.worker")   # evening prices
 
 Write-Host "WealthOS: app http://localhost:5173  ·  API docs http://localhost:8000/docs"

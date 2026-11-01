@@ -15,10 +15,10 @@ venv/
 
 # Web app: installed packages and build output
 node_modules/
-web/dist/
+frontend/dist/
 
 # Your data, downloads and backups (personal financial data, never committed)
-data/
+backend/storage/
 
 # Local editor / OS / assistant files
 .vscode/

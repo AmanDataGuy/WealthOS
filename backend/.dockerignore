@@ -1,0 +1,6 @@
+# Only app/ and requirements.txt go into the image; keep the build context small.
+storage/
+tests/
+evals/
+**/__pycache__/
+.pytest_cache/

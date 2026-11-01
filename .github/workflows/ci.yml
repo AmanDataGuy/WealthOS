@@ -11,7 +11,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - run: pip install -r requirements-dev.txt
+        working-directory: backend
       # No "|| [ $? -eq 5 ]": zero collected tests must fail the build.
       - run: pytest -v --tb=short
-        env:
-          PYTHONPATH: "."
+        working-directory: backend
