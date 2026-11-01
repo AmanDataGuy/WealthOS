@@ -113,6 +113,22 @@ def test_mapping_confirm_and_auto_apply(tmp_path):
         mapping.confirm("u", t, "transactions", {"date": "When"})  # must-have columns missing
 
 
+# The mapping AI call is charged to the user who uploaded (usage and the per-user cap need the user id).
+def test_mapping_ai_call_names_the_user(tmp_path, monkeypatch):
+    import asyncio
+
+    from wealthos.services import llm_client
+    [t] = _upload(tmp_path, "mine.csv", "When,What,Money,DrCr\n05/04/2026,Rent,25000,Dr\n")
+    seen = {}
+
+    async def fake_llm(**kw):
+        seen.update(kw)
+        return "{}"
+    monkeypatch.setattr(llm_client, "call_llm", fake_llm)
+    asyncio.run(mapping.suggest("u", t))
+    assert seen["user_id"] == "u"
+
+
 # Two workspaces never see each other's tables; deleting a workspace removes only its datasets.
 def test_workspaces_isolated(tmp_path):
     from wealthos import workspaces

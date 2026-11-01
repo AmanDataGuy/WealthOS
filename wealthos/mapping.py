@@ -51,7 +51,7 @@ async def suggest(user_id: str, table: ExtractedTable) -> dict:
     rules = match_partial(headers, SHAPES[shape])
     ai, via = {}, "rules"
     if missing_required(rules, SHAPES[shape]):
-        ai_shape, ai = await _ask_ai(headers, table.profile)
+        ai_shape, ai = await _ask_ai(headers, table.profile, user_id)
         via = "rules+ai"
         if ai_shape and ai_shape != shape and not missing_required(ai, SHAPES[ai_shape]):
             shape, rules = ai_shape, match_partial(headers, SHAPES[ai_shape])  # the AI found a better-fitting shape
@@ -66,7 +66,7 @@ async def suggest(user_id: str, table: ExtractedTable) -> dict:
 
 
 # Ask the language model which standard column each header is. Returns (shape, {standard: header}); (None, {}) on any failure.
-async def _ask_ai(headers: list[str], profile: dict) -> tuple[str | None, dict]:
+async def _ask_ai(headers: list[str], profile: dict, user_id: str) -> tuple[str | None, dict]:
     from wealthos.services.llm_client import call_llm
     from wealthos.services.pii_redaction import redact_pii
 
@@ -78,7 +78,7 @@ async def _ask_ai(headers: list[str], profile: dict) -> tuple[str | None, dict]:
               "Use only file column names from the list given. Leave out anything you are not sure about.")
     user = f"File columns with example values (personal details masked): {json.dumps(examples, ensure_ascii=False)}"
     try:
-        raw = await call_llm(system=system, user=user, max_tokens=400, temperature=0)
+        raw = await call_llm(system=system, user=user, max_tokens=400, temperature=0, user_id=user_id)  # usage per user
         data = json.loads(re.search(r"\{.*\}", raw or "", re.S).group(0))
     except Exception:
         return None, {}
