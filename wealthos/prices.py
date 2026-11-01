@@ -12,6 +12,7 @@
   jumps. NAVs need no adjustment (`adjusted = true`).
 - A workspace remembers what it fetched (`prices.json`: source, symbols, start), so `refresh` brings everything up to
   today; `worker.py` does that once a day.
+- NSE fetching is off in production unless `WEALTHOS_ENABLE_NSE=1` (NSE data is not ours to redistribute).
 - Everything lands in the normal `prices` table (ts, symbol, open, high, low, close, volume, adjusted), one dataset
   per source + symbol list, replaced on every refresh.
 """
@@ -21,6 +22,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
@@ -29,6 +31,7 @@ from pathlib import Path
 import httpx
 
 from wealthos import engine
+from wealthos import settings
 from wealthos import timeexpr
 from wealthos.ingest import ExtractedTable, SourceRef
 
@@ -70,8 +73,16 @@ def nse_day(d: date) -> dict[str, dict]:
     return {r["symbol"]: r for r in csv.DictReader(io.StringIO(text))} if text else {}
 
 
+# NSE fetching is for self-hosted, personal use: a hosted server must not redistribute NSE data without NSE's
+# consent, so production has it off unless WEALTHOS_ENABLE_NSE=1.
+def nse_enabled() -> bool:
+    return os.getenv("WEALTHOS_ENABLE_NSE", "0" if settings.env() == "production" else "1") == "1"
+
+
 # Daily bars for NSE symbols between two dates. Returns (rows, warnings).
 def fetch_nse(symbols: list[str], start: date, end: date) -> tuple[list[dict], list[str]]:
+    if not nse_enabled():
+        raise ValueError("NSE prices are disabled on this server (licensing); upload a prices CSV instead")
     start = max(start, end - timedelta(days=MAX_DAYS))
     days = [start + timedelta(n) for n in range((end - start).days + 1) if (start + timedelta(n)).weekday() < 5]
     with ThreadPoolExecutor(4) as pool:  # ponytail: 4 at a time is polite to NSE; cached days cost nothing
