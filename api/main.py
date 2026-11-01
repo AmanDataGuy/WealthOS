@@ -96,6 +96,9 @@ async def _prepare_database() -> None:
             await conn.execute("""CREATE TABLE IF NOT EXISTS users (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(), username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())""")
+            # ponytail: in-place column adds until Alembic (P1.3) owns the schema
+            await conn.execute("""ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_logins INTEGER NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ""")
             await conn.execute("""CREATE TABLE IF NOT EXISTS llm_usage (
                 id SERIAL PRIMARY KEY, provider TEXT NOT NULL, model TEXT NOT NULL, prompt_tokens INTEGER NOT NULL,
                 completion_tokens INTEGER NOT NULL, total_tokens INTEGER NOT NULL, estimated_cost_usd NUMERIC NOT NULL,
@@ -221,6 +224,7 @@ USER = [Depends(verify_user_token)]
 USER_WS = [Depends(verify_user_workspace)]
 
 
+MAX_FAILED_LOGINS, LOCK_MINUTES = 10, 15
 _DUMMY_HASH = bcrypt.hashpw(b"no-such-user", bcrypt.gensalt()).decode()
 
 
@@ -257,13 +261,25 @@ async def signup(body: Credentials):
 
 @app.post("/auth/login")
 async def login(body: Credentials):
-    """Sign in with username and password."""
-    row = await _users("SELECT id::text, username, password_hash FROM users WHERE username = $1", body.username.strip())
+    """Sign in with username and password. 10 wrong passwords lock the account for 15 minutes."""
+    name = body.username.strip()
+    row = await _users("SELECT id::text, username, password_hash, failed_logins, locked_until "
+                       "FROM users WHERE username = $1", name)
+    now = datetime.now(timezone.utc)
+    locked = bool(row and row["locked_until"] and row["locked_until"] > now)
     stored = row["password_hash"] if row and row["password_hash"].startswith("$2") else None  # '!' = disabled
-    # Unknown or disabled users still pay for one bcrypt check, so timing doesn't reveal which usernames exist.
-    ok = bcrypt.checkpw(body.password.encode()[:72], (stored or _DUMMY_HASH).encode()) and stored is not None
+    # Unknown, disabled and locked users still pay for one bcrypt check, so timing reveals nothing, and all
+    # failures read the same.
+    ok = bcrypt.checkpw(body.password.encode()[:72], (stored or _DUMMY_HASH).encode()) and bool(stored) and not locked
+    if row and not ok and not locked:
+        failed = row["failed_logins"] + 1
+        until = now + timedelta(minutes=LOCK_MINUTES) if failed >= MAX_FAILED_LOGINS else None
+        await _users("UPDATE users SET failed_logins = $2, locked_until = $3 WHERE username = $1",
+                     name, 0 if until else failed, until)
     if not ok:
         raise HTTPException(401, "wrong username or password")
+    if row["failed_logins"]:
+        await _users("UPDATE users SET failed_logins = 0, locked_until = NULL WHERE username = $1", name)
     return {"user_id": row["id"], "username": row["username"], "token": _issue_token(row["id"], row["username"])}
 
 

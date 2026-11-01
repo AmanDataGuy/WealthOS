@@ -85,17 +85,25 @@ def test_demo_seed_is_random(monkeypatch, capsys):
     assert name.startswith("demo-") and name != "demo" and "wealthos123" not in capsys.readouterr().out
 
 
+# A fake users table behind main._users: answers the login SELECT and applies the two UPDATEs.
+def fake_users_table(monkeypatch, rows):
+    async def fake(query, name, *args):
+        row = rows.get(name)
+        if query.startswith("UPDATE") and row:
+            row["failed_logins"], row["locked_until"] = (args[0], args[1]) if args else (0, None)
+        return row
+    monkeypatch.setattr(main, "_users", fake)
+
+
+def _row(uid, name, password_hash):
+    return {"id": uid, "username": name, "password_hash": password_hash, "failed_logins": 0, "locked_until": None}
+
+
 # Unknown user, disabled user and wrong password all give the same 401, and each runs one bcrypt check.
 def test_login_failures_look_the_same(monkeypatch):
-    rows = {"gone": {"id": "1", "username": "gone", "password_hash": "!"},
-            "real": {"id": "2", "username": "real", "password_hash": main._hash("right-password")}}
-
-    async def fake_users(_q, name):
-        return rows.get(name)
-
+    fake_users_table(monkeypatch, {"gone": _row("1", "gone", "!"), "real": _row("2", "real", main._hash("right-pw"))})
     calls = []
     real_checkpw = bcrypt.checkpw
-    monkeypatch.setattr(main, "_users", fake_users)
     monkeypatch.setattr(main.bcrypt, "checkpw", lambda p, h: calls.append(h) or real_checkpw(p, h))
     monkeypatch.setattr(main, "JWT_SECRET", STRONG)
     client = TestClient(main.app)
@@ -103,4 +111,22 @@ def test_login_failures_look_the_same(monkeypatch):
         r = client.post("/auth/login", json={"username": name, "password": pw})
         assert (r.status_code, r.json()["detail"]) == (401, "wrong username or password")
     assert len(calls) == 3
-    assert client.post("/auth/login", json={"username": "real", "password": "right-password"}).status_code == 200
+    assert client.post("/auth/login", json={"username": "real", "password": "right-pw"}).status_code == 200
+
+
+# 10 wrong passwords lock the account: the right password is refused (same 401) until the lock runs out.
+def test_lockout_after_ten_failures(monkeypatch):
+    rows = {"real": _row("2", "real", main._hash("right-pw"))}
+    fake_users_table(monkeypatch, rows)
+    monkeypatch.setattr(main, "JWT_SECRET", STRONG)
+    client = TestClient(main.app)
+    login = lambda pw: client.post("/auth/login", json={"username": "real", "password": pw})
+    for _ in range(9):
+        assert login("wrong").status_code == 401
+    assert login("right-pw").status_code == 200 and rows["real"]["failed_logins"] == 0  # success resets the count
+    for _ in range(11):
+        assert login("wrong").status_code == 401
+    r = login("right-pw")
+    assert (r.status_code, r.json()["detail"]) == (401, "wrong username or password")
+    rows["real"]["locked_until"] = main.datetime.now(main.timezone.utc) - main.timedelta(seconds=1)  # lock expired
+    assert login("right-pw").status_code == 200
