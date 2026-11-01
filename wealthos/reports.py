@@ -39,7 +39,7 @@ async def build_report(user_id: str, dashboard_id: str, time: str | None = None,
     report = {"title": spec.title, "subtitle": subtitle.strip()[:200], "period": snap["time"],
               "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "sections": sections,
               "narrative": "", "verified": True, "warnings": [],
-              "disclaimer": "Educational analytics on your own data, not investment advice."}
+              "disclaimer": "Analytics on your own data, not investment advice (WealthOS is not SEBI-registered)."}
     data = [{"section": s["title"], "rows": s["rows"][:20]} for s in sections if s["rows"]]
     if narrative and data:
         report["narrative"], report["verified"], report["warnings"] = await _narrate(user_id, spec.title, snap["time"], data)

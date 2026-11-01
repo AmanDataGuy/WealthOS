@@ -173,7 +173,7 @@ function AnswerView({ a, question, u, boards, onPinned, onChoose }: {
             : <span className="muted">Added to {pinned}. <a href="#" onClick={(e) => { e.preventDefault(); onPinned(board); }}>Open it</a></span>)}
         </div>
       )}
-      <div className="disclaimer">Educational analytics on your own data, not investment advice.</div>
+      <div className="disclaimer">Analytics on your own data, not investment advice (WealthOS is not SEBI-registered).</div>
     </div>
   );
 }

@@ -39,7 +39,7 @@ from wealthos.engine import MetricQuery
 from wealthos.verify import check_numbers, numbers_in
 
 MAX_ROWS_TO_EXPLAIN = 40
-DISCLAIMER = "Educational analytics on your own data, not investment advice."
+DISCLAIMER = "Analytics on your own data, not investment advice (WealthOS is not SEBI-registered)."
 
 
 # What the planner decided to do. Exactly one of the detail fields is used, depending on `kind`.
