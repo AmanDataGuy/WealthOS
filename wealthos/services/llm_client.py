@@ -4,7 +4,9 @@
 - **Primary**: Groq (`GROQ_API_KEY`, model `LLM_MODEL`, default `openai/gpt-oss-120b`).
 - **Fallback**: OpenRouter (`OPENROUTER_API_KEY`, model `LLM_FALLBACK_MODEL`), used only if the primary fails.
 - One key per provider.
-- **Daily cost cap** (`WEALTHOS_MAX_DAILY_COST_USD`, default $5): calls stop once it is reached.
+- **Redaction**: every prompt goes through `redact_pii` here, so no call site can send raw PAN/phone/account numbers.
+- **Daily cost caps** over the last 24h: per user (`WEALTHOS_MAX_DAILY_COST_USD_USER`, default $0.50) and for the
+  whole server (`WEALTHOS_MAX_DAILY_COST_USD`, default $5). In production a budget that can't be checked refuses.
 - **Usage log**: every call's tokens and cost go to the `llm_usage` table, with the user it was for.
 - `call_json(...)`: ask for JSON matching a Pydantic model; the answer is checked, and wrong answers get one retry
   with the error shown to the model. Nothing unchecked comes out of it.
@@ -22,6 +24,9 @@ import re
 import httpx
 from dotenv import load_dotenv
 from pydantic import BaseModel, ValidationError
+
+from wealthos import settings
+from wealthos.services.pii_redaction import redact_pii
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -46,6 +51,7 @@ SERVED_MODEL: contextvars.ContextVar[str] = contextvars.ContextVar("served_model
 # bound); OpenRouter ":free" models cost nothing, other OpenRouter models are estimated at gpt-oss-20b's price.
 _PRICES = {"groq": (0.15, 0.60), "openrouter": (0.0, 0.0) if OPENROUTER_MODEL.endswith(":free") else (0.018, 0.09)}
 _MAX_DAILY_COST_USD = float(os.getenv("WEALTHOS_MAX_DAILY_COST_USD", "5.0"))
+_MAX_DAILY_COST_USD_USER = float(os.getenv("WEALTHOS_MAX_DAILY_COST_USD_USER", "0.50"))
 _PROVIDERS = [
     ("groq", "https://api.groq.com/openai/v1/chat/completions", GROQ_API_KEY),
     ("openrouter", "https://openrouter.ai/api/v1/chat/completions", OPENROUTER_API_KEY),
@@ -56,25 +62,38 @@ def _db_url() -> str:
     return os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
 
 
-# Stop if the last 24 hours of LLM spend reached the cap. Allows the call if the DB can't be checked
-# (an optional safety check must never take the app down). ponytail: no lock, two parallel calls can both pass.
-async def _check_cost_cap():
+# Last-24h LLM spend as (this user's, everyone's). Its own function so the budget check reads as one query.
+async def _spend_last_day(user_id: str | None) -> tuple[float, float]:
+    import asyncpg
+    conn = await asyncpg.connect(_db_url(), timeout=5)
+    try:
+        row = await conn.fetchrow(
+            "SELECT COALESCE(SUM(estimated_cost_usd) FILTER (WHERE user_id = $1), 0), COALESCE(SUM(estimated_cost_usd), 0) "
+            "FROM llm_usage WHERE created_at > NOW() - INTERVAL '1 day'", user_id)
+    finally:
+        await conn.close()
+    return float(row[0]), float(row[1])
+
+
+# Stop if this user's or everyone's last-24h LLM spend reached its cap. If the DB can't be checked, production refuses
+# the call (an unchecked budget is unbounded spend) and dev allows it with a warning.
+# ponytail: no lock, two parallel calls can both pass (a few cents over); a per-user advisory lock fixes it.
+async def _check_cost_cap(user_id: str | None = None):
     if not _db_url():
         return
     try:
-        import asyncpg
-        conn = await asyncpg.connect(_db_url(), timeout=5)
-        try:
-            total = await conn.fetchval("SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage "
-                                        "WHERE created_at > NOW() - INTERVAL '1 day'")
-        finally:
-            await conn.close()
+        mine, total = await _spend_last_day(user_id)
     except Exception as e:
-        logger.warning("[llm_client] Cost cap check unavailable, allowing call: %s", e)
+        if settings.env() == "production":
+            logger.error("[llm_client] Cost cap check unavailable, refusing call: %s", e)
+            raise CostCapReached("the AI budget can't be checked right now; try again shortly") from None
+        logger.warning("[llm_client] Cost cap check unavailable, allowing call (not production): %s", e)
         return
-    if total is not None and float(total) >= _MAX_DAILY_COST_USD:
-        raise CostCapReached(f"Daily LLM usage cap exceeded: ${float(total):.4f} spent in the last 24h, "
-                           f"limit is ${_MAX_DAILY_COST_USD:.2f}.")
+    if user_id and mine >= _MAX_DAILY_COST_USD_USER:
+        raise CostCapReached(f"You reached today's AI limit (${_MAX_DAILY_COST_USD_USER:.2f} in 24h). "
+                             "Dashboards and metrics keep working.")
+    if total >= _MAX_DAILY_COST_USD:
+        raise CostCapReached("The server reached today's AI limit. Dashboards and metrics keep working.")
 
 
 # Log a call's tokens and cost, and save them to the llm_usage table (best effort: never breaks a call).
@@ -101,8 +120,9 @@ async def _track_usage(usage: dict, model: str, provider: str, user_id: str | No
 # Ask the model. Returns the text, or "" if every provider failed.
 async def call_llm(system: str, user: str, max_tokens: int = 500, temperature: float = 0.1,
                    user_id: str | None = None) -> str:
-    await _check_cost_cap()
-    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    await _check_cost_cap(user_id)
+    # The one redaction choke point: nothing reaches a provider unredacted, whichever call site built the prompt.
+    messages = [{"role": "system", "content": redact_pii(system)}, {"role": "user", "content": redact_pii(user)}]
     async with httpx.AsyncClient() as client:
         for provider, url, key in _PROVIDERS:
             if not key:

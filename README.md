@@ -200,7 +200,8 @@ Go to **Data** → upload a bank CSV or tradebook, paste a Google Sheet link, or
 | `WEALTHOS_ENV` | `dev`, `test` or `production` (unset = production) |
 | `WEALTHOS_FERNET_KEY` | Encrypts saved database connection strings |
 | `SEC_USER_AGENT` | Name + email SEC asks every client to send |
-| `WEALTHOS_MAX_DAILY_COST_USD` | Daily LLM spend cap (default 5) |
+| `WEALTHOS_MAX_DAILY_COST_USD` | Daily LLM spend cap for the whole server (default 5) |
+| `WEALTHOS_MAX_DAILY_COST_USD_USER` | Daily LLM spend cap per user (default 0.50) |
 | `WEALTHOS_RISK_FREE_RATE` | Sharpe ratio risk-free rate (default 6.5%) |
 | `LLM_MODEL` / `LLM_FALLBACK_MODEL` | Model overrides |
 | `LIBREOFFICE_PATH` | Only if LibreOffice is not in the default place (Excel templates) |
