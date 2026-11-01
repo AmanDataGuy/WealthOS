@@ -145,6 +145,19 @@ def test_workspaces_isolated(tmp_path):
     assert [w["datasets"] for w in workspaces.list_workspaces("u")] == [1, 1]
     assert workspaces.delete_workspace("u", biz["id"]) == 1
     assert set(engine.schema(engine.open_readonly("u"))) == {"transactions"}
+
+
+# The same file uploaded into two workspaces is in both; deleting one workspace keeps the other's copy (D-09).
+def test_same_file_in_two_workspaces(tmp_path):
+    from wealthos import workspaces
+    biz = workspaces.create_workspace("u", "Company MIS")
+    bank = tmp_path / "bank.csv"
+    bank.write_text(BANK, encoding="utf-8")
+    engine.save_tables("u", parse_file(bank))
+    engine.save_tables("u", parse_file(bank), biz["id"])
+    assert [w["datasets"] for w in workspaces.list_workspaces("u")] == [1, 1]
+    workspaces.delete_workspace("u", biz["id"])
+    assert set(engine.schema(engine.open_readonly("u", "default"))) == {"transactions"}
     with pytest.raises(ValueError):
         workspaces.delete_workspace("u", "default")  # My files always stays
 

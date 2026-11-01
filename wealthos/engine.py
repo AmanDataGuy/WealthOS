@@ -106,7 +106,15 @@ def save_tables(user_id: str, tables: list, workspace_id: str = "default") -> li
         if t.status != "parsed" or t.shape == "unknown" or not t.rows:
             continue
         sheet = "".join(c if c.isalnum() else "_" for c in (t.source.sheet or "main"))
-        dataset_id = f"{t.source.content_hash[:16]}_{sheet}_{t.shape}"
+        old_id = f"{t.source.content_hash[:16]}_{sheet}_{t.shape}"
+        # Other workspaces put their id in front: the same file in two workspaces is two datasets (re-uploading it
+        # into one must not take it out of the other). "default" keeps the original format, so existing data and the
+        # recorded eval prompts keep their ids; a copy saved elsewhere under the original format is replaced.
+        ws = safe_id(workspace_id)
+        dataset_id = old_id if ws == "default" else f"{ws}_{old_id}"
+        for old in list_datasets(user_id, ws):
+            if old["dataset_id"] == old_id != dataset_id:
+                remove_dataset(user_id, old)
         folder = user_dir(user_id) / "datasets" / t.shape
         folder.mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame(t.rows)
