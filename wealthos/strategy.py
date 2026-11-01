@@ -223,7 +223,7 @@ def load_prices(user_id: str, workspace_id: str | None, universe: list[str], end
     try:
         cols = engine.schema(con).get("prices")
         if not cols:
-            raise LookupError("no price data in this workspace: upload daily prices (Date, Close ...) first")
+            raise engine.NotFound("no price data in this workspace: upload daily prices (Date, Close ...) first")
         have = {r["symbol"] for r in engine._execute(con, "SELECT DISTINCT symbol FROM prices")}
         missing = sorted(set(universe) - have)
         if missing:
@@ -388,7 +388,7 @@ def run(user_id: str, workspace_id: str | None, spec: StrategySpec | dict, gener
 def get_run(user_id: str, run_id: str) -> dict:
     path = _runs_dir(user_id) / f"{engine.safe_id(run_id)}.json"
     if not path.exists():
-        raise LookupError("run not found")
+        raise engine.NotFound("run not found")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -416,7 +416,7 @@ async def parse(user_id: str, workspace_id: str | None, text: str) -> dict:
         con = engine.open_readonly(user_id, workspace_id)
         try:
             if "prices" not in engine.schema(con):
-                raise LookupError("no price data in this workspace: upload daily prices first")
+                raise engine.NotFound("no price data in this workspace: upload daily prices first")
             return sorted(r["symbol"] for r in engine._execute(con, "SELECT DISTINCT symbol FROM prices"))
         finally:
             con.close()

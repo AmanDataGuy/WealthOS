@@ -44,7 +44,7 @@ def catalog() -> list[dict]:
 def _template(template_id: str) -> dict:
     t = load_templates().get(template_id)
     if not t:
-        raise LookupError(f"no template '{template_id}'")
+        raise engine.NotFound(f"no template '{template_id}'")
     return t
 
 

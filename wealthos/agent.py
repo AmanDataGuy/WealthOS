@@ -114,7 +114,7 @@ def list_chats(user_id: str, workspace_id: str | None = None) -> list[dict]:
 def get_chat(user_id: str, chat_id: str) -> dict:
     path = _chat_path(user_id, chat_id)
     if not path.exists():
-        raise LookupError(f"no chat '{chat_id}'")
+        raise engine.NotFound(f"no chat '{chat_id}'")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -265,7 +265,7 @@ async def _run(user_id: str, plan: Plan, workspace_id: str | None = None):
     if plan.kind == "company" and plan.ticker:
         facts = await asyncio.to_thread(tools.company_facts, plan.ticker)
         if facts.get("error"):
-            raise LookupError(facts["error"])
+            raise engine.NotFound(facts["error"])
         rows = [{"metric": name, **row} for name, series in facts.get("facts", {}).items() for row in series[:3]]
         return rows, {"tool": "sec_edgar_xbrl", "company": facts.get("company_name"), "cik": facts.get("cik")}, \
             ["values in USD millions, from SEC XBRL filings"], "external"

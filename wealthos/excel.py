@@ -127,7 +127,7 @@ def _folder(user_id: str, workspace_id: str) -> Path:
 def _meta(user_id: str, workspace_id: str, tid: str) -> tuple[Path, dict]:
     folder = _folder(user_id, workspace_id) / engine.safe_id(tid)
     if not (folder / "meta.json").exists():
-        raise LookupError(f"no template '{tid}'")
+        raise engine.NotFound(f"no template '{tid}'")
     return folder, json.loads((folder / "meta.json").read_text(encoding="utf-8"))
 
 
@@ -163,7 +163,7 @@ def delete(user_id: str, workspace_id: str, tid: str) -> None:
 def filled_path(user_id: str, workspace_id: str, tid: str) -> Path:
     folder, _ = _meta(user_id, workspace_id, tid)
     if not (folder / "filled.xlsx").exists():
-        raise LookupError("run the template first")
+        raise engine.NotFound("run the template first")
     return folder / "filled.xlsx"
 
 
@@ -201,7 +201,7 @@ def run(user_id: str, workspace_id: str, tid: str) -> dict:
     try:
         cols = engine.schema(con).get(meta["data_table"])
         if not cols:
-            raise LookupError(f"no '{meta['data_table']}' table in this workspace")
+            raise engine.NotFound(f"no '{meta['data_table']}' table in this workspace")
         keep = [c for c in cols if c not in ("source_file", "dataset_id", "source_row")]
         select = ", ".join('"' + c + '"' for c in keep)
         rows = engine._execute(con, f'SELECT {select} FROM "{meta["data_table"]}" LIMIT 100000')

@@ -229,7 +229,7 @@ def get(user_id: str, dashboard_id: str, version: int | None = None) -> Dashboar
     saved = _edit_numbers(user_id, dashboard_id)
     version = version or (saved[-1] if saved else None)
     if version not in saved:
-        raise LookupError("dashboard or edit not found")
+        raise engine.NotFound("dashboard or edit not found")
     path = _dir(user_id, dashboard_id) / f"v{version}.json"
     return DashboardSpec(**json.loads(path.read_text(encoding="utf-8")))
 
@@ -499,5 +499,5 @@ def _append(sheet, values: list) -> None:
 # Delete a dashboard with all its edits.
 def delete(user_id: str, dashboard_id: str) -> None:
     if not _edit_numbers(user_id, dashboard_id):
-        raise LookupError("dashboard not found")
+        raise engine.NotFound("dashboard not found")
     shutil.rmtree(_dir(user_id, dashboard_id))

@@ -65,7 +65,7 @@ def _dir(user_id: str, workspace_id: str) -> Path:
 def _load(user_id: str, workspace_id: str, feed_id: str) -> dict:
     path = _dir(user_id, workspace_id) / f"{engine.safe_id(feed_id)}.json"
     if not path.exists():
-        raise LookupError("feed not found")
+        raise engine.NotFound("feed not found")
     return json.loads(path.read_text(encoding="utf-8"))
 
 

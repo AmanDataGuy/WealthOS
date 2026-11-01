@@ -7,15 +7,18 @@ A thin layer: each route checks who is asking, then calls one plain-Python funct
   `{workspace_id}` also check that the workspace exists.
 - **Errors are mapped once** (bottom of the setup section), so routes stay one or two lines: not found -> 404,
   bad input -> 400, wrong feed token -> 401, too slow -> 408, the day's AI budget used up -> 429,
-  LibreOffice / a price site down -> 503 / 502.
+  LibreOffice / a price site down -> 503 / 502. Server paths are scrubbed from messages; any other error is a
+  500 that shows only a request id (also sent as X-Request-ID and stamped on every log line).
 - Plain `def` routes run in a background thread (FastAPI does that), so slow work never blocks other requests.
 
 Run: `uvicorn api.main:app --port 8000`. Every route is listed at http://localhost:8000/docs.
 """
 import asyncio
+import contextvars
 import json
 import logging
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -43,7 +46,19 @@ for _stream in (sys.stdout, sys.stderr):  # a ₹ in a log line must never crash
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
+REQUEST_ID: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="-")
+
+
+# Stamp each log record with the id of the request it belongs to ("-" outside a request).
+class _RequestIdFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = REQUEST_ID.get()
+        return True
+
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s [%(request_id)s] %(message)s")
+for _handler in logging.getLogger().handlers:
+    _handler.addFilter(_RequestIdFilter())
 logger = logging.getLogger(__name__)
 
 DB_URL = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
@@ -104,18 +119,51 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="WealthOS API", description="Your data in, trusted numbers and dashboards out", lifespan=lifespan)
+
+_REQUEST_ID_OK = re.compile(r"^[A-Za-z0-9-]{8,64}$")
+
+
+# Give every request an id (the caller's X-Request-ID if it looks sane), put it on log lines and the response,
+# and turn any error nobody mapped (a bug: KeyError, IndexError ...) into a 500 that names only the id.
+@app.middleware("http")
+async def request_id(request: Request, call_next):
+    rid = request.headers.get("x-request-id", "")
+    rid = rid if _REQUEST_ID_OK.match(rid) else uuid.uuid4().hex
+    REQUEST_ID.set(rid)
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception("unhandled error")
+        response = JSONResponse(status_code=500, content={"detail": f"the request could not be completed (ref {rid})"})
+    response.headers["X-Request-ID"] = rid
+    return response
+
+
 app.add_middleware(CORSMiddleware, allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(","),
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-ERRORS = [(LookupError, 404), (ValueError, 400), (PermissionError, 401), (TimeoutError, 408), (CostCapReached, 429),
-          (RuntimeError, 503), (subprocess.TimeoutExpired, 504), (httpx.HTTPError, 502)]
+# Errors the modules raise on purpose, with messages written for the user. A plain LookupError (KeyError ...) is
+# not here: only engine.NotFound means "not found"; the rest are bugs and get the generic 500 above.
+ERRORS = [(engine.NotFound, 404), (ValueError, 400), (ArithmeticError, 400), (PermissionError, 401),
+          (TimeoutError, 408), (CostCapReached, 429), (RuntimeError, 503), (subprocess.TimeoutExpired, 504),
+          (httpx.HTTPError, 502)]
+GENERIC = {502: "a data source this needs did not answer: try again later",
+           504: "the job took too long and was stopped"}
+# Server file paths (D:\..., /app/data/..., data/users/...) that library messages (DuckDB, LibreOffice) carry.
+_PATHS = re.compile(r"[A-Za-z]:[\\/]\S*|(?<![\w.])/(?:[\w.\-]+/)+[\w.\-]*|data[\\/]users\S*")
 
 
-# Turn an error raised by the modules into an HTTP answer with a readable message.
+# Turn an error raised by the modules into an HTTP answer with a readable message (server paths removed).
 def _error_handler(status: int):
-    # Answer with the error's status code and its message.
+    # Answer with the error's status code and its message; 5xx are logged with the request id.
     async def handle(_request: Request, exc: Exception):
-        detail = "the job took too long and was stopped" if isinstance(exc, subprocess.TimeoutExpired) else str(exc)
+        if isinstance(exc, ArithmeticError):
+            detail = "that number is too large (or divides by zero) to calculate"
+        else:
+            detail = GENERIC.get(status) or _PATHS.sub("<path>", str(exc))
+        if status >= 500:
+            logger.warning("%s: %s", type(exc).__name__, exc)
+            detail = f"{detail} (ref {REQUEST_ID.get()})"
         return JSONResponse(status_code=status, content={"detail": detail})
     return handle
 
@@ -357,7 +405,7 @@ def _uploaded_table(user_id: str, content_hash: str, index: int):
     path = _raw_dir(user_id) / Path(content_hash).name / "tables.json"
     tables = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []
     if not 0 <= index < len(tables):
-        raise LookupError("that upload or table was not found")
+        raise engine.NotFound("that upload or table was not found")
     return ExtractedTable(**tables[index])
 
 

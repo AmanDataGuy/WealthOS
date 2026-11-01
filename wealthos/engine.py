@@ -57,6 +57,11 @@ LONG_TERM_DAYS = 365  # listed equity: held more than 12 months = long term (Ind
 
 # ── Models ──────────────────────────────────────────────────────────────────────────────
 
+# Something the user asked for doesn't exist (an API 404). A plain KeyError / IndexError is a bug and stays a 500.
+class NotFound(LookupError):
+    pass
+
+
 # A question for the metric registry: which metrics, split by what, over which period, with which filters.
 class MetricQuery(BaseModel):
     metrics: list[str]
@@ -237,7 +242,7 @@ def run_metric(user_id: str, q: MetricQuery, today: date | None = None, workspac
     con = open_readonly(user_id, workspace_id)
     cols = schema(con).get(shape)
     if not cols:
-        raise LookupError(f"no {shape} data yet: upload a file that contains {shape} first")
+        raise NotFound(f"no {shape} data yet: upload a file that contains {shape} first")
     # "symbol" (trades, prices) and "symbol_or_scheme" (holdings) both name the instrument: accept either on any table.
     # The other name for the instrument column, if this table only has that one.
     same = lambda c: {"symbol": "symbol_or_scheme", "symbol_or_scheme": "symbol"}.get(c) if c not in cols else None
@@ -302,7 +307,7 @@ def run_sql(user_id: str, sql: str, workspace_id: str | None = None) -> Result:
     con = open_readonly(user_id, workspace_id)
     tables = schema(con)
     if not tables:
-        raise LookupError("no data yet: upload a file first")
+        raise NotFound("no data yet: upload a file first")
     safe_sql = guard_sql(sql, tables)
     used = {t.name.lower() for t in sqlglot.parse_one(sql, dialect="duckdb").find_all(exp.Table)} & set(tables)
     rows = _execute(con, safe_sql)

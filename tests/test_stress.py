@@ -118,3 +118,39 @@ def test_bad_other_features(c):
     answer = c.post("/assistant/ask", json={"user_id": "u", "question": "how much did I spend?"})
     assert answer.status_code == 200 and "unavailable" in answer.json()["text"]  # the AI is down: said plainly
     refused(c.post("/assistant/ask", json={"user_id": "u", "question": "hi", "chat_id": "no-such-chat"}), 404)
+
+
+# Errors never leak server paths or internals: mapped errors are scrubbed, unmapped ones (a bug) become a generic
+# 500 naming only the request id, and that id comes back in X-Request-ID.
+@pytest.mark.parametrize("exc, status", [
+    (ValueError('IO Error: No files found that match "/app/data/users/u/ws/x.parquet"'), 400),
+    (ValueError(r"could not open D:\projects\WealthOS\data\users\u\x.parquet"), 400),
+    (RuntimeError("LibreOffice failed: /tmp/lo_profile/x.xlsx"), 503),
+    (KeyError("internal_column_name"), 500),
+    (IndexError("list index out of range"), 500),
+    (OverflowError("(34, 'Result too large')"), 400),
+])
+def test_errors_do_not_leak(c, monkeypatch, exc, status):
+    from wealthos import workspaces
+
+    def boom(*_a, **_kw):
+        raise exc
+    monkeypatch.setattr(workspaces, "list_workspaces", boom)
+    r = c.get("/workspaces/u", headers={"X-Request-ID": "test-req-12345"})
+    body = r.json()["detail"]
+    assert r.status_code == status and r.headers["X-Request-ID"] == "test-req-12345"
+    assert "data" not in body.replace("your data", "") and "projects" not in body and "lo_profile" not in body
+    assert "internal_column_name" not in body and "index out of range" not in body
+    if status >= 500:
+        assert "ref test-req-12345" in body
+
+
+def test_request_id_is_made_when_missing_or_odd(c):
+    for sent in (None, "bad id with spaces", "x" * 100):
+        r = c.get("/health", headers={"X-Request-ID": sent} if sent else {})
+        assert len(r.headers["X-Request-ID"]) == 32 and r.headers["X-Request-ID"] != sent
+
+
+def test_not_found_is_still_404(c):
+    r = c.get("/dashboards/u/no-such-dashboard")
+    assert r.status_code == 404 and "not found" in r.json()["detail"]
