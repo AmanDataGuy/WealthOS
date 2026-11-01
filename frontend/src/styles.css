@@ -257,3 +257,17 @@ tr.total td { font-weight: 600; border-top: 1px solid var(--line-strong); }
 .excel-item { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .run-item { white-space: normal; }
 .meaning { font-size: 13px; padding: 6px 12px; overflow-wrap: anywhere; }
+
+/* Upload under the chat box, the account menu, the rebalancing table */
+.upload { padding-bottom: 20px; }
+.upload-toggle { border-radius: 999px; }
+.upload-panel { margin-top: 8px; background: var(--surface); border: 1px solid var(--line); }
+.upload-panel h3 { margin: 8px 0 0; }
+.account { position: relative; }
+.account summary { cursor: pointer; color: var(--muted); list-style: none; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; }
+.account .menu { position: absolute; right: 0; top: 40px; display: flex; flex-direction: column; gap: 6px; padding: 10px;
+  background: var(--solid); border: 1px solid var(--line); border-radius: 12px; z-index: 30; min-width: 180px; }
+.pct-input { width: 72px; text-align: right; }
+tr.off-target td { color: var(--warm); }
+.lab-main .chat-page { flex: none; }
+.lab-main .chat { padding: 0; }

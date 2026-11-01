@@ -1,22 +1,26 @@
-// Chat.tsx - ask questions about the workspace's data (agent.py behind /assistant/ask).
+// Chat.tsx - the home page: ask about your data (agent.py behind /assistant/ask); the same chat, compact, sits on
+// the strategy and rebalancing pages, and can run tax, rebalancing, price and backtest tools.
 // Each answer shows its numbers (rows), how they were computed (SQL, period, source files) and a badge:
 // Trusted = a named metric, Exploratory = a checked free query, External = SEC filings / news.
 // A clarify question shows its options as buttons (the choice is remembered as a definition), and a data answer
 // can be pinned to a dashboard: the tile stores the query, never the numbers.
-// Chats are saved per workspace (left list): open one to read it or carry on; "New chat" starts fresh.
+// Chats are saved (left list, each named in a few words): open one to read it or carry on; "New chat" starts fresh.
 import { useEffect, useRef, useState } from "react";
 import { del, formatNumber, get, post, safeHref } from "./api";
+import Upload from "./Upload";
 
 type Answer = { text: string; badge: string; rows: Record<string, any>[]; provenance: any; warnings: string[];
   plan: any; verified: boolean; clarify: { term: string; options: string[] } | null };
 type Turn = { question: string; answer?: Answer; error?: string };
 type ChatItem = { id: string; title: string; updated_at: string; turns: number };
-type Props = { u: string; ws: string; boards: { id: string; title: string }[]; onPinned: (id: string) => void };
+type Props = { u: string; boards: { id: string; title: string }[]; onPinned: (id: string) => void;
+  compact?: boolean; placeholder?: string };
+const ws = "default";
 
 const BADGES: Record<string, string> = { trusted: "Trusted", exploratory: "Exploratory", external: "External source", none: "" };
 
-// The Ask tab: question box, saved chats and the answers.
-export default function Chat({ u, ws, boards, onPinned }: Props) {
+// The chat: saved chats on the left (full page only), the answers, the question box and the upload button.
+export default function Chat({ u, boards, onPinned, compact = false, placeholder = "Ask anything about your money" }: Props) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -25,10 +29,11 @@ export default function Chat({ u, ws, boards, onPinned }: Props) {
   const [meanings, setMeanings] = useState<{ term: string; value: string }[]>([]);
   const end = useRef<HTMLDivElement>(null);
   // Load the saved chats for this workspace.
-  const loadChats = () => get(`/assistant/${u}/chats?workspace_id=${ws}`).then(setChats).catch(() => setChats([]));
+  const loadChats = () => get(`/assistant/${u}/chats`).then(setChats).catch(() => setChats([]));
   // Load what the user told the assistant words mean (answers to "did you mean ...?").
   const loadMeanings = () => get(`/assistant/${u}/definitions`).then(setMeanings).catch(() => setMeanings([]));
-  useEffect(() => { setTurns([]); setChatId(null); loadChats(); loadMeanings(); }, [ws]);
+  const [notice, setNotice] = useState("");
+  useEffect(() => { setTurns([]); setChatId(null); loadChats(); loadMeanings(); }, [u]);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [turns]);  // braces: an effect may only return a cleanup
 
   // Send a question (optionally defining a term) and add the answer to the chat.
@@ -60,17 +65,15 @@ export default function Chat({ u, ws, boards, onPinned }: Props) {
 
   return (
     <div className="chat-page">
-    <aside className="chat-side">
+    {!compact && <aside className="chat-side">
       <button className="primary" disabled={busy} onClick={() => { setChatId(null); setTurns([]); }}>New chat</button>
       {chats.map((c) => (
         <div key={c.id} className={`chat-item ${c.id === chatId ? "active" : ""}`}>
-          <button className="grow" disabled={busy} title={c.title} onClick={() => openChat(c.id)}>
-            <span>{c.title}</span><small>{new Date(c.updated_at).toLocaleDateString()} · {c.turns} question{c.turns === 1 ? "" : "s"}</small>
-          </button>
+          <button className="grow" disabled={busy} title={c.title} onClick={() => openChat(c.id)}><span>{c.title}</span></button>
           <button className="icon" title="Delete chat" disabled={busy} onClick={() => removeChat(c.id)}>×</button>
         </div>
       ))}
-      {!chats.length && <div className="muted">No saved chats in this workspace yet.</div>}
+      {!chats.length && <div className="muted">No chats yet.</div>}
       {meanings.length > 0 && <>
         <h3 className="side-head">Remembered meanings</h3>
         {meanings.map((m) => (
@@ -80,13 +83,13 @@ export default function Chat({ u, ws, boards, onPinned }: Props) {
           </div>
         ))}
       </>}
-    </aside>
+    </aside>}
     <div className="chat">
       <div className="chat-log">
-        {!turns.length && (
+        {!turns.length && !compact && (
           <div className="empty">
             <h2>Ask your money <em>anything.</em></h2>
-            <p className="muted">"How much did I spend this financial year?" · "Spending by month" · "Realized gains by stock" · "What was NVIDIA's revenue?"</p>
+            <p className="muted">"How much did I spend this financial year?" · "Old or new tax regime for me?" · "Is my portfolio off target?" · "Backtest INFY when RSI is below 30"</p>
           </div>
         )}
         {turns.map((t, i) => (
@@ -101,10 +104,12 @@ export default function Chat({ u, ws, boards, onPinned }: Props) {
         <div ref={end} />
       </div>
       <div className="chat-input">
-        <input className="grow" placeholder="Ask a question about your data" value={text} disabled={busy}
+        <input className="grow" placeholder={placeholder} value={text} disabled={busy}
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && text.trim() && ask(text.trim())} />
         <button className="primary" disabled={!text.trim() || busy} onClick={() => ask(text.trim())}>Ask</button>
       </div>
+      {!compact && <Upload u={u} onError={setNotice} />}
+      {notice && <div className="error" onClick={() => setNotice("")}>{notice}</div>}
     </div>
     </div>
   );

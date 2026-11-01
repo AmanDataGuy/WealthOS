@@ -1,9 +1,11 @@
-// Strategy.tsx - the strategy lab page: write an idea in plain English, read back exactly what will run
-// (the description is written by code, not the AI), run it on the workspace's prices, and compare with buy-and-hold.
+// Strategy.tsx - the strategy lab page: write an idea in plain English (read back exactly as it will run, the
+// description is written by code, not the AI) or upload a Python file defining weights(close) (run isolated, see
+// backend features/sandbox.py); run it on your prices and compare with buy-and-hold. The chat below can backtest too.
 // Every result carries the "not advice" label; nothing here places orders.
 import { useEffect, useRef, useState } from "react";
 import * as echarts from "echarts";
-import { CHART, formatNumber, get, post } from "./api";
+import Chat from "./Chat";
+import { CHART, formatNumber, get, post, upload } from "./api";
 
 type Parsed = { spec: any; description: string; generated_by: string; label: string };
 
@@ -13,9 +15,13 @@ const ROWS: [string, string, string][] = [  // [key, label, number format]
   ["time_invested_pct", "Time invested", "pct"], ["hit_rate_pct", "Winning days", "pct"], ["turnover_per_year", "Turnover per year", "plain"],
 ];
 
-// The Strategy lab tab: idea box, plain-English readback, results and past runs.
-export default function Strategy({ u, ws, onError }: { u: string; ws: string; onError: (m: string) => void }) {
+const ws = "default";
+
+// The Strategy lab tab: idea box or Python file, plain-English readback, results, past runs and the chat.
+export default function Strategy({ u, boards, onError }: { u: string; boards: { id: string; title: string }[]; onError: (m: string) => void }) {
   const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [symbols, setSymbols] = useState("");
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [result, setResult] = useState<any>(null);
   const [runs, setRuns] = useState<any[]>([]);
@@ -38,6 +44,13 @@ export default function Strategy({ u, ws, onError }: { u: string; ws: string; on
     setResult(await post(`/strategy/${u}/${ws}/run`, { spec: parsed!.spec, generated_by: parsed!.generated_by }));
     await loadRuns();
   });
+  // Backtest an uploaded Python strategy file.
+  const runPython = () => act("Running your strategy…", async () => {
+    const form = new FormData();
+    form.append("file", file!); form.append("symbols", symbols);
+    setParsed(null); setResult(await upload(`/strategy/${u}/${ws}/python`, form));
+    await loadRuns();
+  });
   // Open a past run.
   const open = (id: string) => act("Loading…", async () => { setParsed(null); setResult(await get(`/strategy/${u}/runs/${id}`)); });
 
@@ -51,6 +64,18 @@ export default function Strategy({ u, ws, onError }: { u: string; ws: string; on
         <div className="row">
           <button className="primary" disabled={!text.trim() || !!busy} onClick={parse}>Read my idea</button>
           {busy && <span className="muted">{busy}</span>}
+        </div>
+
+        <div className="card-box">
+          <h3>Or upload a Python strategy</h3>
+          <p className="muted">A .py file defining <code>weights(close)</code>: daily closes in (one column per stock), the weight to
+            hold in each stock out (0 to 1, a day adding up to at most 1). It runs isolated: pandas, numpy and math only,
+            no files or network, 30 seconds at most.</p>
+          <div className="row wrap">
+            <input type="file" accept=".py" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <input className="grow" placeholder="Stocks it trades, e.g. INFY, TCS" value={symbols} onChange={(e) => setSymbols(e.target.value)} />
+            <button className="primary" disabled={!file || !symbols.trim() || !!busy} onClick={runPython}>Run backtest</button>
+          </div>
         </div>
 
         {parsed && (
@@ -81,6 +106,7 @@ export default function Strategy({ u, ws, onError }: { u: string; ws: string; on
             {result.warnings.map((w: string) => <div key={w} className="error">{w}</div>)}
           </div>
         )}
+        <Chat u={u} boards={boards} onPinned={() => {}} compact placeholder="Ask to backtest an idea, e.g. INFY when RSI is below 30, sell above 70" />
       </section>
 
       <aside className="lab-runs">
