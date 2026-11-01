@@ -16,6 +16,9 @@ from wealthos.ingest import parse_file
     ("new", dict(salary=1075000, stcg=100000), 20800),       # rebate covers slab tax only: 20,000 on STCG stays, + cess
     ("new", dict(salary=1575000, stcg=50000, ltcg=225000), 132600),  # 1,05,000 slab + 10,000 STCG + 12,500 LTCG, + cess
     ("new", dict(salary=6075000), 1578720),                  # 60 L: 13,80,000 + 10% surcharge + cess
+    ("old", dict(salary=250000, ltcg=275000), 13000),        # 2 L normal + 2.75 L LTCG = 4.75 L: 87A can't touch the
+                                                             # 12,500 on 112A gains (s.112A(6)), + cess
+    ("old", dict(salary=250000, stcg=100000), 0),            # old regime: 87A does cover 111A STCG tax (10,000)
 ])
 def test_hand_computed(regime, kw, expected):
     assert tax.compute("2025-26", regime, **kw)["total_tax"] == expected

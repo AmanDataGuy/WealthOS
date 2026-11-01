@@ -75,12 +75,14 @@ def compute(fy: str, regime: str, salary: float = 0, other_income: float = 0, st
     stcg_taxable = max(0.0, stcg - unused)
     unused = max(0.0, unused - stcg)
     ltcg_taxable = max(0.0, ltcg - cg["ltcg_equity_112a_exemption"] - unused)
-    cg_tax = stcg_taxable * cg["stcg_equity_111a_pct"] / 100 + ltcg_taxable * cg["ltcg_equity_112a_pct"] / 100
+    stcg_tax = stcg_taxable * cg["stcg_equity_111a_pct"] / 100
+    cg_tax = stcg_tax + ltcg_taxable * cg["ltcg_equity_112a_pct"] / 100
 
     total_income = normal + stcg + ltcg
     rb = reg["rebate_87a"]
     if total_income <= rb["income_limit"]:
-        rebate = min(rb["max"], normal_tax if rb["excludes_special_rate_income"] else normal_tax + cg_tax)
+        # s.112A(6): in every regime the rebate never reduces tax on 112A long-term gains
+        rebate = min(rb["max"], normal_tax if rb["excludes_special_rate_income"] else normal_tax + stcg_tax)
     elif rb["marginal_relief"]:  # the tax on normal income may not exceed the income above the limit
         rebate = max(0.0, normal_tax - (total_income - rb["income_limit"]))
     else:
