@@ -9,6 +9,7 @@ A thin layer: each route checks who is asking, then calls one plain-Python funct
   bad input -> 400, wrong feed token -> 401, too slow -> 408, the day's AI budget used up -> 429,
   LibreOffice / a price site down -> 503 / 502. Server paths are scrubbed from messages; any other error is a
   500 that shows only a request id (also sent as X-Request-ID and stamped on every log line).
+- **Rate limits** per signed-in user (or IP before sign-in), see `wealthos/ratelimit.py`; over the limit -> 429.
 - Plain `def` routes run in a background thread (FastAPI does that), so slow work never blocks other requests.
 
 Run: `uvicorn api.main:app --port 8000`. Every route is listed at http://localhost:8000/docs.
@@ -17,6 +18,7 @@ import asyncio
 import contextvars
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -39,7 +41,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
-from wealthos import engine, settings
+from wealthos import engine, ratelimit, settings
 from wealthos.services.llm_client import CostCapReached
 
 for _stream in (sys.stdout, sys.stderr):  # a ₹ in a log line must never crash a Windows console
@@ -96,7 +98,7 @@ async def _prepare_database() -> None:
             await conn.execute("""CREATE TABLE IF NOT EXISTS users (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(), username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())""")
-            # ponytail: in-place column adds until Alembic (P1.3) owns the schema
+            # ponytail: in-place column adds until Alembic owns the schema
             await conn.execute("""ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_logins INTEGER NOT NULL DEFAULT 0,
                 ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ""")
             await conn.execute("""CREATE TABLE IF NOT EXISTS llm_usage (
@@ -124,6 +126,34 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="WealthOS API", description="Your data in, trusted numbers and dashboards out", lifespan=lifespan)
 
 _REQUEST_ID_OK = re.compile(r"^[A-Za-z0-9-]{8,64}$")
+# Proxies (Caddy) whose X-Forwarded-For is believed; from anyone else the header is ignored.
+_TRUSTED_PROXIES = {p.strip() for p in os.getenv("WEALTHOS_TRUSTED_PROXIES", "").split(",") if p.strip()}
+
+
+# Who is calling, for rate limits: the signed-in user when the token checks out, otherwise the client IP.
+def _caller(request: Request) -> str:
+    auth = request.headers.get("authorization", "")
+    if JWT_SECRET and auth.startswith("Bearer ") and not request.url.path.startswith("/auth/"):
+        try:
+            return "user:" + str(jwt.decode(auth[7:].strip(), JWT_SECRET, algorithms=["HS256"])["sub"])
+        except (jwt.InvalidTokenError, KeyError):
+            pass
+    ip = request.client.host if request.client else "unknown"
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if ip in _TRUSTED_PROXIES and forwarded:
+        ip = forwarded.split(",")[-1].strip()  # the proxy appends the address it saw
+    return "ip:" + ip
+
+
+# Per-caller request limits (wealthos/ratelimit.py); over the limit -> 429 with Retry-After. /health is never limited.
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    if request.url.path != "/health" and request.method != "OPTIONS":
+        wait = ratelimit.hit(_caller(request), request.url.path)
+        if wait:
+            return JSONResponse(status_code=429, headers={"Retry-After": str(math.ceil(wait))},
+                                content={"detail": f"too many requests, try again in {math.ceil(wait)} s"})
+    return await call_next(request)
 
 
 # Give every request an id (the caller's X-Request-ID if it looks sane), put it on log lines and the response,

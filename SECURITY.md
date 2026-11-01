@@ -10,8 +10,8 @@ Please report vulnerabilities privately through a GitHub security advisory on th
 |---|---|---|
 | Session token in `localStorage` | No third-party scripts; links from data are protocol-checked | httpOnly cookie session + CSRF (P9.2) |
 | One API process, one worker | Locks and JSON state are per process | Shared state in Postgres (P4/P5) |
-| PII redaction is regex-based | Catches PAN, Aadhaar, phones, emails, account numbers; not names in free text | Redaction at every LLM call site |
-| Login lockout is per account, no per-IP limit yet | Stops password guessing on one account | Per-IP rate limit on `/auth/*` |
+| PII redaction is regex-based | Every LLM prompt passes one redactor: PAN, GSTIN, Aadhaar, phones, cards, accounts, IFSC, emails, UPI ids; not names in free text or UPI narrations | Name recognition (NER) |
+| Rate limits are per API process | 10/min per IP on `/auth/*`, 20/min per user on AI routes, 300/min otherwise | Shared buckets in Postgres for more than one replica |
 
 ## Fixed issues
 
