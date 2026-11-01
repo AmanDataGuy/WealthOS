@@ -74,8 +74,10 @@ def test_bad_queries(c):
 
 def test_calculator_bombs():
     for expr in ["9**9**9", "(10**100)**100", "__import__('os')", "1/0", "x", "[1]*10**9", "round(1, 2, 3)"]:
-        with pytest.raises((ValueError, ZeroDivisionError, OverflowError, TypeError)):
+        with pytest.raises(ValueError):  # one error type, so the API always answers 400
             tools.calc(expr)
+    with pytest.raises(ValueError):
+        tools.calc("99**100 * 99**100 * 99**100")  # past float range
 
 
 def test_bad_dashboard_and_feed_input(c):
@@ -154,3 +156,20 @@ def test_request_id_is_made_when_missing_or_odd(c):
 def test_not_found_is_still_404(c):
     r = c.get("/dashboards/u/no-such-dashboard")
     assert r.status_code == 404 and "not found" in r.json()["detail"]
+
+
+# SEC being down once must not stick: the error is answered, not cached, and the next call succeeds.
+def test_company_facts_does_not_cache_errors(monkeypatch):
+    tools._company_facts.cache_clear()
+    monkeypatch.setattr(tools, "_sec_companies", lambda: {"ACME": ("0000000001", "Acme Inc")})
+    up = {"ok": False}
+
+    def sec_get(_url):
+        if not up["ok"]:
+            raise TimeoutError("SEC down")
+        return {"entityName": "Acme Inc", "facts": {}}
+    monkeypatch.setattr(tools, "_sec_get", sec_get)
+    assert "error" in tools.company_facts("acme")
+    up["ok"] = True
+    assert tools.company_facts("acme")["company_name"] == "Acme Inc"
+    tools._company_facts.cache_clear()

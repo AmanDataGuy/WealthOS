@@ -40,7 +40,7 @@ def calc(expression: str) -> float:
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
             return node.value
         if isinstance(node, ast.BinOp) and type(node.op) in _OPS:
-            if isinstance(node.op, ast.Pow) and abs(walk(node.right)) > 100:
+            if isinstance(node.op, ast.Pow) and (abs(walk(node.right)) > 100 or abs(walk(node.left)) > 1e18):
                 raise ValueError("power too large")
             return _OPS[type(node.op)](walk(node.left), walk(node.right))
         if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS:
@@ -54,7 +54,7 @@ def calc(expression: str) -> float:
     text = re.sub(r"(?<=\d),(?=\d)", "", expression.replace("₹", ""))
     try:
         return float(walk(ast.parse(text, mode="eval").body))
-    except (SyntaxError, ZeroDivisionError) as e:
+    except (SyntaxError, ArithmeticError, TypeError) as e:  # 1/0, a result past float range, round(1, 2, 3)
         raise ValueError(f"cannot calculate '{expression}': {e}") from None
 
 
@@ -128,20 +128,25 @@ def _sec_annual_values(facts: dict, kind: str, tags: list[str]) -> list[dict]:
 
 
 # A US-listed company's annual figures from SEC filings, newest first (USD millions, each with its filing id).
-@lru_cache(maxsize=64)  # ponytail: in-process cache; filings change a few times a year
+# An unknown ticker or SEC being down gives {"error"} so the assistant can say so; only successes are cached.
 def company_facts(ticker: str) -> dict:
     try:
-        cik, title = _sec_companies()[ticker.upper().replace(".", "-")]
-        facts = _sec_get(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json")
-    except Exception as e:  # unknown ticker, SEC down: the assistant says so instead of failing
+        return _company_facts(ticker.upper())
+    except Exception as e:
         return {"ticker": ticker, "error": f"no SEC figures for {ticker}: {e!r}"}
+
+
+@lru_cache(maxsize=64)  # ponytail: in-process cache; filings change a few times a year. lru_cache never keeps a raise.
+def _company_facts(ticker: str) -> dict:
+    cik, title = _sec_companies()[ticker.replace(".", "-")]
+    facts = _sec_get(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json")
     rows = {}
     for name, (kind, tags) in SEC_FIELDS.items():
         values = _sec_annual_values(facts, kind, tags)
         if values:
             rows[name] = [{"value": round(v["value"] / 1e6, 2), "fiscal_year": int(v["end"][:4]), "period_end": v["end"],
                            "filed": v["filed"], "concept": v["tag"], "accn": v["accn"]} for v in values]
-    return {"ticker": ticker.upper(), "cik": cik, "company_name": facts.get("entityName") or title,
+    return {"ticker": ticker, "cik": cik, "company_name": facts.get("entityName") or title,
             "unit": "millions_usd", "facts": rows}
 
 
