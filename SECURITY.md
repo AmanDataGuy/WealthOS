@@ -8,8 +8,8 @@ Please report vulnerabilities privately through a GitHub security advisory on th
 
 | Ceiling | Why it is acceptable for now | Planned fix |
 |---|---|---|
-| Session token in `localStorage` | No third-party scripts; links from data are protocol-checked | httpOnly cookie session + CSRF (P9.2) |
-| One API process, one worker | Locks and JSON state are per process | Shared state in Postgres (P4/P5) |
+| Session token in `localStorage` | No third-party scripts; links from data are protocol-checked | httpOnly cookie session + CSRF |
+| One API process, one worker | Locks and JSON state are per process | Shared state in Postgres |
 | PII redaction is regex-based | Every LLM prompt passes one redactor: PAN, GSTIN, Aadhaar, phones, cards, accounts, IFSC, emails, UPI ids; not names in free text or UPI narrations | Name recognition (NER) |
 | Rate limits are per API process | 10/min per IP on `/auth/*`, 20/min per user on AI routes, 300/min otherwise | Shared buckets in Postgres for more than one replica |
 

@@ -5,7 +5,7 @@
 // can be pinned to a dashboard: the tile stores the query, never the numbers.
 // Chats are saved per workspace (left list): open one to read it or carry on; "New chat" starts fresh.
 import { useEffect, useRef, useState } from "react";
-import { del, formatNumber, get, post } from "./api";
+import { del, formatNumber, get, post, safeHref } from "./api";
 
 type Answer = { text: string; badge: string; rows: Record<string, any>[]; provenance: any; warnings: string[];
   plan: any; verified: boolean; clarify: { term: string; options: string[] } | null };
@@ -149,7 +149,7 @@ function AnswerView({ a, question, u, boards, onPinned, onChoose }: {
           <thead><tr>{cols.map((c) => <th key={c} className={typeof a.rows[0][c] === "number" ? "num" : ""}>{c.replace(/_/g, " ")}</th>)}</tr></thead>
           <tbody>{a.rows.slice(0, 50).map((r, i) => <tr key={i}>{cols.map((c) => typeof r[c] === "number"
             ? <td key={c} className="num">{formatNumber(r[c], "plain")}</td>
-            : c === "url" && r[c] ? <td key={c}><a href={r[c]} target="_blank" rel="noreferrer">link</a></td>
+            : c === "url" && safeHref(r[c]) ? <td key={c}><a href={safeHref(r[c])} target="_blank" rel="noreferrer">link</a></td>
             : <td key={c}>{String(r[c] ?? "")}</td>)}</tr>)}</tbody>
         </table></div>
       )}

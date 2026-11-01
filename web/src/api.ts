@@ -77,6 +77,16 @@ export async function download(path: string, filename: string) {
   URL.revokeObjectURL(a.href);
 }
 
+// A link from data (news, filings) only if it is http(s): a "javascript:" URL in a row must never become clickable.
+export function safeHref(u: unknown): string | undefined {
+  try {
+    const x = new URL(String(u));
+    return x.protocol === "https:" || x.protocol === "http:" ? x.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // Numbers as the tile's style asks: ₹ with Indian grouping (default for INR), lakh / crore, %, or plain.
 export function formatNumber(v: unknown, format?: string, unit?: string): string {
   if (typeof v !== "number") return v == null ? "–" : String(v);

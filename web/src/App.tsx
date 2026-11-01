@@ -362,12 +362,14 @@ function Login({ onDone }: { onDone: (s: Session) => void }) {
         <button onClick={() => auth("/auth/signup")}>Create account</button>
       </div>
       {error && <div className="error">{error}</div>}
-      <details>
-        <summary>Local development: use a token</summary>
-        <input placeholder="User id" value={devUser} onChange={(e) => setDevUser(e.target.value)} />
-        <input placeholder="Token" value={devToken} onChange={(e) => setDevToken(e.target.value)} />
-        <button disabled={!devUser || !devToken} onClick={() => onDone({ userId: devUser, token: devToken })}>Continue</button>
-      </details>
+      {import.meta.env.DEV && (  // dev server only: production builds drop this panel
+        <details>
+          <summary>Local development: use a token</summary>
+          <input placeholder="User id" value={devUser} onChange={(e) => setDevUser(e.target.value)} />
+          <input placeholder="Token" value={devToken} onChange={(e) => setDevToken(e.target.value)} />
+          <button disabled={!devUser || !devToken} onClick={() => onDone({ userId: devUser, token: devToken })}>Continue</button>
+        </details>
+      )}
     </div>
   );
 }
