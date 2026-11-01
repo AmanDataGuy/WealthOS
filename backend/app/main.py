@@ -496,6 +496,16 @@ def list_user_datasets(user_id: str, workspace_id: Optional[str] = None):
     return engine.list_datasets(user_id, workspace_id)
 
 
+@app.delete("/sources/{user_id}/datasets/{dataset_id}", dependencies=USER)
+def delete_user_dataset(user_id: str, dataset_id: str):
+    """Remove one saved table (the assistant and dashboards stop seeing it)."""
+    meta = next((m for m in engine.list_datasets(user_id) if m["dataset_id"] == dataset_id), None)
+    if meta is None:
+        raise engine.NotFound("no such table")
+    engine.remove_dataset(user_id, meta)
+    return {"deleted": dataset_id}
+
+
 # One table as it was read from an upload (kept in tables.json), for mapping.
 def _uploaded_table(user_id: str, content_hash: str, index: int):
     from app.data.ingest import ExtractedTable

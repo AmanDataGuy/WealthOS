@@ -77,7 +77,11 @@ export default function Upload({ u, onError }: { u: string; onError: (m: string)
           <h3>Your data</h3>
           {!datasets.length && !docs.length && <p className="muted">Nothing yet.</p>}
           {datasets.map((d) => (
-            <div key={d.dataset_id} className="row"><b>{d.shape}</b><span className="muted">{d.source.file} · {d.rows} rows</span></div>
+            <div key={d.dataset_id} className="row">
+              <b>{d.shape}</b><span className="muted grow">{d.source.file} · {d.rows} rows</span>
+              <button className="icon" title="Remove this table" onClick={() => confirm(`Remove ${d.source.file} (${d.shape})?`) &&
+                act("Removing…", async () => { await del(`/sources/${u}/datasets/${encodeURIComponent(d.dataset_id)}`); await reload(); })}>×</button>
+            </div>
           ))}
           {docs.map((d) => (
             <div key={d.doc_id} className="row">

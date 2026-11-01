@@ -14,6 +14,12 @@ One fixed pipeline (no "multi-agent debates"); the AI never produces a number:
    - `rebalance`: current vs target mix of the holdings (`features/rebalance.py`), never what to buy
    - `prices`: fetch daily NSE / mutual fund prices into the user's data (`data/prices.py`)
    - `backtest`: a trading rule in words -> checked spec -> simulation (`features/strategy.py`)
+   - `multi`: up to 3 of the above for one question ("compare my spending with last year and my tax"), run in order,
+     rows tagged by step, explained once and checked against all of them
+   - `remember`: the user says what a word means or a preference ("remember that rent includes maintenance");
+     stored only because the user asked, shown under "Remembered meanings", deletable there
+   - `save_metric`: the user asks to track a new number; the formula is checked against the real tables and test-run
+     (`data/semantic.py`) before it is saved, then run
    - `clarify`: the question is ambiguous ("revenue" could be two things) -> ask once, remember the answer
    - `out_of_scope`: not something we can answer from data (we never give buy/sell advice)
 2. **Run** it in code (`engine.py` / `tools.py`). If the data is missing, say so instead of guessing.
@@ -50,7 +56,7 @@ DISCLAIMER = "Analytics on your own data, not investment advice (WealthOS is not
 # What the planner decided to do. Exactly one of the detail fields is used, depending on `kind`.
 class Plan(BaseModel):
     kind: Literal["metric", "sql", "company", "filing", "news", "calc", "tax", "rebalance", "prices", "backtest",
-                  "clarify", "out_of_scope", "smalltalk"]
+                  "multi", "remember", "save_metric", "clarify", "out_of_scope", "smalltalk"]
     metric_query: MetricQuery | None = None
     sql: str | None = None
     ticker: str | None = None
@@ -64,6 +70,9 @@ class Plan(BaseModel):
     symbols: list[str] = []         # prices: NSE trading symbols, or mutual fund scheme codes
     price_source: Literal["nse", "mf"] | None = None
     strategy_idea: str | None = None  # backtest: the user's rule, restated in full
+    steps: list[dict] = []          # multi: 2-3 plans of kind metric / sql / company / calc / tax / rebalance
+    memory: dict | None = None      # remember: {"term", "value"} in the user's own words
+    metric: dict | None = None      # save_metric: {key, name, table, date, sql (one aggregate), unit, time_semantics}
 
 
 # What the user gets back: the words, the numbers behind them, where they came from, and the plan (for follow-ups).
@@ -214,6 +223,13 @@ Rules:
   (INFY, NIFTYBEES) with price_source "nse", or numeric mutual fund scheme codes with "mf".
 - kind "backtest" for "backtest / test this strategy / how would this rule have done" on stocks with prices:
   strategy_idea = the full rule in plain words (which stocks, when to buy, when to sell).
+- kind "multi" only when one question needs 2-3 separate lookups (e.g. two different tables, or ledger + a company):
+  steps = a list of plans, each with its own kind (metric, sql, company, calc, tax or rebalance) and details.
+- kind "remember" when the user explicitly asks you to remember what a word means or how they like things:
+  memory = {"term", "value"} in the user's words. Never store anything the user did not ask you to remember.
+- kind "save_metric" when the user asks to track / save / define a new number: metric = {key (lower_snake_case),
+  name, table, date (a date column of that table), sql (ONE aggregate expression over that table's columns, e.g.
+  SUM(amount)), unit ("INR", "pct", "count"), time_semantics ("flow" or "point_in_time")}.
 - kind "clarify" if a word could mean two different columns/metrics and no confirmed definition settles it:
   give clarify_question, clarify_term and 2-4 clarify_options.
 - kind "out_of_scope" for buy/sell/hold advice, price targets, predictions, or anything the data can't answer:
@@ -246,6 +262,12 @@ async def ask(user_id: str, question: str, previous_plan: dict | None = None,
     if plan is None:
         return Answer(text="The assistant is unavailable right now (the language model did not answer). "
                            "Your dashboards still work.", badge="none", verified=True)
+
+    if plan.kind == "remember" and plan.memory and plan.memory.get("term") and plan.memory.get("value"):
+        term, value = str(plan.memory["term"])[:80], str(plan.memory["value"])[:300]
+        save_definition(user_id, term, value)
+        text = f'Noted: "{term}" means {value}. You can remove it under Remembered meanings.'
+        return Answer(text=text if not check_numbers(text, numbers_in(question)) else "Noted.", badge="none", plan=plan)
 
     if plan.kind == "filing":  # the text of the user's documents: research.py answers and checks with page citations
         res = await research.answer(user_id, question, workspace_id or "default")
@@ -334,6 +356,25 @@ async def _run(user_id: str, plan: Plan, workspace_id: str | None = None):
         rows = [{"series": "this rule", **res["metrics"]}, {"series": "buy and hold", **res["buy_and_hold"]}]
         return rows, {"tool": "strategy", "run_id": res["run_card"]["id"], "period": res["run_card"]["period"],
                       "rule": res["description"]}, res["warnings"] + [res["label"]], "trusted"
+    if plan.kind == "multi" and plan.steps:
+        rows, provenance, warnings, badges = [], [], [], set()
+        for n, step in enumerate(plan.steps[:3], 1):
+            sub = Plan.model_validate(step)
+            if sub.kind not in ("metric", "sql", "company", "calc", "tax", "rebalance"):
+                raise ValueError(f"step {n} ({sub.kind}) can't be part of a multi-step answer")
+            r, p, w, b = await _run(user_id, sub, workspace_id)
+            rows += [{"step": n, **row} for row in r or []]
+            provenance.append(p)
+            warnings += w
+            badges.add(b)
+        badge = next(b for b in ("exploratory", "external", "trusted") if b in badges | {"trusted"})
+        return rows, {"tool": "multi", "steps": provenance}, warnings, badge
+    if plan.kind == "save_metric" and plan.metric and plan.metric.get("key"):
+        key = str(plan.metric["key"])
+        await asyncio.to_thread(semantic.save_metric, user_id, workspace_id or "default", key, plan.metric)
+        r = await asyncio.to_thread(engine.run_metric, user_id, MetricQuery(metrics=[key], time="all"), None, workspace_id)
+        return r.rows, r.provenance.model_dump(), r.warnings + [f"saved as the metric '{key}' (use it in chat and dashboards)"], \
+            "trusted"
     if plan.kind in ("clarify", "out_of_scope", "smalltalk"):
         return None, None, [], "none"
     raise ValueError(f"the plan '{plan.kind}' was missing its details")

@@ -10,6 +10,9 @@ metrics instead of guessing. It can't upload, edit, delete or run free SQL.
 | `list_metrics` | every metric you can ask for (built-in + the workspace's own), with table and unit |
 | `query_metric` | the numbers, plus provenance: SQL, period dates, source files, data fingerprint |
 | `explain_number` | how one metric is defined (its SQL / method), which files and dates it covers, and its value |
+| `tax_estimate` | old vs new regime for a FY, capital gains from the tradebook |
+| `portfolio_drift` | current vs target mix of the holdings |
+| `list_backtests` | earlier strategy-lab runs |
 
 **Who you are:** set `WEALTHOS_TOKEN` to the token the app gave you at sign-in; it is checked with
 `WEALTHOS_JWT_SECRET`, exactly like the API. On a local install with no secret configured, `WEALTHOS_USER` names the
@@ -106,6 +109,34 @@ def explain_number(metric: str, time: str = "fy", workspace: str = "default") ->
     return {"metric": metric, "name": d["name"], "unit": d.get("unit"), "table": d["shape"],
             "definition": d.get("sql") or f"computed in code ({d.get('python')})", "value": r.rows,
             **{k: v for k, v in r.provenance.model_dump().items() if k != "params"}}
+
+
+# Tool: both income-tax regimes for a financial year.
+@mcp.tool()
+def tax_estimate(fy: str = "2026-27", salary: float = 0, other_income: float = 0, deductions_80c: float = 0,
+                 deductions_80d: float = 0, workspace: str = "default") -> dict:
+    """Tax under the old and new regime for a financial year ("2026-27"); capital gains are taken from the uploaded
+    tradebook. An educational estimate from published rates, not tax advice."""
+    from app.features.tax import compare
+    return compare(current_user(), workspace, fy, salary, other_income, deductions_80c, deductions_80d)
+
+
+# Tool: how far the portfolio is from the user's target mix.
+@mcp.tool()
+def portfolio_drift(workspace: str = "default") -> dict:
+    """Each holding's current vs target weight (targets set by the user in WealthOS), drift in percentage points and
+    the rupee change back to target. Arithmetic on the user's own targets, not advice."""
+    from app.features.rebalance import drift
+    return drift(current_user(), workspace)
+
+
+# Tool: earlier backtests.
+@mcp.tool()
+def list_backtests() -> list[dict]:
+    """The user's earlier strategy-lab runs (newest first): stocks, period, deflated Sharpe. Historical simulation,
+    not advice."""
+    from app.features.strategy import list_runs
+    return list_runs(current_user())
 
 
 if __name__ == "__main__":

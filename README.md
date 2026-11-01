@@ -55,7 +55,7 @@ flowchart LR
     Features --> Engine
     Engine --> PQ
     Agent --> Verify[ai/verify.py<br>SQL guard · number check]:::guard
-    MCP[mcp_server.py<br>read-only tools for Claude Desktop]:::interface --> Engine
+    MCP[mcp_server.py<br>read-only: metrics, tax, drift, backtests]:::interface --> Engine
     API --> PG[(Postgres<br>users · LLM cost log)]:::data
 ```
 
@@ -95,7 +95,7 @@ User data lives in `backend/storage/` (never committed). Postgres holds only acc
 | Category | Stack | Detail |
 |:---:|:---|:---|
 | **Engine** | DuckDB over Parquet | In-memory connection per request; no external access or extensions; memory/thread limits; locked config; 10 s timeout |
-| **Assistant** | One plan, one tool, one explanation | Tools: metrics, guarded SQL, SEC XBRL, news, filing pages, calc, tax, rebalancing, price fetch, backtest; clarifications become remembered definitions |
+| **Assistant** | One plan, up to 3 tools, one explanation | Tools: metrics, guarded SQL, SEC XBRL, news, filing pages, calc, tax, rebalancing, price fetch, backtest, save a new metric; "remember that ..." and clarifications become remembered meanings |
 | **SQL Guard** | DuckDB parser + sqlglot | One SELECT, no file/URL/settings functions, every table and column checked, 5,000-row cap |
 | **Number Check** | `ai/verify.py` | Every number in a written answer must match a result (or a sum / difference / % change within one row or column); currency must match |
 | **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | PII redacted on every prompt; per-user and server daily cost caps; usage logged per user |
