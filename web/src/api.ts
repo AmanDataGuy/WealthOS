@@ -62,7 +62,7 @@ async function request(path: string, method: string, body?: unknown): Promise<Re
 // GET, POST, DELETE and PUT: send the request and return the JSON answer.
 export const get = async <T = any>(path: string): Promise<T> => (await request(path, "GET")).json();
 export const post = async <T = any>(path: string, body: unknown = {}): Promise<T> => (await request(path, "POST", body)).json();
-export const del = async <T = any>(path: string): Promise<T> => (await request(path, "DELETE")).json();
+export const del = async <T = any>(path: string, body?: unknown): Promise<T> => (await request(path, "DELETE", body)).json();
 export const put = async <T = any>(path: string, body: unknown): Promise<T> => (await request(path, "PUT", body)).json();
 export const patch = async <T = any>(path: string, body: unknown): Promise<T> => (await request(path, "PATCH", body)).json();
 

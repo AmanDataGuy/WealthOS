@@ -80,6 +80,15 @@ function Editor({ session, onLogout }: { session: Session; onLogout: () => void 
     setWs("default"); setWorkspaces(await get(`/workspaces/${u}`));
   });
 
+  const exportAccount = () => run(() => download(`/account/${u}/export`, "wealthos-export.zip"));
+
+  const deleteAccount = () => run(async () => {
+    const typed = prompt("This deletes your account and everything you uploaded, for good. Type your username to confirm.");
+    if (!typed) return;
+    await del(`/account/${u}`, { confirm: typed });
+    onLogout();
+  });
+
   const base = spec ? `/dashboards/${u}/${spec.id}` : "";
   // Re-run the dashboard's tiles for the chosen period.
   const refresh = async (s: Spec, time?: string) => setSnap(await post(`/dashboards/${u}/${s.id}/refresh`, { time }));
@@ -177,6 +186,8 @@ function Editor({ session, onLogout }: { session: Session; onLogout: () => void 
         <span className="spacer" />
         {busy && <span className="muted">Working…</span>}
         <span className="muted">{session.username || session.userId}</span>
+        <button onClick={exportAccount}>Export my data</button>
+        <button onClick={deleteAccount}>Delete account</button>
         <button onClick={onLogout}>Sign out</button>
       </header>
       {error && <div className="banner" onClick={() => setError("")}>{error} <small>(click to dismiss)</small></div>}

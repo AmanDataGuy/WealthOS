@@ -137,7 +137,7 @@ flowchart LR
 | **Excel Templates** | openpyxl + headless LibreOffice | Upload-time allowlist scan (no macros, OFFSET/INDIRECT, Tables), recalc with a throwaway profile, named output cells, errors reported |
 | **Exports** | openpyxl / browser print | Excel with a provenance sheet (SQL, period, files, data fingerprint); text cells can't become formulas; PDF via print |
 | **Frontend** | React 18 + Vite | react-grid-layout canvas, ECharts, dark theme with a blue-to-warm glow, serif headings; prints black on white |
-| **Auth** | bcrypt + JWT | 7-day sessions; the API refuses to start without a 32+ byte secret; no default accounts |
+| **Auth** | bcrypt + JWT | 7-day sessions; the API refuses to start without a 32+ byte secret; no default accounts; users can export or delete all their data |
 | **Storage** | Parquet per user + Postgres | `data/users/<id>/` holds raw files, datasets, workspaces, dashboards, runs; Postgres holds users and the LLM cost log |
 | **Outward MCP** | Read-only MCP server (`mcp_server.py`) | `list_workspaces`, `list_metrics`, `query_metric`, `explain_number` on your own data from Claude Desktop; token-checked |
 | **Compliance** | Always on | No buy/sell/hold advice, no price targets, no return claims; "Educational analytics, not investment advice" on every answer |

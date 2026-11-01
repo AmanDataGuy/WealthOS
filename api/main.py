@@ -16,6 +16,8 @@ Run: `uvicorn api.main:app --port 8000`. Every route is listed at http://localho
 """
 import asyncio
 import contextvars
+import csv
+import io
 import json
 import logging
 import math
@@ -25,6 +27,7 @@ import secrets
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
@@ -219,7 +222,25 @@ def _issue_token(user_id: str, username: str) -> str:
                        "exp": now + timedelta(days=settings.token_days())}, JWT_SECRET, algorithm="HS256")
 
 
-# Check the Bearer token belongs to `user_id`. No secret = refuse, unless insecure dev auth was switched on.
+_USER_SEEN: dict[str, float] = {}  # user id -> when the users table last confirmed it (monotonic seconds)
+
+
+# Does the user still exist? A deleted account's tokens stop working within a minute (the answer is cached that long).
+async def _user_exists(user_id: str) -> bool:
+    if not DB_URL or time.monotonic() - _USER_SEEN.get(user_id, -1e9) < 60:
+        return True
+    try:
+        row = await _users("SELECT 1 FROM users WHERE id::text = $1", user_id)
+    except Exception as e:  # the token's signature is already checked; a database blip must not sign everyone out
+        logger.warning("user lookup unavailable: %s", e)
+        return True
+    if row:
+        _USER_SEEN[user_id] = time.monotonic()
+    return bool(row)
+
+
+# Check the Bearer token belongs to `user_id` (and the account still exists). No secret = refuse, unless insecure
+# dev auth was switched on.
 async def verify_user_token(user_id: str, authorization: Optional[str] = Header(None)) -> str:
     if not JWT_SECRET:
         if settings.insecure_dev_auth():
@@ -234,6 +255,8 @@ async def verify_user_token(user_id: str, authorization: Optional[str] = Header(
         raise HTTPException(401, f"invalid token: {e}")
     if payload.get("sub") != user_id:
         raise HTTPException(403, "this token does not belong to that user")
+    if not await _user_exists(user_id):
+        raise HTTPException(401, "this account no longer exists")
     return user_id
 
 
@@ -317,6 +340,55 @@ async def login(body: Credentials):
 def health():
     """Is the API up."""
     return {"status": "ok"}
+
+
+# ── Account: take everything you stored with you, or delete it ─────────────────────────────────────────────
+
+# Deleting an account: the username typed again, so it can't happen by accident.
+class DeleteAccount(BaseModel):
+    confirm: str
+
+
+@app.get("/account/{user_id}/export", dependencies=USER)
+async def account_export(user_id: str):
+    """Everything you stored, plus your AI usage, as one zip (saved database passwords are left out)."""
+    from wealthos import account
+    usage = []
+    if DB_URL:
+        conn = await asyncpg.connect(DB_URL)
+        try:
+            usage = await conn.fetch("SELECT created_at, provider, model, prompt_tokens, completion_tokens, "
+                                     "estimated_cost_usd FROM llm_usage WHERE user_id = $1 ORDER BY created_at", user_id)
+        finally:
+            await conn.close()
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["created_at", "provider", "model", "prompt_tokens", "completion_tokens", "estimated_cost_usd"])
+    writer.writerows([list(r.values()) for r in usage])
+    data = await asyncio.to_thread(account.export_zip, user_id, {"ai_usage.csv": out.getvalue()})
+    return Response(data, media_type="application/zip",
+                    headers={"Content-Disposition": 'attachment; filename="wealthos-export.zip"'})
+
+
+@app.delete("/account/{user_id}", dependencies=USER)
+async def account_delete(user_id: str, body: DeleteAccount):
+    """Delete your account and everything you stored; send your username as `confirm`. AI usage rows are kept
+    without your id (server spend totals only)."""
+    from wealthos import account
+    row = await _users("SELECT username FROM users WHERE id::text = $1", user_id)
+    if not row or row["username"] != body.confirm.strip():
+        raise HTTPException(400, "type your username to confirm")
+    files = await asyncio.to_thread(account.delete_files, user_id)
+    conn = await asyncpg.connect(DB_URL)
+    try:
+        async with conn.transaction():
+            await conn.execute("UPDATE llm_usage SET user_id = NULL WHERE user_id = $1", user_id)
+            await conn.execute("DELETE FROM users WHERE id::text = $1", user_id)
+    finally:
+        await conn.close()
+    _USER_SEEN.pop(user_id, None)
+    logger.info("account deleted (%d files)", files)
+    return {"deleted_files": files, "at": datetime.now(timezone.utc).isoformat()}
 
 
 # ── Workspaces: named groups of data that chats and dashboards are tied to ─────────────────────────────────
