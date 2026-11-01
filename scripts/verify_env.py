@@ -45,13 +45,24 @@ async def check_postgres() -> None:
         await conn.close()
 
 
+# The same check the API runs at startup (settings.jwt_secret).
+def _secret_ok() -> bool:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # the project folder
+    from wealthos import settings
+    try:
+        settings.jwt_secret()
+        return True
+    except RuntimeError:
+        return False
+
+
 # Run every check and exit 1 if a required one failed.
 def main() -> None:
     print("\nWealthOS environment check\n")
     report("LLM key", bool(os.getenv("GROQ_API_KEY") or os.getenv("OPENROUTER_API_KEY")),
            "set GROQ_API_KEY (or OPENROUTER_API_KEY): the assistant, AI edit and strategy parsing need one")
-    report("WEALTHOS_JWT_SECRET", bool(os.getenv("WEALTHOS_JWT_SECRET")),
-           "unset: fine for local use, required in production (WEALTHOS_ENV=production)", required=False)
+    report("WEALTHOS_JWT_SECRET", _secret_ok(),
+           "required: 32+ bytes; the API refuses to start without it", required=True)
     report("WEALTHOS_FERNET_KEY", bool(os.getenv("WEALTHOS_FERNET_KEY")),
            "unset: database connections are switched off (see .env.example)", required=False)
     report("SEC_USER_AGENT", bool(os.getenv("SEC_USER_AGENT")), "unset: SEC asks for a contact email", required=False)

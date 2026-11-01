@@ -13,7 +13,7 @@ metrics instead of guessing. It can't upload, edit, delete or run free SQL.
 
 **Who you are:** set `WEALTHOS_TOKEN` to the token the app gave you at sign-in; it is checked with
 `WEALTHOS_JWT_SECRET`, exactly like the API. On a local install with no secret configured, `WEALTHOS_USER` names the
-user instead (the same "fails open in local dev" rule as the API; refused when `WEALTHOS_ENV=production`).
+user instead, but only with `WEALTHOS_ENV=dev` (unset means production, which refuses).
 
 Claude Desktop (`claude_desktop_config.json`):
 
@@ -34,6 +34,7 @@ from dotenv import load_dotenv  # noqa: E402
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 
 from wealthos import engine  # noqa: E402
+from wealthos import settings  # noqa: E402
 from wealthos import workspaces  # noqa: E402
 from wealthos.engine import MetricQuery  # noqa: E402
 
@@ -48,11 +49,12 @@ mcp = FastMCP("wealthos", instructions=(
 def current_user() -> str:
     secret, token = os.getenv("WEALTHOS_JWT_SECRET", ""), os.getenv("WEALTHOS_TOKEN", "")
     if secret:
+        secret = settings.jwt_secret()  # refuses a short or placeholder secret (forgeable tokens)
         if not token:
             raise PermissionError("set WEALTHOS_TOKEN to the token from signing in to WealthOS")
         return jwt.decode(token, secret, algorithms=["HS256"])["sub"]  # raises on a bad / expired token
-    if os.getenv("WEALTHOS_ENV", "").lower() == "production":
-        raise PermissionError("WEALTHOS_JWT_SECRET is required in production")
+    if settings.env() != "dev":
+        raise PermissionError("WEALTHOS_JWT_SECRET is required (WEALTHOS_USER works only with WEALTHOS_ENV=dev)")
     user = os.getenv("WEALTHOS_USER", "")
     if not user:
         raise PermissionError("set WEALTHOS_USER (local install) or WEALTHOS_TOKEN + WEALTHOS_JWT_SECRET")

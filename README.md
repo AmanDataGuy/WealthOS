@@ -137,7 +137,7 @@ flowchart LR
 | **Excel Templates** | openpyxl + headless LibreOffice | Upload-time allowlist scan (no macros, OFFSET/INDIRECT, Tables), recalc with a throwaway profile, named output cells, errors reported |
 | **Exports** | openpyxl / browser print | Excel with a provenance sheet (SQL, period, files, data fingerprint); text cells can't become formulas; PDF via print |
 | **Frontend** | React 18 + Vite | react-grid-layout canvas, ECharts, dark theme with a blue-to-warm glow, serif headings; prints black on white |
-| **Auth** | bcrypt + JWT | 30-day sessions; fail-open locally, fail-closed when `WEALTHOS_ENV=production` |
+| **Auth** | bcrypt + JWT | 7-day sessions; the API refuses to start without a 32+ byte secret; no default accounts |
 | **Storage** | Parquet per user + Postgres | `data/users/<id>/` holds raw files, datasets, workspaces, dashboards, runs; Postgres holds users and the LLM cost log |
 | **Outward MCP** | Read-only MCP server (`mcp_server.py`) | `list_workspaces`, `list_metrics`, `query_metric`, `explain_number` on your own data from Claude Desktop; token-checked |
 | **Compliance** | Always on | No buy/sell/hold advice, no price targets, no return claims; "Educational analytics, not investment advice" on every answer |
@@ -184,7 +184,7 @@ python scripts/verify_env.py
 .\start.ps1          # Windows; bash start.sh on macOS / Linux
 ```
 
-Open **http://localhost:5173**. Sign up, or use the demo accounts: `admin / wealthos123` · `demo / demo123`.
+Open **http://localhost:5173**. Sign up, or set `WEALTHOS_DEMO_SEED=1` to get one demo account (its random password is printed once in the API log).
 
 **Add data (first time):**
 Go to **Data** → upload a bank CSV or tradebook, paste a Google Sheet link, or connect a database. Then **Dashboards** → **From template**. Unrecognised files show "needs mapping"; confirm the columns once and the same layout maps itself next time.
@@ -196,7 +196,8 @@ Go to **Data** → upload a bank CSV or tradebook, paste a Google Sheet link, or
 | `GROQ_API_KEY` | Primary LLM (required) |
 | `OPENROUTER_API_KEY` | Fallback LLM provider (free model by default): recommended |
 | `WEALTHOS_DB_URL` | Postgres for sign-in and the LLM cost log |
-| `WEALTHOS_JWT_SECRET` | Signs session tokens; required in production |
+| `WEALTHOS_JWT_SECRET` | Signs session tokens; required, 32+ bytes |
+| `WEALTHOS_ENV` | `dev`, `test` or `production` (unset = production) |
 | `WEALTHOS_FERNET_KEY` | Encrypts saved database connection strings |
 | `SEC_USER_AGENT` | Name + email SEC asks every client to send |
 | `WEALTHOS_MAX_DAILY_COST_USD` | Daily LLM spend cap (default 5) |

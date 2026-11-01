@@ -16,6 +16,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 import subprocess
 import sys
 import tempfile
@@ -35,7 +36,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
-from wealthos import engine
+from wealthos import engine, settings
 from wealthos.services.llm_client import CostCapReached
 
 for _stream in (sys.stdout, sys.stderr):  # a ₹ in a log line must never crash a Windows console
@@ -46,15 +47,31 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DB_URL = os.getenv("WEALTHOS_DB_URL", "").replace("postgresql+asyncpg://", "postgresql://")
-JWT_SECRET = os.getenv("WEALTHOS_JWT_SECRET", "")
-IS_PRODUCTION = os.getenv("WEALTHOS_ENV", "").lower() == "production"  # production refuses to run without a JWT secret
+JWT_SECRET = ""  # set by settings.check_api() at startup; empty = every user route answers 503 (fails closed)
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 # ── Setup: database tables, the app, error mapping ─────────────────────────────────────────────────────────
 
-# Create the two Postgres tables the app uses (users, llm_usage) and, outside production, the two demo accounts.
+# Old builds seeded these with passwords published in the README; any copy still holding them is locked out.
+OLD_DEFAULT_LOGINS = [("admin", "wealthos123"), ("demo", "demo123")]
+
+
+# Lock old default accounts, and with WEALTHOS_DEMO_SEED=1 create one demo-<random> account (password printed once).
+async def _secure_accounts(conn) -> None:
+    for name, password in OLD_DEFAULT_LOGINS:
+        row = await conn.fetchrow("SELECT password_hash FROM users WHERE username = $1", name)
+        if row and row["password_hash"] != "!" and bcrypt.checkpw(password.encode(), row["password_hash"].encode()):
+            await conn.execute("UPDATE users SET password_hash = '!' WHERE username = $1", name)  # '!' never matches
+            logger.warning("disabled the old default account %r (its password was public)", name)
+    if os.getenv("WEALTHOS_DEMO_SEED") == "1":
+        name, password = f"demo-{secrets.token_hex(3)}", secrets.token_urlsafe(12)
+        await conn.execute("INSERT INTO users (username, password_hash) VALUES ($1, $2)", name, _hash(password))
+        print(f"demo account created: {name} / {password}  (shown once)", flush=True)
+
+
+# Create the two Postgres tables the app uses (users, llm_usage) and secure the accounts in it.
 async def _prepare_database() -> None:
     if not DB_URL:
         return
@@ -68,19 +85,20 @@ async def _prepare_database() -> None:
                 id SERIAL PRIMARY KEY, provider TEXT NOT NULL, model TEXT NOT NULL, prompt_tokens INTEGER NOT NULL,
                 completion_tokens INTEGER NOT NULL, total_tokens INTEGER NOT NULL, estimated_cost_usd NUMERIC NOT NULL,
                 user_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
-            if not IS_PRODUCTION:  # demo logins with public passwords are for local use only
-                for name, password in [("admin", "wealthos123"), ("demo", "demo123")]:
-                    await conn.execute("INSERT INTO users (username, password_hash) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-                                       name, _hash(password))
+            await _secure_accounts(conn)
         finally:
             await conn.close()
     except Exception as e:
         logger.warning("database not ready, sign-in will fail until it is: %s", e)
 
 
-# Run the database setup when the API starts.
+# Refuse to start on a weak or missing secret (settings.py), then set up the database.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global JWT_SECRET
+    JWT_SECRET = settings.check_api()
+    if not JWT_SECRET:
+        logger.warning("WEALTHOS_DEV_INSECURE_AUTH=1: sign-in checks are OFF (local development only)")
     await _prepare_database()
     yield
 
@@ -106,26 +124,27 @@ for _exc, _status in ERRORS:
     app.add_exception_handler(_exc, _error_handler(_status))
 
 
-# ── Sign-in: passwords (bcrypt), 30-day tokens (JWT), and the checks every route uses ───────────────────────
+# ── Sign-in: passwords (bcrypt), 7-day tokens (JWT), and the checks every route uses ────────────────────────
 
 # Hash a password (bcrypt reads at most 72 bytes, so cut explicitly).
 def _hash(password: str) -> str:
     return bcrypt.hashpw(password.encode()[:72], bcrypt.gensalt()).decode()
 
 
-# A signed sign-in token for a user, valid 30 days.
+# A signed sign-in token for a user, valid WEALTHOS_TOKEN_DAYS (default 7).
 def _issue_token(user_id: str, username: str) -> str:
     now = datetime.now(timezone.utc)
-    return jwt.encode({"sub": user_id, "username": username, "iat": now, "exp": now + timedelta(days=30)},
-                      JWT_SECRET, algorithm="HS256")
+    return jwt.encode({"sub": user_id, "username": username, "iat": now,
+                       "exp": now + timedelta(days=settings.token_days())}, JWT_SECRET, algorithm="HS256")
 
 
-# Check the Bearer token belongs to `user_id` (no secret configured = local development, no check).
+# Check the Bearer token belongs to `user_id`. No secret = refuse, unless insecure dev auth was switched on.
 async def verify_user_token(user_id: str, authorization: Optional[str] = Header(None)) -> str:
     if not JWT_SECRET:
-        if IS_PRODUCTION:
-            raise HTTPException(500, "server misconfigured: WEALTHOS_JWT_SECRET is required in production")
-        return user_id
+        if settings.insecure_dev_auth():
+            logger.warning("insecure dev auth: trusting user id %r from the path", user_id)
+            return user_id
+        raise HTTPException(503, "sign-in is not configured on this server")
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "missing or malformed Authorization header")
     try:
@@ -152,6 +171,9 @@ async def verify_user_workspace(user_id: str, workspace_id: str, authorization: 
 
 USER = [Depends(verify_user_token)]
 USER_WS = [Depends(verify_user_workspace)]
+
+
+_DUMMY_HASH = bcrypt.hashpw(b"no-such-user", bcrypt.gensalt()).decode()
 
 
 # What sign-up and sign-in send.
@@ -189,7 +211,10 @@ async def signup(body: Credentials):
 async def login(body: Credentials):
     """Sign in with username and password."""
     row = await _users("SELECT id::text, username, password_hash FROM users WHERE username = $1", body.username.strip())
-    if not row or not bcrypt.checkpw(body.password.encode()[:72], row["password_hash"].encode()):
+    stored = row["password_hash"] if row and row["password_hash"].startswith("$2") else None  # '!' = disabled
+    # Unknown or disabled users still pay for one bcrypt check, so timing doesn't reveal which usernames exist.
+    ok = bcrypt.checkpw(body.password.encode()[:72], (stored or _DUMMY_HASH).encode()) and stored is not None
+    if not ok:
         raise HTTPException(401, "wrong username or password")
     return {"user_id": row["id"], "username": row["username"], "token": _issue_token(row["id"], row["username"])}
 
