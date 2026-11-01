@@ -2,8 +2,7 @@
 # workspaces.py - group a user's data into separate "databases"
 
 A workspace is what the user picks before chatting or building a dashboard ("GCC e-commerce data",
-"My portfolio", "Company MIS"). It is a named group of datasets (uploaded files and/or tables copied from one
-connected database, see `connections.py`) with its own semantic model (`semantic.py`). Chats and dashboards only
+"My portfolio", "Company MIS"). It is a named group of datasets (uploaded files) with its own semantic model (`semantic.py`). Chats and dashboards only
 ever see their own workspace's tables.
 
 - Every user always has **My files** (id `default`); uploads go there unless another workspace is chosen.
@@ -18,7 +17,6 @@ import shutil
 import uuid
 from datetime import datetime, timezone
 
-from wealthos import connections
 from wealthos import dashboards
 from wealthos import engine
 
@@ -37,7 +35,7 @@ def list_workspaces(user_id: str) -> list[dict]:
     counts: dict[str, int] = {}
     for m in engine.list_datasets(user_id):
         counts[m.get("workspace_id", "default")] = counts.get(m.get("workspace_id", "default"), 0) + 1
-    return [w | {"datasets": counts.get(w["id"], 0), "connection": connections.info(user_id, w["id"])} for w in out]
+    return [w | {"datasets": counts.get(w["id"], 0)} for w in out]
 
 
 # One workspace, or None if it doesn't exist.

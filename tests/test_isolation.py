@@ -9,8 +9,7 @@ from fastapi.testclient import TestClient
 import api.main as main
 from wealthos import engine
 
-OPEN_ROUTES = {"/health", "/metrics", "/templates", "/auth/signup", "/auth/login",
-               "/feeds/{user_id}/{workspace_id}/{feed_id}/push"}  # push: guarded by the feed's own token instead
+OPEN_ROUTES = {"/health", "/metrics", "/templates", "/auth/signup", "/auth/login"}
 
 
 @pytest.fixture()
@@ -39,16 +38,15 @@ def test_user_cannot_reach_another_users_data(client):
     bank = b"Date,Narration,Debit,Credit\n05/04/2026,Rent,25000,\n06/04/2026,Salary,,90000\n"
     assert b.post("/sources/upload", data={"user_id": "b"}, files={"file": ("bank.csv", bank)}).status_code == 200
     board = b.post("/templates/b/default/spending/apply", json={}).json()["id"]
-    feed = b.post("/feeds/b/default", json={"name": "orders"}).json()
 
-    gets = ["/workspaces/b", "/sources/b/datasets", "/connections/b/default", "/semantic/b/default", "/dashboards/b",
+    gets = ["/workspaces/b", "/sources/b/datasets", "/semantic/b/default", "/dashboards/b",
             f"/dashboards/b/{board}", f"/dashboards/b/{board}/refresh",
-            f"/dashboards/b/{board}/export.xlsx", "/strategy/b/runs", "/feeds/b/default", "/assistant/b/definitions", "/assistant/b/chats", "/research/b/default", "/prices/b/default", "/excel/b/default",
+            f"/dashboards/b/{board}/export.xlsx", "/strategy/b/runs", "/assistant/b/definitions", "/assistant/b/chats", "/research/b/default", "/prices/b/default", "/excel/b/default",
             "/templates/b/default/spending/suggest"]
     for path in gets:
         assert a.get(path).status_code == 403, path
     posts = {"/workspaces/b": {"name": "x"}, "/dashboards/b": {"title": "x"}, f"/dashboards/b/{board}/ops": {"ops": []},
-             f"/dashboards/b/{board}/refresh": {}, f"/dashboards/b/{board}/revert": {}, "/feeds/b/default": {"name": "x"},
+             f"/dashboards/b/{board}/refresh": {}, f"/dashboards/b/{board}/revert": {},
              "/query/metric": {"user_id": "b", "metrics": ["total_spend"]}, "/query/sql": {"user_id": "b", "sql": "SELECT 1"},
              "/assistant/ask": {"user_id": "b", "question": "how much did I spend"},
              "/strategy/b/default/run": {"spec": {}}, "/tax/b/default": {}, "/prices/b/default": {"source": "nse", "symbols": ["X"]}, "/templates/b/default/spending/apply": {}}
@@ -56,10 +54,7 @@ def test_user_cannot_reach_another_users_data(client):
         assert a.post(path, json=body).status_code == 403, path
     assert a.post("/sources/upload", data={"user_id": "b"}, files={"file": ("x.csv", bank)}).status_code == 403
     assert a.delete(f"/dashboards/b/{board}").status_code == 403
-    assert a.delete(f"/feeds/b/default/{feed['id']}").status_code == 403
     assert TestClient(main.app).get("/workspaces/b").status_code == 401  # no token at all
-    push = TestClient(main.app).post(f"/feeds/b/default/{feed['id']}/push", json=[{"x": 1}], headers={"X-Feed-Token": "guess"})
-    assert push.status_code == 401
 
     # a's own view is empty; b's data is untouched
     assert a.get("/sources/a/datasets").json() == [] and a.get("/dashboards/a").json() == []

@@ -162,52 +162,6 @@ def test_same_file_in_two_workspaces(tmp_path):
         workspaces.delete_workspace("u", "default")  # My files always stays
 
 
-# A SQLite database is connected (encrypted), snapshotted, refreshed; a workspace metric is
-# checked, used by run_metric, and edited.
-def test_db_connection_and_semantic_metric(monkeypatch):
-    import sqlite3
-
-    from cryptography.fernet import Fernet
-
-    from wealthos import connections
-    from wealthos import semantic
-    from wealthos import workspaces
-    monkeypatch.setenv("WEALTHOS_FERNET_KEY", Fernet.generate_key().decode())
-    ws = workspaces.create_workspace("u", "Shop")["id"]
-    path = connections.folder("u", ws) / connections.SQLITE_FILE
-    path.parent.mkdir(parents=True)
-    db = sqlite3.connect(path)
-    db.executescript("CREATE TABLE orders (id INTEGER, customer_id INTEGER, order_date DATE, amount DOUBLE);"
-                     "CREATE TABLE customers (id INTEGER, city TEXT);"
-                     "INSERT INTO orders VALUES (1,1,'2026-10-02',100),(2,1,'2026-09-03',50);"
-                     "INSERT INTO customers VALUES (1,'Pune');")
-    db.commit()
-    with pytest.raises(ValueError):
-        connections.connect("u", ws, "sqlite:///C:/elsewhere.db")  # only the uploaded file
-    assert connections.connect_sqlite("u", ws)["available_tables"] == ["main.customers", "main.orders"]
-    assert "sqlite:///" not in (connections.folder("u", ws) / "connection.json").read_text()  # stored encrypted
-    assert not connections.snapshot("u", ws, ["main.orders", "main.customers"])["errors"]
-    assert set(engine.schema(engine.open_readonly("u", ws))) == {"orders", "customers"}
-
-    semantic.save_relationships("u", ws, [{"left": "orders.customer_id", "right": "customers.id"}])
-    for bad in ("amount", "SUM(amount) FROM orders --", "(SELECT SUM(amount) FROM orders)", "SUM(read_csv('x'))"):
-        with pytest.raises(ValueError):
-            semantic.save_metric("u", ws, "gmv", {"table": "orders", "date": "order_date", "sql": bad})
-    semantic.save_metric("u", ws, "gmv", {"table": "orders", "date": "order_date", "sql": "SUM(amount)"})
-    q = MetricQuery(metrics=["gmv"], time="2026-10-01..2026-10-31")
-    assert engine.run_metric("u", q, workspace_id=ws).rows == [{"gmv": 100.0}]
-    semantic.save_metric("u", ws, "gmv", {"table": "orders", "date": "order_date", "sql": "COUNT(*)"})
-    assert engine.run_metric("u", q, workspace_id=ws).rows == [{"gmv": 1}]
-
-    db.execute("INSERT INTO orders VALUES (3,1,'2026-10-20',30)")
-    db.commit()
-    db.close()
-    connections.snapshot("u", ws)  # refresh = same tables again
-    assert engine.run_metric("u", q, workspace_id=ws).rows == [{"gmv": 2}]
-    assert connections.disconnect("u", ws) == 2
-    assert engine.schema(engine.open_readonly("u", ws)) == {}
-
-
 # Ops build a dashboard edit by edit, bad ops are refused whole, undo goes back (and can be undone).
 def test_dashboard_ops_versions_undo(tmp_path):
     from wealthos import dashboards

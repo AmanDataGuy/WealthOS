@@ -63,8 +63,6 @@ def main() -> None:
            "set GROQ_API_KEY (or OPENROUTER_API_KEY): the assistant, AI edit and strategy parsing need one")
     report("WEALTHOS_JWT_SECRET", _secret_ok(),
            "required: 32+ bytes; the API refuses to start without it", required=True)
-    report("WEALTHOS_FERNET_KEY", bool(os.getenv("WEALTHOS_FERNET_KEY")),
-           "unset: database connections are switched off (see .env.example)", required=False)
     report("SEC_USER_AGENT", bool(os.getenv("SEC_USER_AGENT")), "unset: SEC asks for a contact email", required=False)
     asyncio.run(check_postgres())
     print("\n  " + ("All required checks passed." if not failures else f"{failures} required check(s) failed."), "\n")

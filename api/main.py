@@ -32,14 +32,14 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Literal, Optional
 
 import asyncpg
 import bcrypt
 import httpx
 import jwt
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
@@ -554,109 +554,6 @@ def confirm_mapping(user_id: str, content_hash: str, index: int, body: MappingBo
                             body.workspace_id)
     return {"datasets": [m["dataset_id"] for m in saved], "shape": parsed.shape, "rows": len(parsed.rows),
             "sample": parsed.rows[:5], "warnings": parsed.warnings}
-
-
-# ── Database connections: copy tables in from Postgres / MySQL / SQLite (read-only, encrypted) ─────────────
-
-# A database connection string.
-class ConnectBody(BaseModel):
-    url: str  # postgresql://user:password@host:5432/db or mysql://... (use a read-only database user)
-
-
-# Which database tables to copy in.
-class SnapshotBody(BaseModel):
-    tables: list[str] = []  # "schema.table" names; empty = refresh the tables copied last time
-
-
-@app.post("/connections/{user_id}/{workspace_id}", dependencies=USER_WS)
-def connection_create(user_id: str, workspace_id: str, body: ConnectBody):
-    """Check a connection string, store it encrypted, list the database's tables."""
-    from wealthos.connections import connect
-    return connect(user_id, workspace_id, body.url)
-
-
-@app.post("/connections/{user_id}/{workspace_id}/sqlite", dependencies=USER_WS)
-async def connection_sqlite(user_id: str, workspace_id: str, file: UploadFile = File(...)):
-    """Upload a SQLite database file (20 MB at most) and connect it."""
-    from wealthos.connections import SQLITE_FILE, connect_sqlite, folder
-    folder(user_id, workspace_id).mkdir(parents=True, exist_ok=True)
-    await _save_upload(file, folder(user_id, workspace_id) / SQLITE_FILE)
-    return await asyncio.to_thread(connect_sqlite, user_id, workspace_id)
-
-
-@app.get("/connections/{user_id}/{workspace_id}", dependencies=USER_WS)
-def connection_get(user_id: str, workspace_id: str):
-    """The workspace's connection (password hidden) and the tables copied, or null."""
-    from wealthos.connections import info
-    return info(user_id, workspace_id)
-
-
-@app.get("/connections/{user_id}/{workspace_id}/tables", dependencies=USER_WS)
-def connection_tables(user_id: str, workspace_id: str):
-    """The tables the connected database has right now."""
-    from wealthos.connections import list_tables
-    return list_tables(user_id, workspace_id)
-
-
-@app.post("/connections/{user_id}/{workspace_id}/snapshot", dependencies=USER_WS)
-def connection_snapshot(user_id: str, workspace_id: str, body: SnapshotBody):
-    """Copy the chosen tables in (again = refresh); per-table failures come back in `errors`."""
-    from wealthos.connections import snapshot
-    return snapshot(user_id, workspace_id, body.tables or None)
-
-
-@app.delete("/connections/{user_id}/{workspace_id}", dependencies=USER_WS)
-def connection_delete(user_id: str, workspace_id: str):
-    """Forget the connection and remove the tables copied from it."""
-    from wealthos.connections import disconnect
-    return {"deleted_datasets": disconnect(user_id, workspace_id)}
-
-
-# ── Live feeds: rows pushed in with a token, or pulled from a URL on a schedule ────────────────────────────
-
-# A new live feed: push (rows sent to us) or pull (we fetch a URL).
-class FeedBody(BaseModel):
-    name: str                 # the table the rows go into
-    kind: Literal["push", "pull"] = "push"
-    url: Optional[str] = None  # pull only: an https URL returning JSON rows or CSV
-    interval_s: int = 300     # pull only: seconds between fetches (30 .. 86400)
-
-
-@app.post("/feeds/{user_id}/{workspace_id}", dependencies=USER_WS)
-def feeds_create(user_id: str, workspace_id: str, body: FeedBody):
-    """Create a feed (a push feed's token is shown once, in this answer)."""
-    from wealthos.feeds import create_feed
-    return create_feed(user_id, workspace_id, body.name, body.kind, body.url, body.interval_s)
-
-
-@app.get("/feeds/{user_id}/{workspace_id}", dependencies=USER_WS)
-def feeds_list(user_id: str, workspace_id: str):
-    """The workspace's feeds: rows, last push / pull, last error."""
-    from wealthos.feeds import list_feeds
-    return list_feeds(user_id, workspace_id)
-
-
-@app.delete("/feeds/{user_id}/{workspace_id}/{feed_id}", dependencies=USER_WS)
-def feeds_delete(user_id: str, workspace_id: str, feed_id: str):
-    """Delete a feed and the rows it brought in."""
-    from wealthos.feeds import delete_feed
-    delete_feed(user_id, workspace_id, feed_id)
-    return {"deleted": feed_id}
-
-
-@app.post("/feeds/{user_id}/{workspace_id}/{feed_id}/push")
-def feeds_push(user_id: str, workspace_id: str, feed_id: str, body: Any = Body(...), x_feed_token: Optional[str] = Header(None)):
-    """Add rows (a JSON list, or {"rows": [...]}, 5,000 at most) with the feed's token instead of a sign-in."""
-    from wealthos.feeds import append_rows, check_token
-    check_token(user_id, workspace_id, feed_id, x_feed_token)
-    return append_rows(user_id, workspace_id, feed_id, body.get("rows") if isinstance(body, dict) else body)
-
-
-@app.post("/feeds/{user_id}/{workspace_id}/{feed_id}/pull", dependencies=USER_WS)
-def feeds_pull_now(user_id: str, workspace_id: str, feed_id: str):
-    """Fetch a pull feed now instead of waiting for the worker."""
-    from wealthos.feeds import pull
-    return pull(user_id, workspace_id, feed_id)
 
 
 # ── Free daily prices: NSE stocks / ETFs and mutual fund NAVs ─────────────────────────────────────────────

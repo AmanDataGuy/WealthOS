@@ -10,7 +10,6 @@ httpx==0.28.1                 # LLM calls, Google Sheets, news
 asyncpg==0.31.0               # users table (sign-in)
 bcrypt==5.0.0
 PyJWT==2.12.1
-cryptography==46.0.6          # Fernet: database connection strings encrypted at rest
 
 # Engine (every number comes from here)
 duckdb==2.0.0
@@ -25,7 +24,6 @@ openpyxl==3.1.5               # Excel in and out
 defusedxml==0.7.1             # openpyxl refuses XML-bomb workbooks
 casparser==1.4.1              # CAMS / KFintech / NSDL / CDSL statements
 pypdfium2==5.14.0             # PDF text (finx)
-
 
 # Outward MCP server (mcp_server.py)
 mcp==1.27.2

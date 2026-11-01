@@ -80,7 +80,7 @@ def test_calculator_bombs():
         tools.calc("99**100 * 99**100 * 99**100")  # past float range
 
 
-def test_bad_dashboard_and_feed_input(c):
+def test_bad_dashboard_input(c):
     d = c.post("/dashboards/u", json={"title": "T"}).json()
     refused(c.post(f"/dashboards/u/{d['id']}/ops", json={"ops": [{"op": "explode"}]}), 400)
     refused(c.post(f"/dashboards/u/{d['id']}/ops", json={"ops": [{"op": "add_tile", "value": {"kind": "kpi"}}]}), 400)
@@ -88,15 +88,6 @@ def test_bad_dashboard_and_feed_input(c):
     refused(c.post(f"/dashboards/u/{d['id']}/revert", json={"version": 42}), 404)
     refused(c.post("/dashboards/u", json={"title": "x", "workspace_id": "nope"}), 404)
     refused(c.post(f"/dashboards/u/{d['id']}/ai-edit", json={"instruction": "make it nice"}))  # AI says nothing
-    refused(c.post("/feeds/u/default", json={"name": "x", "kind": "pull", "url": "http://127.0.0.1:8000/secret"}), 400)
-    refused(c.post("/feeds/u/default", json={"name": "x", "kind": "teleport"}), 422)
-    feed = c.post("/feeds/u/default", json={"name": "orders"}).json()
-    push = lambda body, token=feed["token"]: TestClient(main.app, raise_server_exceptions=False).post(
-        f"/feeds/u/default/{feed['id']}/push", json=body, headers={"X-Feed-Token": token})
-    refused(push([{"a": 1}], "guess"), 401)
-    for body in [[], "rows", {"rows": [{"a": {"b": 1}}]}, [{"a": 1}] * 5001, [1, 2, 3]]:
-        refused(push(body), 400)
-    assert push([{"amount": 5, "city": "Pune"}]).json()["rows_added"] == 1
 
 
 def test_bad_other_features(c):
