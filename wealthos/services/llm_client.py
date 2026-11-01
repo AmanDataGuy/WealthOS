@@ -3,6 +3,7 @@
 
 - **Primary**: Groq (`GROQ_API_KEY`, model `LLM_MODEL`, default `openai/gpt-oss-120b`).
 - **Fallback**: OpenRouter (`OPENROUTER_API_KEY`, model `LLM_FALLBACK_MODEL`), used only if the primary fails.
+  A `:free` fallback is skipped in production unless `WEALTHOS_ALLOW_FREE_FALLBACK=1` (free endpoints may keep prompts).
 - One key per provider.
 - **Redaction**: every prompt goes through `redact_pii` here, so no call site can send raw PAN/phone/account numbers.
 - **Daily cost caps** over the last 24h: per user (`WEALTHOS_MAX_DAILY_COST_USD_USER`, default $0.50) and for the
@@ -56,6 +57,17 @@ _PROVIDERS = [
     ("groq", "https://api.groq.com/openai/v1/chat/completions", GROQ_API_KEY),
     ("openrouter", "https://openrouter.ai/api/v1/chat/completions", OPENROUTER_API_KEY),
 ]
+
+# May the fallback be used? A ":free" OpenRouter model can log or train on prompts, so production sends financial
+# data there only with WEALTHOS_ALLOW_FREE_FALLBACK=1; a paid fallback model is always allowed.
+def _free_fallback_ok() -> bool:
+    if not OPENROUTER_MODEL.endswith(":free"):
+        return True
+    ok = os.getenv("WEALTHOS_ALLOW_FREE_FALLBACK", "0" if settings.env() == "production" else "1") == "1"
+    if not ok:
+        logger.info("[llm_client] skipping the free fallback %s in production (WEALTHOS_ALLOW_FREE_FALLBACK)", OPENROUTER_MODEL)
+    return ok
+
 
 # The Postgres URL in the form asyncpg wants, or "" when no database is configured.
 def _db_url() -> str:
@@ -125,7 +137,7 @@ async def call_llm(system: str, user: str, max_tokens: int = 500, temperature: f
     messages = [{"role": "system", "content": redact_pii(system)}, {"role": "user", "content": redact_pii(user)}]
     async with httpx.AsyncClient() as client:
         for provider, url, key in _PROVIDERS:
-            if not key:
+            if not key or (provider == "openrouter" and not _free_fallback_ok()):
                 continue
             groq = provider == "groq"
             model = GROQ_MODEL if groq else OPENROUTER_MODEL

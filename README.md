@@ -204,6 +204,7 @@ Go to **Data** → upload a bank CSV or tradebook, paste a Google Sheet link, or
 | `WEALTHOS_MAX_DAILY_COST_USD_USER` | Daily LLM spend cap per user (default 0.50) |
 | `WEALTHOS_TRUSTED_PROXIES` | Proxy IPs whose X-Forwarded-For is trusted for rate limits |
 | `WEALTHOS_ENABLE_NSE` | NSE price downloads (default on outside production, off in production) |
+| `WEALTHOS_ALLOW_FREE_FALLBACK` | Use a `:free` fallback model in production (default off) |
 | `WEALTHOS_RISK_FREE_RATE` | Sharpe ratio risk-free rate (default 6.5%) |
 | `LLM_MODEL` / `LLM_FALLBACK_MODEL` | Model overrides |
 | `LIBREOFFICE_PATH` | Only if LibreOffice is not in the default place (Excel templates) |
