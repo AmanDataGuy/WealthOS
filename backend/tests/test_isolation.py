@@ -49,7 +49,7 @@ def test_user_cannot_reach_another_users_data(client):
              f"/dashboards/b/{board}/refresh": {}, f"/dashboards/b/{board}/revert": {},
              "/query/metric": {"user_id": "b", "metrics": ["total_spend"]}, "/query/sql": {"user_id": "b", "sql": "SELECT 1"},
              "/assistant/ask": {"user_id": "b", "question": "how much did I spend"},
-             "/strategy/b/default/run": {"spec": {}}, "/tax/b/default": {}, "/prices/b/default": {"source": "nse", "symbols": ["X"]}, "/templates/b/default/spending/apply": {}}
+             "/strategy/b/default/run": {"spec": {}}, "/prices/b/default": {"source": "nse", "symbols": ["X"]}, "/templates/b/default/spending/apply": {}}
     for path, body in posts.items():
         assert a.post(path, json=body).status_code == 403, path
     assert a.post("/sources/upload", data={"user_id": "b"}, files={"file": ("x.csv", bank)}).status_code == 403

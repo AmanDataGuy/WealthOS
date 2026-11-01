@@ -10,6 +10,10 @@ One fixed pipeline (no "multi-agent debates"); the AI never produces a number:
    - `filing`: what an uploaded filing / annual report *says* (risks, strategy, lawsuits ...): `research.py` finds the
      pages and answers with page citations, each number checked against those pages
    - `calc`: arithmetic on numbers the user gave ("12% of 4,50,000")
+   - `tax`: both income-tax regimes for a FY, capital gains from the tradebook (`features/tax.py`)
+   - `rebalance`: current vs target mix of the holdings (`features/rebalance.py`), never what to buy
+   - `prices`: fetch daily NSE / mutual fund prices into the user's data (`data/prices.py`)
+   - `backtest`: a trading rule in words -> checked spec -> simulation (`features/strategy.py`)
    - `clarify`: the question is ambiguous ("revenue" could be two things) -> ask once, remember the answer
    - `out_of_scope`: not something we can answer from data (we never give buy/sell advice)
 2. **Run** it in code (`engine.py` / `tools.py`). If the data is missing, say so instead of guessing.
@@ -25,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -44,7 +49,8 @@ DISCLAIMER = "Analytics on your own data, not investment advice (WealthOS is not
 
 # What the planner decided to do. Exactly one of the detail fields is used, depending on `kind`.
 class Plan(BaseModel):
-    kind: Literal["metric", "sql", "company", "filing", "news", "calc", "clarify", "out_of_scope", "smalltalk"]
+    kind: Literal["metric", "sql", "company", "filing", "news", "calc", "tax", "rebalance", "prices", "backtest",
+                  "clarify", "out_of_scope", "smalltalk"]
     metric_query: MetricQuery | None = None
     sql: str | None = None
     ticker: str | None = None
@@ -54,6 +60,10 @@ class Plan(BaseModel):
     clarify_term: str | None = None
     clarify_options: list[str] = []
     reply: str | None = None  # only for smalltalk / out_of_scope: a short sentence with no numbers
+    tax_inputs: dict | None = None  # tax: {fy "2026-27", salary, other_income, deductions_80c, deductions_80d, age}
+    symbols: list[str] = []         # prices: NSE trading symbols, or mutual fund scheme codes
+    price_source: Literal["nse", "mf"] | None = None
+    strategy_idea: str | None = None  # backtest: the user's rule, restated in full
 
 
 # What the user gets back: the words, the numbers behind them, where they came from, and the plan (for follow-ups).
@@ -118,11 +128,27 @@ def get_chat(user_id: str, chat_id: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-# Append a question and its answer; a new chat (chat_id None) is named after its first question. Returns the chat id.
-def save_turn(user_id: str, chat_id: str | None, workspace_id: str, question: str, answer: dict) -> str:
+TITLER = """Name this chat in two or three words, like a topic: "Swiggy spending", "Tax regimes", "Portfolio drift".
+No numbers, no quotes, no punctuation. Answer with the name only."""
+
+
+# A two- or three-word name for a new chat. The AI's name is used only if it has no digits (numbers shown to the
+# user never come from the AI); otherwise the first words of the question.
+async def chat_title(user_id: str, question: str) -> str:
+    from app.ai.llm_client import call_llm
+    words = re.sub(r"[^\w\s&-]", "", await call_llm(TITLER, question[:500], max_tokens=60, temperature=0,
+                                                     user_id=user_id) or "").split()[:3]
+    if words and not any(c.isdigit() for c in "".join(words)):
+        return " ".join(words)
+    return " ".join(question.split()[:3])[:40]
+
+
+# Append a question and its answer; a new chat (chat_id None) gets `title`. Returns the chat id.
+def save_turn(user_id: str, chat_id: str | None, workspace_id: str, question: str, answer: dict,
+              title: str | None = None) -> str:
     now = datetime.now(timezone.utc)
     chat = get_chat(user_id, chat_id) if chat_id else {
-        "id": now.strftime("%Y%m%d%H%M%S%f"), "title": question[:80], "workspace_id": workspace_id,
+        "id": now.strftime("%Y%m%d%H%M%S%f"), "title": title or question[:40], "workspace_id": workspace_id,
         "created_at": now.isoformat(), "turns": []}
     chat["turns"].append({"question": question, "answer": answer})
     chat["updated_at"] = now.isoformat()
@@ -180,6 +206,14 @@ Rules:
   strategy, segments, lawsuits, management commentary. Needs at least one listed document.
 - kind "news" (news_query) for recent news about a company or topic.
 - kind "calc" (expression) for arithmetic on numbers the user typed. Separate function arguments with ", ".
+- kind "tax" for income tax / capital gains tax / old vs new regime questions. tax_inputs: "fy" as "YYYY-YY" only if
+  the user names a year; salary, other_income, deductions_80c, deductions_80d only if the user typed them.
+- kind "rebalance" for how the portfolio compares with the user's target mix (drift, allocation vs target,
+  "am I off target"). It shows numbers only; "what should I buy/sell to rebalance" is still "out_of_scope".
+- kind "prices" to fetch daily prices into the user's data: symbols = NSE trading symbols in capitals
+  (INFY, NIFTYBEES) with price_source "nse", or numeric mutual fund scheme codes with "mf".
+- kind "backtest" for "backtest / test this strategy / how would this rule have done" on stocks with prices:
+  strategy_idea = the full rule in plain words (which stocks, when to buy, when to sell).
 - kind "clarify" if a word could mean two different columns/metrics and no confirmed definition settles it:
   give clarify_question, clarify_term and 2-4 clarify_options.
 - kind "out_of_scope" for buy/sell/hold advice, price targets, predictions, or anything the data can't answer:
@@ -274,6 +308,32 @@ async def _run(user_id: str, plan: Plan, workspace_id: str | None = None):
         res = await asyncio.to_thread(tools.news, plan.news_query)
         rows = [{k: a.get(k) for k in ("title", "source", "published", "url")} for a in (res.get("articles") or [])]
         return rows, {"tool": "news", "query": plan.news_query}, ["news text is quoted as-is; it may be wrong"], "external"
+    if plan.kind == "tax":
+        from app.features import tax
+        t = {k: v for k, v in (plan.tax_inputs or {}).items()
+             if k in ("salary", "other_income", "deductions_80c", "deductions_80d", "age")}
+        today = timeexpr.today_ist()
+        year = today.year if today.month >= 4 else today.year - 1
+        fy = str((plan.tax_inputs or {}).get("fy") or f"{year}-{str(year + 1)[2:]}")
+        res = await asyncio.to_thread(tax.compare, user_id, workspace_id or "default", fy, **t)
+        rows = [{"regime": r, **{k: v for k, v in res[r].items() if isinstance(v, (int, float))}} for r in ("new", "old")]
+        return rows, {"tool": "tax", "fy": fy, "sources": res["sources"]}, res["warnings"] + [res["disclaimer"]], "trusted"
+    if plan.kind == "rebalance":
+        from app.features import rebalance
+        res = await asyncio.to_thread(rebalance.drift, user_id, workspace_id)
+        return res["rows"], {**res["provenance"], "tool": "rebalance"}, res["warnings"] + [res["label"]], "trusted"
+    if plan.kind == "prices" and plan.symbols:
+        from app.data import prices
+        e = await asyncio.to_thread(prices.add, user_id, workspace_id or "default", plan.price_source or "nse", plan.symbols)
+        rows = [{"symbols": ", ".join(e["symbols"]), "prices_saved": e["rows"], "up_to": e["last_date"]}]
+        return rows, {"tool": "prices", "source": e["source"]}, e["warnings"], "external"
+    if plan.kind == "backtest" and plan.strategy_idea:
+        from app.features import strategy
+        parsed = await strategy.parse(user_id, workspace_id, plan.strategy_idea)
+        res = await asyncio.to_thread(strategy.run, user_id, workspace_id, parsed["spec"], parsed["generated_by"])
+        rows = [{"series": "this rule", **res["metrics"]}, {"series": "buy and hold", **res["buy_and_hold"]}]
+        return rows, {"tool": "strategy", "run_id": res["run_card"]["id"], "period": res["run_card"]["period"],
+                      "rule": res["description"]}, res["warnings"] + [res["label"]], "trusted"
     if plan.kind in ("clarify", "out_of_scope", "smalltalk"):
         return None, None, [], "none"
     raise ValueError(f"the plan '{plan.kind}' was missing its details")

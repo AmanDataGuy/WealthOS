@@ -458,6 +458,11 @@ def _ingest_file(user_id: str, tmp: Path, filename: str, password: Optional[str]
     dest = _raw_dir(user_id) / digest / filename
     dest.parent.mkdir(exist_ok=True)
     tmp.replace(dest)  # the same file uploaded twice lands in the same folder
+    from app.ai import research
+    if dest.suffix.lower() in research.TEXT_FILES:  # notes / markdown: text the assistant can answer from, no tables
+        doc = research.add(user_id, workspace_id, dest, digest[:16])
+        return {"file": filename, "workspace_id": workspace_id, "content_hash": digest, "research": doc,
+                "datasets": [], "tables": []}
     try:
         tables = parse_file(dest, password, filename)
     except ValueError:
@@ -470,7 +475,6 @@ def _ingest_file(user_id: str, tmp: Path, filename: str, password: Optional[str]
     saved = engine.save_tables(user_id, tables, workspace_id)
     doc = None
     if dest.suffix.lower() == ".pdf" and all(t.shape in ("statements", "unknown") for t in tables):  # a filing, not a CAS
-        from app.ai import research
         try:
             doc = research.add(user_id, workspace_id, dest, digest[:16])
         except Exception as e:  # indexing is a bonus: it never fails the upload
@@ -484,11 +488,11 @@ def _ingest_file(user_id: str, tmp: Path, filename: str, password: Optional[str]
 @app.post("/sources/upload")
 async def upload_source(user_id: str = Form(...), file: UploadFile = File(...), password: Optional[str] = Form(None),
                         workspace_id: str = Form("default"), authorization: Optional[str] = Header(None)):
-    """Upload a CSV / Excel / PDF (bank statement, tradebook, holdings, prices, CAS with its password, filing)."""
+    """Upload a CSV / Excel / PDF (statement, tradebook, holdings, prices, CAS with its password, filing) or notes (.md / .txt)."""
     await verify_user_workspace(user_id, workspace_id, authorization)
     name = Path(file.filename or "upload").name  # never a path from the browser
-    if Path(name).suffix.lower() not in (".csv", ".xlsx", ".pdf"):
-        raise HTTPException(400, "upload a .csv, .xlsx or .pdf file")
+    if Path(name).suffix.lower() not in (".csv", ".xlsx", ".pdf", ".md", ".txt"):
+        raise HTTPException(400, "upload a .csv, .xlsx, .pdf, .md or .txt file")
     tmp = _raw_dir(user_id) / f"upload_{uuid.uuid4().hex}{Path(name).suffix.lower()}"
     await _save_upload(file, tmp)
     return await asyncio.to_thread(_ingest_file, user_id, tmp, name, password, workspace_id)
@@ -722,7 +726,8 @@ async def assistant_ask(body: AskBody, authorization: Optional[str] = Header(Non
     from app.ai import agent
     workspace = agent.get_chat(body.user_id, body.chat_id)["workspace_id"] if body.chat_id else body.workspace_id or "default"
     answer = (await agent.ask(body.user_id, body.question, body.previous_plan, body.define, workspace)).model_dump()
-    chat_id = agent.save_turn(body.user_id, body.chat_id, workspace, body.question, answer)
+    title = None if body.chat_id else await agent.chat_title(body.user_id, body.question)
+    chat_id = agent.save_turn(body.user_id, body.chat_id, workspace, body.question, answer, title)
     return {**answer, "chat_id": chat_id}
 
 
@@ -982,7 +987,7 @@ def excel_delete(user_id: str, workspace_id: str, template_id: str):
     return {"deleted": template_id}
 
 
-# ── Strategy lab and tax (both educational, never advice) ───────────────────────────────────────────────────
+# ── Strategy lab and rebalancing (both educational, never advice) ───────────────────────────────────────────────────
 
 # A trading idea in plain English.
 class StrategyTextBody(BaseModel):
@@ -993,16 +998,6 @@ class StrategyTextBody(BaseModel):
 class StrategyRunBody(BaseModel):
     spec: dict                          # the checked rule from /parse (or written by hand)
     generated_by: Optional[str] = None  # the AI model that wrote it (adds a "it may know the future" warning)
-
-
-# Income, deductions and age for the tax comparison.
-class TaxBody(BaseModel):
-    fy: str = "2025-26"
-    salary: float = 0
-    other_income: float = 0
-    deductions_80c: float = 0
-    deductions_80d: float = 0
-    age: Literal["below_60", "60_to_80", "above_80"] = "below_60"
 
 
 @app.post("/strategy/{user_id}/{workspace_id}/parse", dependencies=USER_WS)
@@ -1033,9 +1028,31 @@ def strategy_get_run(user_id: str, run_id: str):
     return get_run(user_id, run_id)
 
 
-@app.post("/tax/{user_id}/{workspace_id}", dependencies=USER_WS)
-def tax_compare(user_id: str, workspace_id: str, body: TaxBody):
-    """Tax under the old and new regime for a financial year, gains taken from the tradebook."""
-    from app.features.tax import compare
-    return compare(user_id, workspace_id, body.fy, body.salary, body.other_income, body.deductions_80c,
-                   body.deductions_80d, body.age)
+@app.post("/strategy/{user_id}/{workspace_id}/python", dependencies=USER_WS)
+async def strategy_python(user_id: str, workspace_id: str, file: UploadFile = File(...), symbols: str = Form(...),
+                          capital: float = Form(100000), start: Optional[date] = Form(None), end: Optional[date] = Form(None)):
+    """Backtest an uploaded .py file defining weights(close) (features/sandbox.py says what it may contain)."""
+    from app.features.strategy import run_python
+    code = (await file.read(100_001)).decode("utf-8", "replace")
+    if len(code) > 100_000:
+        raise HTTPException(400, "the strategy file is too large (100 KB at most)")
+    return await asyncio.to_thread(run_python, user_id, workspace_id, code, symbols.split(","), capital, start=start, end=end)
+
+
+# Target weights per holding (% of the portfolio, adding up to 100).
+class TargetsBody(BaseModel):
+    targets: dict[str, float]
+
+
+@app.get("/rebalance/{user_id}/{workspace_id}", dependencies=USER_WS)
+def rebalance_drift(user_id: str, workspace_id: str):
+    """Each holding's current vs target weight, its drift and the change that would bring it back to target."""
+    from app.features.rebalance import drift
+    return drift(user_id, workspace_id)
+
+
+@app.put("/rebalance/{user_id}/targets", dependencies=USER)
+def rebalance_targets(user_id: str, body: TargetsBody):
+    """Save the target mix."""
+    from app.features.rebalance import save_targets
+    return save_targets(user_id, body.targets)

@@ -263,6 +263,11 @@ def load_prices(user_id: str, workspace_id: str | None, universe: list[str], end
 # Simulate a strategy on price panels. Returns daily net returns, the exposure per stock, the amount traded per
 # day (as a share of the money), and the buy-and-hold value per rupee, all on the same days.
 def simulate(spec: StrategySpec, close: pd.DataFrame, opens: pd.DataFrame | None):
+    return simulate_weights(target_weights(spec, close), close, opens, spec.costs, spec.start, spec.end)
+
+
+# The weight a rule wants in each stock at each day's close (0..1, rows sum to at most 1).
+def target_weights(spec: StrategySpec, close: pd.DataFrame) -> pd.DataFrame:
     entry = _frame(evaluate(spec.entry, close), close).fillna(0).astype(bool)
     if spec.exit is not None:
         exit_ = _frame(evaluate(spec.exit, close), close).fillna(0).astype(bool)
@@ -275,14 +280,17 @@ def simulate(spec: StrategySpec, close: pd.DataFrame, opens: pd.DataFrame | None
         first = pd.Series(~pd.Series(period).duplicated().to_numpy(), index=close.index)
         held = held.where(first, np.nan).ffill().fillna(0.0)
     if spec.sizing == "equal_weight":
-        weights = held.div(held.sum(axis=1).replace(0, np.nan), axis=0).fillna(0.0)
-    else:
-        weights = held / len(spec.universe)
+        return held.div(held.sum(axis=1).replace(0, np.nan), axis=0).fillna(0.0)
+    return held / len(spec.universe)
 
+
+# Trade target weights (decided at a day's close, filled at the next day's open) with Indian costs.
+def simulate_weights(weights: pd.DataFrame, close: pd.DataFrame, opens: pd.DataFrame | None, costs: str,
+                     start: date | None = None, end: date | None = None):
     fill = opens if opens is not None else close
     ret = (fill.shift(-1) / fill - 1).fillna(0.0)  # day t's fill price to day t+1's fill price
     exposure = weights.shift(1).fillna(0.0)        # decided at day t-1's close, filled at day t
-    start, end = pd.Timestamp(spec.start or close.index[0]), pd.Timestamp(spec.end or close.index[-1])
+    start, end = pd.Timestamp(start or close.index[0]), pd.Timestamp(end or close.index[-1])
     window = (close.index >= start) & (close.index <= end)
     exposure, ret, fill = exposure[window].iloc[:-1], ret[window].iloc[:-1], fill[window]
     if len(exposure) < 2:
@@ -290,7 +298,7 @@ def simulate(spec: StrategySpec, close: pd.DataFrame, opens: pd.DataFrame | None
     trades = exposure.diff()
     trades.iloc[0] = exposure.iloc[0]  # ponytail: weights reset to target daily; drift trades aren't charged
     buys, sells = trades.clip(lower=0).sum(axis=1), (-trades).clip(lower=0).sum(axis=1)
-    rate = COSTS[spec.costs]
+    rate = COSTS[costs]
     net = (exposure * ret).sum(axis=1) - buys * rate["buy"] - sells * rate["sell"]
     growth = (fill / fill.iloc[0]).mean(axis=1).iloc[1:].to_numpy()  # buy-and-hold, equal amounts on day one
     bench = pd.Series(growth * (1 - rate["buy"]), index=net.index)
@@ -354,11 +362,38 @@ def run(user_id: str, workspace_id: str | None, spec: StrategySpec | dict, gener
     spec = spec if isinstance(spec, StrategySpec) else StrategySpec(**spec)
     spec = spec.model_copy(update={"universe": list(dict.fromkeys(s.strip().upper() for s in spec.universe))})
     close, opens, warnings, fingerprint = load_prices(user_id, workspace_id, spec.universe, spec.end)
-    net, exposure, traded, bench = simulate(spec, close, opens)
-    equity, bench_equity = spec.capital * (1 + net).cumprod(), spec.capital * bench
+    sim = simulate(spec, close, opens)
+    return _score_and_save(user_id, workspace_id, sim, spec.universe, spec.capital, warnings, fingerprint,
+                           describe(spec), json.loads(spec.model_dump_json()), spec.model_dump_json(), generated_by)
+
+
+# Backtest an uploaded Python strategy (see sandbox.py for what the file may contain and how it is isolated).
+def run_python(user_id: str, workspace_id: str | None, code: str, universe: list[str], capital: float = 100000,
+               costs: str = "india_equity_delivery", start: date | None = None, end: date | None = None) -> dict:
+    from app.features import sandbox
+    universe = list(dict.fromkeys(s.strip().upper() for s in universe if s.strip()))
+    if not universe or len(universe) > 20:
+        raise ValueError("give 1 to 20 symbols for the strategy to trade")
+    if costs not in COSTS:
+        raise ValueError(f"costs must be one of {sorted(COSTS)}")
+    close, opens, warnings, fingerprint = load_prices(user_id, workspace_id, universe, end)
+    weights = sandbox.run_weights(code, close)
+    sim = simulate_weights(weights, close, opens, costs, start, end)
+    spec = {"kind": "python", "universe": universe, "capital": capital, "costs": costs,
+            "start": str(start) if start else None, "end": str(end) if end else None, "code": code}
+    description = f"Your Python strategy on {', '.join(universe)}: target weights from weights(close), traded at the next open."
+    return _score_and_save(user_id, workspace_id, sim, universe, capital, warnings, fingerprint, description, spec,
+                           code + json.dumps(spec, sort_keys=True), None)
+
+
+# Metrics, deflated Sharpe and run card for one simulation; saved under strategy_runs/<id>.json.
+def _score_and_save(user_id, workspace_id, sim, universe, capital, warnings, fingerprint, description, spec_json,
+                    spec_text, generated_by) -> dict:
+    net, exposure, traded, bench = sim
+    equity, bench_equity = capital * (1 + net).cumprod(), capital * bench
     period = {"start": str(net.index[0].date()), "end": str(net.index[-1].date())}
 
-    same = [c for c in list_runs(user_id) if c["universe"] == sorted(spec.universe) and c["period"] == period]
+    same = [c for c in list_runs(user_id) if c["universe"] == sorted(universe) and c["period"] == period]
     excess = net - RISK_FREE / TRADING_DAYS
     dsr = deflated_sharpe(excess, len(same) + 1, [c["daily_sharpe"] for c in same if c.get("daily_sharpe") is not None])
     if generated_by and date.fromisoformat(period["start"]) <= MODEL_CUTOFF:
@@ -367,17 +402,17 @@ def run(user_id: str, workspace_id: str | None, spec: StrategySpec | dict, gener
     if same:
         warnings.append(f"you have tested {len(same) + 1} rules on these stocks and dates; the deflated Sharpe allows for that")
     std = excess.std()
-    card = {"id": uuid.uuid4().hex[:12], "workspace_id": workspace_id, "universe": sorted(spec.universe), "period": period,
-            "spec_hash": hashlib.sha256(spec.model_dump_json().encode()).hexdigest()[:16], "data_version": fingerprint,
+    card = {"id": uuid.uuid4().hex[:12], "workspace_id": workspace_id, "universe": sorted(universe), "period": period,
+            "spec_hash": hashlib.sha256(spec_text.encode()).hexdigest()[:16], "data_version": fingerprint,
             "engine_version": ENGINE_VERSION, "generated_by": generated_by, "n_trials": len(same) + 1,
             "daily_sharpe": round(float(excess.mean() / std), 6) if std > 0 else None, "deflated_sharpe": dsr,
             "created_at": datetime.now(timezone.utc).isoformat()}  # microseconds, so "newest first" never ties
     step = max(1, len(equity) // 500)  # at most ~500 points for the chart
     curve = [{"date": str(d.date()), "strategy": round(float(e), 2), "buy_and_hold": round(float(b), 2)}
              for d, e, b in list(zip(equity.index, equity, bench_equity))[::step]]
-    result = {"label": LABEL, "description": describe(spec), "spec": json.loads(spec.model_dump_json()),
-              "metrics": stats(spec.capital, equity, net, exposure, traded),
-              "buy_and_hold": stats(spec.capital, bench_equity, bench_equity.pct_change().fillna(bench.iloc[0] - 1)),
+    result = {"label": LABEL, "description": description, "spec": spec_json,
+              "metrics": stats(capital, equity, net, exposure, traded),
+              "buy_and_hold": stats(capital, bench_equity, bench_equity.pct_change().fillna(bench.iloc[0] - 1)),
               "equity_curve": curve, "warnings": warnings, "run_card": card}
     _runs_dir(user_id).mkdir(parents=True, exist_ok=True)
     (_runs_dir(user_id) / f"{card['id']}.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")

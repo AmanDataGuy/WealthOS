@@ -92,9 +92,6 @@ def test_bad_dashboard_input(c):
 
 
 def test_bad_other_features(c):
-    refused(c.post("/tax/u/default", json={"fy": "1999-00"}), 400)
-    refused(c.post("/tax/u/default", json={"age": "ancient"}), 422)
-    assert c.post("/tax/u/default", json={"salary": -5}).json()["new"]["total_tax"] == 0
     refused(c.post("/prices/u/default", json={"source": "crypto", "symbols": ["BTC"]}), 422)
     refused(c.post("/prices/u/default", json={"source": "nse", "symbols": []}), 400)
     refused(c.post("/prices/u/default", json={"source": "nse", "symbols": [f"S{i}" for i in range(51)]}), 400)

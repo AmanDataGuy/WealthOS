@@ -7,7 +7,7 @@ signed-in user when the token is valid, otherwise by IP.
 | Rule | Paths | Limit |
 |---|---|---|
 | auth | `/auth/*` | 10 per minute per IP |
-| ai | `/assistant/ask`, strategy parse, dashboard AI edit / report | 20 per minute |
+| ai | `/assistant/ask`, strategy parse / Python run, dashboard AI edit / report | 20 per minute |
 | upload | `/sources/upload` | 30 per hour |
 | default | everything else | 300 per minute |
 
@@ -20,7 +20,7 @@ import time
 
 RULES = [  # (name, path pattern, rate, per seconds); first match wins
     ("auth", re.compile(r"^/auth/"), 10, 60),
-    ("ai", re.compile(r"^/assistant/ask$|^/strategy/[^/]+/[^/]+/parse$|^/dashboards/[^/]+/[^/]+/(?:ai-edit|report)$"), 20, 60),
+    ("ai", re.compile(r"^/assistant/ask$|^/strategy/[^/]+/[^/]+/(?:parse|python)$|^/dashboards/[^/]+/[^/]+/(?:ai-edit|report)$"), 20, 60),
     ("upload", re.compile(r"^/sources/upload$"), 30, 3600),
     ("default", re.compile(r""), 300, 60),
 ]
