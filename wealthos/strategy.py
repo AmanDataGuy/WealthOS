@@ -409,7 +409,7 @@ Rules:
 async def parse(user_id: str, workspace_id: str | None, text: str) -> dict:
     import asyncio
 
-    from wealthos.services.llm_client import GROQ_MODEL, call_json
+    from wealthos.services.llm_client import GROQ_MODEL, SERVED_MODEL, call_json
 
     # The symbols that have prices in the workspace.
     def symbols() -> list[str]:
@@ -435,4 +435,5 @@ async def parse(user_id: str, workspace_id: str | None, text: str) -> dict:
     for sig in (spec.entry, spec.exit):
         if sig is not None:
             evaluate(sig, probe)  # argument / window checks before the rule is shown
-    return {"spec": json.loads(spec.model_dump_json()), "description": describe(spec), "generated_by": GROQ_MODEL, "label": LABEL}
+    return {"spec": json.loads(spec.model_dump_json()), "description": describe(spec), "label": LABEL,
+            "generated_by": SERVED_MODEL.get() or GROQ_MODEL}  # the fallback's name when Groq didn't answer

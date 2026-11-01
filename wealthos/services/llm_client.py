@@ -13,6 +13,7 @@ Reasoning models (gpt-oss) can spend the whole token budget "thinking" and retur
 `reasoning_effort="low"` and retry once on an empty answer.
 """
 
+import contextvars
 import json
 import logging
 import os
@@ -37,6 +38,9 @@ GROQ_MODEL         = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
 # Free on OpenRouter (":free" models cost nothing, rate-limited); checked 2026-10-31: answers the planner's JSON correctly.
 OPENROUTER_MODEL   = os.getenv("LLM_FALLBACK_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free")
 _OPENROUTER_MIN_TOKENS = 300
+# The model that wrote the latest answer in this request or task (the fallback's name when Groq failed). Read it right
+# after a call to record which model really answered; "" before any call. A ContextVar, so parallel requests don't mix.
+SERVED_MODEL: contextvars.ContextVar[str] = contextvars.ContextVar("served_model", default="")
 
 # $ per 1M tokens (input, output): Groq gpt-oss-120b list price (the free tier is billed $0, so this is an upper
 # bound); OpenRouter ":free" models cost nothing, other OpenRouter models are estimated at gpt-oss-20b's price.
@@ -119,6 +123,7 @@ async def call_llm(system: str, user: str, max_tokens: int = 500, temperature: f
                     await _track_usage(data["usage"], model, provider, user_id)
                 content = (data["choices"][0]["message"].get("content") or "").strip()
                 if content:
+                    SERVED_MODEL.set(model)
                     return content
                 logger.warning("[llm_client] %s returned empty content (attempt %d)", provider, attempt)
     logger.error("[llm_client] All providers failed or returned nothing (Groq %s, OpenRouter %s)",

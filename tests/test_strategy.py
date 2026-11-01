@@ -2,7 +2,9 @@
 """The signal ops against hand-computed series, the look-ahead guard, Indian costs against a hand-written
 contract note, the split check, run cards with the deflated Sharpe, and plain English -> spec with a fake LLM."""
 import asyncio
+import json
 
+import httpx
 import pandas as pd
 import pytest
 from pydantic import ValidationError
@@ -133,3 +135,36 @@ def test_parse_with_fake_llm(tmp_path, monkeypatch):
     answer = {"universe": ["TSLA"], "entry": CLOSE.model_dump()}
     with pytest.raises(ValueError, match="no prices"):
         asyncio.run(strategy.parse("u", None, "buy tesla"))
+
+
+# When Groq fails and the fallback answers, the spec names the fallback model, not Groq's (D-21).
+def test_generated_by_names_the_model_that_answered(tmp_path, monkeypatch):
+    from wealthos.services import llm_client as llm
+
+    class Resp:
+        def __init__(self, ok):
+            self.ok = ok
+
+        def raise_for_status(self):
+            if not self.ok:
+                raise httpx.HTTPStatusError("429", request=None, response=None)
+
+        def json(self):
+            return {"choices": [{"message": {"content": '{"universe": ["NIFTYBEES"], "entry": ' + json.dumps(CLOSE.model_dump()) + "}"}}]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, **kw):
+            return Resp(ok="openrouter" in url)
+    monkeypatch.setattr(llm.httpx, "AsyncClient", Client)
+    monkeypatch.setattr(llm, "_PROVIDERS", [("groq", "https://groq/x", "k"), ("openrouter", "https://openrouter/x", "k")])
+    monkeypatch.setattr(llm, "_db_url", lambda: "")
+    days = pd.bdate_range("2026-01-01", periods=5)
+    _prices(tmp_path, [(d.date(), "NIFTYBEES", 100, 100) for d in days])
+    out = asyncio.run(strategy.parse("u", None, "buy niftybees when the close is up"))
+    assert out["generated_by"] == llm.OPENROUTER_MODEL != llm.GROQ_MODEL
