@@ -67,7 +67,7 @@ def list_workspaces() -> list[dict]:
     """Your workspaces (groups of data) with the tables in each."""
     user = current_user()
     return [{"id": w["id"], "name": w["name"],
-             "tables": [{"table": d["shape"], "file": d.get("source_file"), "rows": d.get("rows")}
+             "tables": [{"table": d["shape"], "file": d.get("source", {}).get("file"), "rows": d.get("rows")}
                         for d in engine.list_datasets(user, w["id"])]} for w in workspaces.list_workspaces(user)]
 
 

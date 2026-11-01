@@ -34,6 +34,7 @@ def _call(name, args=None):
 def test_tools_answer_with_provenance(data):
     names = {t.name for t in asyncio.run(mcp_server.mcp.list_tools())}
     assert names == {"list_workspaces", "list_metrics", "query_metric", "explain_number"}  # read-only, no SQL tool
+    assert _call("list_workspaces")[0]["tables"][0]["file"] == "bank.csv"
     assert "total_spend" in _call("list_metrics")["metrics"]
     r = _call("query_metric", {"metrics": ["total_spend"], "time": "2026-04-01..2026-06-30"})
     assert r["rows"] == [{"total_spend": 29000.0}] and r["provenance"]["datasets"][0]["file"] == "bank.csv"
