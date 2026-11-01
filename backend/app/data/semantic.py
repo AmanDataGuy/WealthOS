@@ -12,10 +12,10 @@ this instead of guessing. One model per workspace:
 | `metrics` | `metrics.yaml`-style entries for this workspace (a same-named one replaces the built-in) | `engine.run_metric`, so assistant + dashboards |
 | definitions | what the user said terms mean (per user, `agent.definitions`) | assistant |
 
-Column roles are **suggested by rules** from each column's type and name (no AI), then the user edits and saves.
-Every save is checked against the workspace's real tables, and a metric's SQL is test-run before it is kept.
+Column roles are **suggested by rules** from each column's type and name (no AI). Metrics are added from chat
+("track my rent as a metric"): each is checked against the real tables and test-run before it is kept.
 
-Stored as `data/users/<user_id>/workspaces/<workspace_id>/semantic.json`.
+Stored as `storage/users/<user_id>/workspaces/<workspace_id>/semantic.json`.
 """
 from __future__ import annotations
 
@@ -28,8 +28,6 @@ from sqlglot import exp
 from app.data import engine
 from app.ai.verify import guard_sql
 
-ROLES = {"date", "measure", "dimension", "id"}
-JOIN_KINDS = {"many_to_one", "one_to_one", "one_to_many"}
 METRIC_KEY = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 HIDDEN_COLUMNS = {"source_file", "dataset_id", "source_row"}  # bookkeeping columns (where a row came from)
 
@@ -93,37 +91,10 @@ def suggest_columns(user_id: str, workspace_id: str) -> dict:
     return out
 
 
-# Save column meanings {table: {column: {role, description}}} (merged into what was saved before).
-def save_columns(user_id: str, workspace_id: str, columns: dict[str, dict[str, dict]]) -> dict:
-    schema = _schema(user_id, workspace_id)
-    model = load(user_id, workspace_id)
-    for table, cols in columns.items():
-        for col, meaning in cols.items():
-            if col not in schema.get(table, {}):
-                raise ValueError(f"no column '{table}.{col}' in this workspace")
-            if meaning.get("role") not in ROLES:
-                raise ValueError(f"role for '{table}.{col}' must be one of {sorted(ROLES)}")
-            model["columns"].setdefault(table, {})[col] = {"role": meaning["role"],
-                                                           "description": str(meaning.get("description", ""))[:300]}
-    return _save(user_id, workspace_id, model)
 
 
 # ── Relationships ───────────────────────────────────────────────────────────────────
 
-# Replace the workspace's relationships with a checked list of {left: "table.col", right: "table.col", kind}.
-def save_relationships(user_id: str, workspace_id: str, relationships: list[dict]) -> dict:
-    schema = _schema(user_id, workspace_id)
-    clean = []
-    for r in relationships:
-        left, right, kind = str(r.get("left", "")), str(r.get("right", "")), r.get("kind", "many_to_one")
-        for side in (left, right):
-            table, _, col = side.partition(".")
-            if col not in schema.get(table, {}):
-                raise ValueError(f"'{side}' is not a table.column in this workspace")
-        if kind not in JOIN_KINDS or left.partition(".")[0] == right.partition(".")[0]:
-            raise ValueError(f"a relationship joins two different tables; kind is one of {sorted(JOIN_KINDS)}")
-        clean.append({"left": left, "right": right, "kind": kind})
-    return _save(user_id, workspace_id, load(user_id, workspace_id) | {"relationships": clean})
 
 
 # ── Workspace metrics ───────────────────────────────────────────────────────────────
@@ -162,12 +133,4 @@ def check_metric(user_id: str, workspace_id: str, key: str, spec: dict) -> dict:
 def save_metric(user_id: str, workspace_id: str, key: str, spec: dict) -> dict:
     model = load(user_id, workspace_id)
     model["metrics"][key] = check_metric(user_id, workspace_id, key, spec)
-    return _save(user_id, workspace_id, model)
-
-
-# Remove one workspace metric (a built-in it replaced comes back).
-def delete_metric(user_id: str, workspace_id: str, key: str) -> dict:
-    model = load(user_id, workspace_id)
-    if model["metrics"].pop(key, None) is None:
-        raise ValueError(f"no workspace metric '{key}'")
     return _save(user_id, workspace_id, model)

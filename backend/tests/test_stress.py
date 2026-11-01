@@ -97,9 +97,6 @@ def test_bad_other_features(c):
     refused(c.post("/prices/u/default", json={"source": "nse", "symbols": [f"S{i}" for i in range(51)]}), 400)
     refused(c.post("/strategy/u/default/run", json={"spec": {"universe": ["X"], "entry": "always"}}), 400)
     refused(c.post("/strategy/u/default/parse", json={"text": "buy low sell high"}))  # AI says nothing
-    refused(c.delete("/workspaces/u/default"), 400)  # My files can't be deleted
-    refused(c.patch("/workspaces/u/default", json={"name": "   "}))
-    refused(c.post("/workspaces/u", json={"name": ""}), 400)
     wb = openpyxl.Workbook()
     buf = io.BytesIO()
     wb.save(buf)

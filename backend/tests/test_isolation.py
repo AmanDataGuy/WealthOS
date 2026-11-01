@@ -45,7 +45,7 @@ def test_user_cannot_reach_another_users_data(client):
             "/templates/b/default/spending/suggest"]
     for path in gets:
         assert a.get(path).status_code == 403, path
-    posts = {"/workspaces/b": {"name": "x"}, "/dashboards/b": {"title": "x"}, f"/dashboards/b/{board}/ops": {"ops": []},
+    posts = {"/dashboards/b": {"title": "x"}, f"/dashboards/b/{board}/ops": {"ops": []},
              f"/dashboards/b/{board}/refresh": {}, f"/dashboards/b/{board}/revert": {},
              "/query/metric": {"user_id": "b", "metrics": ["total_spend"]}, "/query/sql": {"user_id": "b", "sql": "SELECT 1"},
              "/assistant/ask": {"user_id": "b", "question": "how much did I spend"},

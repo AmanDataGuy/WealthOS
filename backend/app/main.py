@@ -394,37 +394,11 @@ async def account_delete(user_id: str, body: DeleteAccount):
 
 # ── Workspaces: named groups of data that chats and dashboards are tied to ─────────────────────────────────
 
-# A workspace name.
-class NameBody(BaseModel):
-    name: str
-
-
 @app.get("/workspaces/{user_id}", dependencies=USER)
 def workspaces_list(user_id: str):
     """The user's workspaces (My files first) with their table counts."""
     from app.core.workspaces import list_workspaces
     return list_workspaces(user_id)
-
-
-@app.post("/workspaces/{user_id}", dependencies=USER)
-def workspaces_create(user_id: str, body: NameBody):
-    """Create a workspace."""
-    from app.core.workspaces import create_workspace
-    return create_workspace(user_id, body.name)
-
-
-@app.patch("/workspaces/{user_id}/{workspace_id}", dependencies=USER_WS)
-def workspaces_rename(user_id: str, workspace_id: str, body: NameBody):
-    """Rename a workspace."""
-    from app.core.workspaces import rename_workspace
-    return rename_workspace(user_id, workspace_id, body.name)
-
-
-@app.delete("/workspaces/{user_id}/{workspace_id}", dependencies=USER_WS)
-def workspaces_delete(user_id: str, workspace_id: str):
-    """Delete a workspace with its tables and dashboards (My files can't be deleted)."""
-    from app.core.workspaces import delete_workspace
-    return {"deleted_datasets": delete_workspace(user_id, workspace_id)}
 
 
 # ── Data in: file uploads, Google Sheets, column mapping ─────────────────────────────────────────────────────
@@ -608,26 +582,6 @@ def price_remove(user_id: str, workspace_id: str, source_id: str):
 
 # ── Understanding the data: column meanings, how tables join, the workspace's own metrics ───────────────────
 
-# What each column means.
-class ColumnsBody(BaseModel):
-    columns: dict[str, dict[str, dict]]  # {table: {column: {"role": "measure", "description": "..."}}}
-
-
-# How the workspace's tables join.
-class RelationshipsBody(BaseModel):
-    relationships: list[dict]  # [{"left": "orders.customer_id", "right": "customers.id", "kind": "many_to_one"}]
-
-
-# A workspace metric: which table, which date column, and the formula.
-class MetricBody(BaseModel):
-    table: str
-    date: str               # the date column periods filter on
-    sql: str                # one aggregate expression, e.g. SUM(amount)
-    name: str = ""
-    unit: str = ""
-    time_semantics: Literal["flow", "point_in_time"] = "flow"
-
-
 @app.get("/semantic/{user_id}/{workspace_id}", dependencies=USER_WS)
 def semantic_get(user_id: str, workspace_id: str):
     """Columns (saved meaning or a suggestion), relationships, metrics and remembered meanings."""
@@ -637,34 +591,6 @@ def semantic_get(user_id: str, workspace_id: str):
     return {"columns": semantic.suggest_columns(user_id, workspace_id), "relationships": model["relationships"],
             "workspace_metrics": model["metrics"], "metrics": engine.load_metrics(user_id, workspace_id),
             "definitions": definitions(user_id)}
-
-
-@app.put("/semantic/{user_id}/{workspace_id}/columns", dependencies=USER_WS)
-def semantic_columns(user_id: str, workspace_id: str, body: ColumnsBody):
-    """Save what columns mean."""
-    from app.data.semantic import save_columns
-    return save_columns(user_id, workspace_id, body.columns)
-
-
-@app.put("/semantic/{user_id}/{workspace_id}/relationships", dependencies=USER_WS)
-def semantic_relationships(user_id: str, workspace_id: str, body: RelationshipsBody):
-    """Replace how the workspace's tables join."""
-    from app.data.semantic import save_relationships
-    return save_relationships(user_id, workspace_id, body.relationships)
-
-
-@app.put("/semantic/{user_id}/{workspace_id}/metrics/{key}", dependencies=USER_WS)
-def semantic_metric_save(user_id: str, workspace_id: str, key: str, body: MetricBody):
-    """Add or change a workspace metric (checked and test-run before it is saved)."""
-    from app.data.semantic import save_metric
-    return save_metric(user_id, workspace_id, key, body.model_dump())
-
-
-@app.delete("/semantic/{user_id}/{workspace_id}/metrics/{key}", dependencies=USER_WS)
-def semantic_metric_delete(user_id: str, workspace_id: str, key: str):
-    """Remove a workspace metric."""
-    from app.data.semantic import delete_metric
-    return delete_metric(user_id, workspace_id, key)
 
 
 # ── Numbers: trusted metrics and checked read-only SQL (every answer says where it came from) ──────────────
