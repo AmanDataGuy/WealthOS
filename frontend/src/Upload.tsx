@@ -103,7 +103,8 @@ export default function Upload({ u, onError }: { u: string; onError: (m: string)
 }
 
 // Map an unrecognised table: what kind of table it is and which file column is each standard column. The suggestion
-// (a saved mapping, name rules, then one AI call) is pre-filled; saving remembers the mapping.
+// (a saved mapping, name rules, then one AI call) is pre-filled with its confidence per column; Save stays off until
+// every must-have column is chosen, and saving remembers the mapping.
 function Mapper({ u, hash, index, onError, onDone }: {
   u: string; hash: string; index: number; onError: (m: string) => void; onDone: () => void;
 }) {
@@ -131,6 +132,11 @@ function Mapper({ u, hash, index, onError, onDone }: {
   if (saved) return <div className="muted">{saved}. Files with the same columns will map themselves.</div>;
   if (!info) return <div className="row"><span className="muted">Its columns need mapping once.</span><button onClick={open}>Map columns</button></div>;
   const spec = info.shapes[shape];
+  const sug = info.suggestion;
+  // How sure the suggestion is about a column (saved / high / medium), or "your pick" once the user changed it.
+  const sureness = (std: string) => !map[std] ? "" : shape === sug.shape && map[std] === sug.column_map[std] ? sug.confidence[std] : "your pick";
+  const missing = spec.required.filter((r: string) => !map[r])
+    .concat(shape === "transactions" && !["debit", "credit", "amount"].some((c) => map[c]) ? ["debit/credit or amount"] : []);
   const examples = (col: string) => (info.profile?.[col]?.examples ?? []).slice(0, 2).join(", ");
   return (
     <div className="mapper">
@@ -138,7 +144,7 @@ function Mapper({ u, hash, index, onError, onDone }: {
         {Object.keys(info.shapes).map((s) => <option key={s}>{s}</option>)}
       </select></label>
       <table>
-        <thead><tr><th>Standard column</th><th>Your column</th></tr></thead>
+        <thead><tr><th>Standard column</th><th>Your column</th><th>Confidence</th></tr></thead>
         <tbody>{spec.columns.map((std: string) => (
           <tr key={std}>
             <td>{std.replace(/_/g, " ")}{spec.required.includes(std) && " *"}</td>
@@ -146,14 +152,16 @@ function Mapper({ u, hash, index, onError, onDone }: {
               <option value="">Not in this file</option>
               {info.columns.map((c: string) => <option key={c} value={c}>{c}{examples(c) && ` (e.g. ${examples(c)})`}</option>)}
             </select></td>
+            <td className="tag">{sureness(std)}</td>
           </tr>
         ))}</tbody>
       </table>
+      {!!missing.length && <div className="badge">Still missing: {missing.join(", ").replace(/_/g, " ")}</div>}
       <div className="row">
-        <span className="muted">* must have{shape === "transactions" && ", plus debit/credit or amount"}</span>
+        <span className="muted">* must have{shape === "transactions" && ", plus debit/credit or amount"} · suggested by {sug.via}</span>
         <span className="spacer" />
         <button onClick={() => setInfo(null)}>Cancel</button>
-        <button className="primary" onClick={confirm}>Save table</button>
+        <button className="primary" disabled={!!missing.length} onClick={confirm}>Save table</button>
       </div>
     </div>
   );

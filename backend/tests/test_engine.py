@@ -129,6 +129,30 @@ def test_mapping_ai_call_names_the_user(tmp_path, monkeypatch):
     assert seen["user_id"] == "u"
 
 
+# Confidence per column: high when rules and AI agree, medium when only one found it, saved once confirmed;
+# must-haves nobody found are listed as missing.
+def test_mapping_confidence(tmp_path, monkeypatch):
+    import asyncio
+
+    [t] = _upload(tmp_path, "mine.csv", "Date,Narration,Amt,Kind\n05/04/2026,Rent,25000,Dr\n")
+    ai = {"date": "Date", "amount": "Amt"}  # the AI agrees on the date, finds the amount, misses the narration
+
+    async def fake_ai(headers, profile, user_id):
+        return "transactions", ai
+    monkeypatch.setattr(mapping, "_ask_ai", fake_ai)
+    s = asyncio.run(mapping.suggest("u", t))
+    assert s["via"] == "rules+ai" and s["missing"] == []
+    assert s["confidence"] == {"date": "high", "description": "medium", "amount": "medium"}
+
+    ai = {}  # the AI finds nothing: the money column is still missing
+    s = asyncio.run(mapping.suggest("u", t))
+    assert s["confidence"] == {"date": "medium", "description": "medium"} and s["missing"] == ["debit/credit or amount"]
+
+    mapping.confirm("u", t, "transactions", {"date": "Date", "description": "Narration", "amount": "Amt", "drcr": "Kind"})
+    s = asyncio.run(mapping.suggest("u", t))
+    assert s["via"] == "saved" and set(s["confidence"].values()) == {"saved"} and s["missing"] == []
+
+
 # Two workspaces never see each other's tables; deleting a workspace removes only its datasets.
 def test_workspaces_isolated(tmp_path):
     from app.core import workspaces
