@@ -72,7 +72,8 @@ flowchart LR
 ```
 backend/
   app/
-    main.py          the HTTP API (every route)
+    main.py          the HTTP API: app, middleware, startup, sign-in checks
+    api/             the routes, one router per area (account, sources, assistant, dashboards, strategy, company)
     worker.py        background job: evening price refresh
     mcp_server.py    read-only MCP server for Claude Desktop
     ai/              the assistant: LangGraph graph, LLM client, PII redaction, SQL + number checks, tools, filing search
@@ -80,6 +81,7 @@ backend/
     core/            settings, rate limits, account export / delete, workspaces
     data/            DuckDB engine, metrics.yaml, file parsers (ingest/, finx/), column mapping, prices, time periods
     features/        dashboards, templates, Excel templates, reports, strategy lab + Python sandbox, rebalancing, tax
+  migrations/        numbered Postgres SQL files, applied once each at API startup
   tests/  evals/  scripts/
   requirements.txt  Dockerfile
 frontend/
