@@ -1,15 +1,17 @@
-// App.tsx - sign in, then four pages under one top bar: Chat (home: ask anything, upload your data), Dashboards,
-// Strategy lab and Rebalancing. The chat's tools reach the rest (tax, prices, backtests, rebalancing), so every page
-// talks to the same assistant.
+// App.tsx - sign in, then five pages under one top bar: Chat (home: ask anything, upload your data), Dashboards,
+// Strategy lab, Rebalancing and Company (an Excel model of a US-listed company from its SEC filings). The chat's tools
+// reach the rest (tax, prices, backtests, rebalancing), so every page talks to the same assistant.
 import { useEffect, useState } from "react";
 import { del, download, get, getSession, post, Session, setSession } from "./api";
 import Chat from "./Chat";
+import Company from "./Company";
 import Dashboards from "./Dashboards";
 import Rebalance from "./Rebalance";
 import Strategy from "./Strategy";
 
-type View = "chat" | "dashboards" | "strategy" | "rebalance";
-const VIEWS: [View, string][] = [["chat", "Chat"], ["dashboards", "Dashboards"], ["strategy", "Strategy lab"], ["rebalance", "Rebalancing"]];
+type View = "chat" | "dashboards" | "strategy" | "rebalance" | "company";
+const VIEWS: [View, string][] = [["chat", "Chat"], ["dashboards", "Dashboards"], ["strategy", "Strategy lab"], ["rebalance", "Rebalancing"],
+  ["company", "Company"]];
 
 // The whole page: login screen or the app.
 export default function App() {
@@ -59,6 +61,7 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
       {view === "dashboards" && <Dashboards u={u} boards={boards} reloadBoards={reloadBoards} openId={openBoard} onError={setError} />}
       {view === "strategy" && <Strategy u={u} boards={boards} onError={setError} />}
       {view === "rebalance" && <Rebalance u={u} boards={boards} onError={setError} />}
+      {view === "company" && <Company u={u} onError={setError} />}
     </div>
   );
 }
