@@ -34,6 +34,7 @@ def test_compare_uses_tradebook_gains(tmp_path, monkeypatch):
     out = tax.compare("u", "default", "2025-26", salary=1575000)
     assert out["capital_gains"]["long_term"] == 200000 and out["new"]["capital_gains_tax"] == 9375  # (2 L - 1.25 L) x 12.5%
     assert out["lower"] == "new" and out["verified"] and out["sources"]
-    assert "not yet verified" in tax.compare("u", "default", "2026-27", salary=1)["warnings"][-1]
+    fy27 = tax.compare("u", "default", "2026-27", salary=1)
+    assert fy27["verified"] and not any("not yet verified" in w for w in fy27["warnings"])
     with pytest.raises(ValueError):
         tax.rules("2019-20")

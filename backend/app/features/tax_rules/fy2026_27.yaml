@@ -1,9 +1,12 @@
 # tax_rules/fy2026_27.yaml - tax year 2026-27, the first year under the Income-tax Act 2025 (in force 1 April 2026).
-# NOT YET VERIFIED: secondary sources say the Finance Act 2026 left these rates unchanged, so they copy FY 2025-26;
-# the official Budget 2026 memorandum could not be fetched (HTTP 403). Results for this year carry that warning.
+# Verified 2026-11-13 against the Finance Bill 2026 memorandum ("no change proposed in tax rates", with the section 202
+# slab table, Part I-B surcharge and 4% cess for tax year 2026-27) and the Income-tax Act 2025 text (s.19 standard
+# deduction, s.156 rebate, s.196 / 197 / 198 capital gains, s.2(101) holding periods). Every number below matches.
+# Section names in the keys are the old 1961 Act ones: 115BAC -> s.202, 87A -> s.156, 111A -> s.196, 112 -> s.197,
+# 112A -> s.198. Budget 2026 changes not modelled here: share buybacks taxed as capital gains, higher STT on F&O.
 # Amounts in rupees; a slab is [upper limit of income, rate %]; the last slab has no limit (null).
 fy: "2026-27"
-verified: false
+verified: true
 new_regime:                       # section 115BAC(1A), the default regime
   slabs: [[400000, 0], [800000, 5], [1200000, 10], [1600000, 15], [2000000, 20], [2400000, 25], [null, 30]]
   standard_deduction: 75000       # salaried / pensioners
@@ -28,10 +31,10 @@ capital_gains:                     # sales on or after 23-07-2024
   equity_long_term_after_months: 12
   other_long_term_after_months: 24
 notes:
-  - "The department's tax-rates page lists 37% above Rs 5 crore in its new-regime surcharge table, but its own notes (marginal relief only up to Rs 2 crore and above) and Finance Act 2023 cap the new-regime surcharge at 25%; 25% is used here."
+  - "New-regime surcharge tops out at 25% (Finance Bill 2026 memorandum: the 37% rate above Rs 5 crore does not apply to income taxed under s.202)."
+  - "The s.156 rebate is set only against tax at the s.202 slab rates (s.156(3)) and never against s.198 gains (s.198(7))."
   - "Unused basic exemption of a resident can absorb 111A / 112A gains; that is applied."
 sources:
-  - "https://wm.incometaxindia.gov.in/w/%E2%80%8Btax-rates-1 (Income-tax Act 1961 as amended by the Finance Act 2026: slabs, surcharge, cess, 87A, marginal relief)"
-  - "https://wm.incometaxindia.gov.in/w/computation-of-tax-for-individual-1 (111A 20%, 112A 12.5% above Rs 1.25 lakh, 112 12.5%, from 23-07-2024)"
-  - "https://www.incometax.gov.in/iec/foportal/help/all-topics/e-filing-services/itr-2/itr-2-faqs (new-regime slabs and Rs 60,000 rebate up to Rs 12 lakh, AY 2026-27; holding periods)"
-  - "https://wm.incometaxindia.gov.in/w/threshold-limits-under-income-tax-act (standard deduction Rs 75,000 new / Rs 50,000 old)"
+  - "https://www.indiabudget.gov.in/doc/memo.pdf (Finance Bill 2026 memorandum, Part A: rates for tax year 2026-27 under the Income-tax Act 2025 - s.202 slabs, Part I-B old-regime slabs, surcharge, 15% cap on dividends / capital gains, 4% cess; no change in rates)"
+  - "https://prsindia.org/files/bills_acts/bills_parliament/2025/Bill_as_passed_by_LS_Income_Tax_(No.2)_Bill.pdf (Income-tax Act 2025 text: s.19 standard deduction Rs 75,000 / Rs 50,000; s.156 rebate Rs 60,000 up to Rs 12 lakh with marginal relief, Rs 12,500 up to Rs 5 lakh; s.196 20%; s.197 12.5%; s.198 12.5% above Rs 1,25,000; s.2(101) 12 / 24 months; 80C-80D equivalents)"
+  - "https://static.pib.gov.in/WriteReadData/specificdocs/documents/2026/feb/doc202621776101.pdf (PIB summary of Union Budget 2026-27: no personal tax rate change; buyback and STT changes)"
