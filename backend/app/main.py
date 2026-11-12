@@ -490,6 +490,15 @@ async def upload_sheet(body: SheetBody, authorization: Optional[str] = Header(No
     return await asyncio.to_thread(_ingest_file, body.user_id, tmp, name, None, body.workspace_id)
 
 
+@app.post("/sources/{user_id}/sample", dependencies=USER)
+def load_sample(user_id: str, workspace_id: str = "default"):
+    """Load the synthetic sample bank statement, tradebook and holdings (the eval's data) so a new user can try it."""
+    from app.data.samples import write_sample_files
+    require_workspace(user_id, workspace_id)
+    with tempfile.TemporaryDirectory(dir=_raw_dir(user_id)) as folder:  # same disk, so files move into raw/ cheaply
+        return [_ingest_file(user_id, p, p.name, None, workspace_id) for p in write_sample_files(Path(folder))]
+
+
 @app.get("/sources/{user_id}/datasets", dependencies=USER)
 def list_user_datasets(user_id: str, workspace_id: Optional[str] = None):
     """The user's saved tables: kind, source file, rows, warnings."""

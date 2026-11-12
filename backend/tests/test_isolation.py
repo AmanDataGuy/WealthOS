@@ -61,3 +61,13 @@ def test_user_cannot_reach_another_users_data(client):
     assert b.post("/query/metric", json={"user_id": "b", "metrics": ["total_spend"], "time": "fy"}).json()["rows"] == [{"total_spend": 25000.0}]
     assert a.post("/query/metric", json={"user_id": "a", "metrics": ["total_spend"], "time": "fy"}).status_code == 404  # no data
     assert b.get(f"/dashboards/b/{board}").status_code == 200
+
+
+# "Load sample data" fills only the caller's own account: bank, trades and holdings, each with a raw file kept.
+def test_sample_data_loads_for_own_user_only(client):
+    a, b = client("a"), client("b")
+    assert a.post("/sources/b/sample").status_code == 403
+    r = b.post("/sources/b/sample")
+    assert r.status_code == 200 and [t["tables"][0]["shape"] for t in r.json()] == ["transactions", "trades", "holdings"]
+    assert {d["shape"] for d in b.get("/sources/b/datasets").json()} == {"transactions", "trades", "holdings"}
+    assert not list((engine.user_dir("b") / "raw").glob("tmp*"))  # the temporary folder is gone

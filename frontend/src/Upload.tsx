@@ -38,6 +38,10 @@ export default function Upload({ u, onError }: { u: string; onError: (m: string)
     }
     setResults(read); await reload();
   });
+  // Load the synthetic sample bank statement, tradebook and holdings, so a new user can try questions at once.
+  const sendSample = () => act("Loading sample data…", async () => {
+    setResults(await post(`/sources/${u}/sample?workspace_id=${WS}`)); await reload();
+  });
   // Read a Google Sheet shared by link.
   const sendSheet = () => act("Reading the sheet…", async () => {
     setResults([await post("/sources/sheet", { user_id: decodeURIComponent(u), url: sheet, workspace_id: WS })]);
@@ -49,12 +53,14 @@ export default function Upload({ u, onError }: { u: string; onError: (m: string)
       <button className="upload-toggle" onClick={() => setOpen(!open)}>{open ? "× Close" : "+ Query your own data"}</button>
       {open && (
         <div className="card-box upload-panel">
-          <p className="muted">Bank / card statements, tradebooks, holdings, daily prices (CSV, Excel), a CAS or annual report (PDF),
+          <p className="muted">Bank / card statements (CSV, Excel or PDF), tradebooks, holdings, daily prices (CSV, Excel), a CAS or annual report (PDF),
             notes (Markdown, text). Everything stays in your account until you delete it.</p>
           <div className="row wrap">
             <input type="file" multiple accept=".csv,.xlsx,.pdf,.md,.txt"
               onChange={(e) => e.target.files?.length && sendFiles([...e.target.files])} />
             <input type="password" placeholder="PDF password (CAS only)" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button disabled={!!datasets.length || !!busy} onClick={sendSample}
+              title={datasets.length ? "You already have data" : "Synthetic bank, trades and holdings"}>Load sample data</button>
           </div>
           <div className="row">
             <input className="grow" placeholder="Or a Google Sheet link (shared: anyone with the link can view)" value={sheet}
