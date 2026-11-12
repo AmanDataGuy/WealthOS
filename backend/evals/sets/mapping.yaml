@@ -1,0 +1,174 @@
+# evals/sets/mapping.yaml - header rows for `mapping.suggest` (app/data/mapping.py); run by evals/sets/run_sets.py
+# Modelled from memory on public export layouts of Indian banks, cards, brokers and registrars (no real file used).
+# name · headers · example: one made-up row (helps the AI arm) · shape: the right shape, or none when the table is
+# not one we can map (it must come back with `missing` non-empty) · map: {standard column: file column, or a list of
+# acceptable file columns}. Standard columns not listed must stay unmapped.
+
+# ── Bank statements ──
+- name: HDFC savings (netbanking CSV)
+  headers: [Date, Narration, Chq./Ref.No., Value Dt, Withdrawal Amt., Deposit Amt., Closing Balance]
+  example: [01/04/26, UPI-SWIGGY-swiggy@icici, "0000412345678901", 01/04/26, "450.00", "", "1,20,550.00"]
+  shape: transactions
+  map: {date: Date, description: Narration, debit: Withdrawal Amt., credit: Deposit Amt., balance: Closing Balance}
+- name: HDFC savings (XLS variant)
+  headers: [Date, Narration, Value Date, Debit Amount, Credit Amount, Chq/Ref Number, Closing Balance]
+  example: [01/04/2026, NEFT CR-ACME PVT LTD, 01/04/2026, "", "100000.00", N12345, "220550.00"]
+  shape: transactions
+  map: {date: [Date, Value Date], description: Narration, debit: Debit Amount, credit: Credit Amount, balance: Closing Balance}
+- name: ICICI savings
+  headers: [S No., Value Date, Transaction Date, Cheque Number, Transaction Remarks, Withdrawal Amount (INR ), Deposit Amount (INR ), Balance (INR )]
+  example: ["1", 05/04/2026, 05/04/2026, "-", BIL/ONL/Electricity, "1500.00", "0.00", "98000.00"]
+  shape: transactions
+  map: {date: [Transaction Date, Value Date], description: Transaction Remarks, debit: Withdrawal Amount (INR ), credit: Deposit Amount (INR ), balance: Balance (INR )}
+- name: ICICI savings (detailed)
+  headers: [Sl No, Tran Id, Value Date, Transaction Date, Transaction Posted, Cheque no /Ref No, Transaction Remarks, Withdrawal (Dr), Deposit(Cr), Balance]
+  example: ["1", S12345, 05/04/2026, 05/04/2026, 05/04/2026 10:01, "", UPI/swiggy, "450", "", "97550"]
+  shape: transactions
+  map: {date: [Transaction Date, Value Date], description: Transaction Remarks, debit: Withdrawal (Dr), credit: Deposit(Cr), balance: Balance}
+- name: SBI savings
+  headers: [Txn Date, Value Date, Description, Ref No./Cheque No., Debit, Credit, Balance]
+  example: [1 Apr 2026, 1 Apr 2026, BY TRANSFER-NEFT, TRF123, "", "100000.00", "150000.00"]
+  shape: transactions
+  map: {date: [Txn Date, Value Date], description: Description, debit: Debit, credit: Credit, balance: Balance}
+- name: SBI savings (YONO)
+  headers: [Date, Details, Ref No/Cheque No, Debit, Credit, Balance]
+  example: [01-04-2026, TO TRANSFER-UPI/DR/rent, "123456", "30000", "", "120000"]
+  shape: transactions
+  map: {date: Date, description: Details, debit: Debit, credit: Credit, balance: Balance}
+- name: Kotak savings
+  headers: [Sl. No., Transaction Date, Value Date, Description, Chq / Ref No., Debit, Credit, Balance]
+  example: ["1", 02-04-2026, 02-04-2026, UPI/BigBasket, UPI-1234, "4000.00", "", "116000.00"]
+  shape: transactions
+  map: {date: [Transaction Date, Value Date], description: Description, debit: Debit, credit: Credit, balance: Balance}
+- name: Kotak savings (Dr/Cr columns)
+  headers: [Date, Narration, Chq/Ref No, Withdrawal (Dr), Deposit (Cr), Balance]
+  example: [02/04/2026, IMPS-Groceries, "991", "4000", "", "116000"]
+  shape: transactions
+  map: {date: Date, description: Narration, debit: Withdrawal (Dr), credit: Deposit (Cr), balance: Balance}
+- name: Axis savings
+  headers: [Tran Date, CHQNO, PARTICULARS, DR, CR, BAL, SOL]
+  example: [03-04-2026, "", UPI/P2M/Swiggy, "1200.00", "", "114800.00", "1234"]
+  shape: transactions
+  map: {date: Tran Date, description: PARTICULARS, debit: DR, credit: CR, balance: BAL}
+- name: Axis savings (amount + Dr/Cr)
+  headers: [Transaction Date, Particulars, Amount(INR), Debit/Credit, Balance(INR)]
+  example: [03-04-2026, UPI/P2M/Swiggy, "1200.00", DR, "114800.00"]
+  shape: transactions
+  map: {date: Transaction Date, description: Particulars, amount: Amount(INR), drcr: Debit/Credit, balance: Balance(INR)}
+
+# ── Credit cards ──
+- name: HDFC credit card
+  headers: [Date, Transaction Description, Amount, Debit / Credit]
+  example: [05/04/2026, AMAZON PAY INDIA, "2,499.00", Debit]
+  shape: transactions
+  map: {date: Date, description: Transaction Description, amount: Amount, drcr: Debit / Credit}
+- name: SBI card
+  headers: [Date, Transaction Details, Amount, Cr/Dr]
+  example: [05 Apr 26, FLIPKART INTERNET, "1499.00", D]
+  shape: transactions
+  map: {date: Date, description: Transaction Details, amount: Amount, drcr: Cr/Dr}
+- name: ICICI credit card
+  headers: [Date, Sr.No., Transaction Details, Reward Point Header, Intl.Amount, Amount(in Rs), BillingAmountSign]
+  example: [05/04/2026, "1", SWIGGY BANGALORE, "12", "", "650.00", ""]
+  shape: transactions
+  map: {date: Date, description: Transaction Details, amount: Amount(in Rs), drcr: BillingAmountSign}
+
+# ── Broker tradebooks ──
+- name: Zerodha tradebook
+  headers: [symbol, isin, trade_date, exchange, segment, series, trade_type, auction, quantity, price, trade_id, order_id, order_execution_time]
+  example: [INFY, INE009A01021, 2026-05-15, NSE, EQ, EQ, sell, "false", "10", "1700", "5011", "1300000012345678", 2026-05-15T10:00:00]
+  shape: trades
+  map: {trade_date: [trade_date, order_execution_time], symbol: symbol, isin: isin, exchange: exchange, segment: segment, side: trade_type, quantity: quantity, price: price, trade_id: trade_id, order_id: order_id}
+- name: Groww stocks order history
+  headers: [Stock name, Symbol, ISIN, Type, Quantity, Value, Exchange, Exchange Order Id, Execution date and time, Order status]
+  example: [Infosys Ltd, INFY, INE009A01021, BUY, "10", "14000", NSE, "1100000009876543", 15-05-2026 10:00 AM, Executed]
+  shape: trades
+  map: {trade_date: Execution date and time, symbol: [Symbol, Stock name], isin: ISIN, exchange: Exchange, side: Type, quantity: Quantity, order_id: Exchange Order Id}
+- name: Upstox tradebook
+  headers: [Date, Company, Amount, Exchange, Segment, Scrip Code, Instrument Type, Strike Price, Expiry, Trade Num, Trade Time, Side, Quantity, Price]
+  example: [15-05-2026, INFOSYS LTD, "17000", NSE, EQ, INFY, EQ, "", "", "771", "10:00:01", Sell, "10", "1700"]
+  shape: trades
+  map: {trade_date: Date, symbol: [Company, Scrip Code], exchange: Exchange, segment: Segment, side: Side, quantity: Quantity, price: Price, trade_id: Trade Num}
+- name: Angel One tradebook
+  headers: [Trade Date, Symbol, Buy/Sell, Quantity, Trade Price, Order No, Trade No, Exchange]
+  example: [15/05/2026, INFY-EQ, B, "10", "1400.00", "260515000123", "5011", NSE]
+  shape: trades
+  map: {trade_date: Trade Date, symbol: Symbol, side: Buy/Sell, quantity: Quantity, price: Trade Price, order_id: Order No, trade_id: Trade No, exchange: Exchange}
+- name: Dhan tradebook
+  headers: [Date, Time, Name, Buy/Sell, Order, Exchange, Segment, Quantity/Lot, Trade Price, Trade Value, Status]
+  example: [15/05/2026, "10:00:00", INFOSYS, BUY, MARKET, NSE, EQUITY, "10", "1400", "14000", TRADED]
+  shape: trades
+  map: {trade_date: Date, symbol: Name, side: Buy/Sell, exchange: Exchange, segment: Segment, quantity: Quantity/Lot, price: Trade Price}
+
+# ── Holdings ──
+- name: Zerodha holdings (Kite)
+  headers: [Instrument, Qty., Avg. cost, LTP, Cur. val, P&L, Net chg., Day chg.]
+  example: [INFY, "10", "1400.00", "1580.00", "15800.00", "1800.00", "12.86", "-0.4"]
+  shape: holdings
+  map: {symbol_or_scheme: Instrument, quantity: Qty., avg_cost: Avg. cost, value: Cur. val}
+- name: Zerodha holdings (Console)
+  headers: [Symbol, ISIN, Sector, Quantity Available, Quantity Discrepant, Quantity Long Term, Average Price, Previous Closing Price, Unrealized P&L]
+  example: [INFY, INE009A01021, IT, "10", "0", "10", "1400", "1580", "1800"]
+  shape: holdings
+  map: {symbol_or_scheme: Symbol, isin: ISIN, quantity: Quantity Available, avg_cost: Average Price}
+- name: Groww holdings
+  headers: [Stock Name, ISIN, Quantity, Average buy price, Buy value, Closing price, Closing value, Unrealised P&L]
+  example: [Infosys Ltd, INE009A01021, "10", "1400", "14000", "1580", "15800", "1800"]
+  shape: holdings
+  map: {symbol_or_scheme: Stock Name, isin: ISIN, quantity: Quantity, avg_cost: Average buy price, value: Closing value}
+- name: Upstox holdings
+  headers: [Instrument, ISIN, Qty, Avg Price, LTP, Current Value, P&L]
+  example: [HDFCBANK, INE040A01034, "30", "1600", "1700", "51000", "3000"]
+  shape: holdings
+  map: {symbol_or_scheme: Instrument, isin: ISIN, quantity: Qty, avg_cost: Avg Price, value: Current Value}
+
+# ── Mutual-fund registrars (CAMS / KFintech transaction exports) ──
+- name: CAMS transactions
+  headers: [MF_NAME, INVESTOR_NAME, PAN, FOLIO_NUMBER, PRODUCT_CODE, SCHEME_NAME, TRADE_DATE, TRANSACTION_TYPE, AMOUNT, UNITS, PRICE, BROKER]
+  example: [Example Mutual Fund, Test Investor, ABCDE1234F, "1234567/89", P123, Example Flexi Cap Fund - Direct Growth, 10-Apr-2026, Purchase, "5000", "52.345", "95.52", DIRECT]
+  shape: trades
+  map: {trade_date: TRADE_DATE, symbol: SCHEME_NAME, side: TRANSACTION_TYPE, quantity: UNITS, price: PRICE}
+- name: KFintech transactions
+  headers: [Fund Name, Scheme Name, Folio No, Transaction Date, Transaction Description, Amount, NAV, Units, Balance Units]
+  example: [Example MF, Example Bluechip Fund - Direct Growth, "91234567", 10/04/2026, Systematic Purchase, "5000", "48.10", "103.950", "1203.950"]
+  shape: trades
+  map: {trade_date: Transaction Date, symbol: Scheme Name, side: Transaction Description, quantity: Units, price: NAV}
+
+# ── Prices ──
+- name: NSE bhavcopy
+  headers: [SYMBOL, SERIES, OPEN, HIGH, LOW, CLOSE, LAST, PREVCLOSE, TOTTRDQTY, TOTTRDVAL, TIMESTAMP, TOTALTRADES, ISIN]
+  example: [INFY, EQ, "1575", "1590", "1570", "1580", "1581", "1572", "5200000", "8200000000", 26-OCT-2026, "120000", INE009A01021]
+  shape: prices
+  map: {ts: TIMESTAMP, symbol: SYMBOL, open: OPEN, high: HIGH, low: LOW, close: CLOSE, volume: TOTTRDQTY}
+- name: mfapi NAV history
+  headers: [date, nav]
+  example: [26-10-2026, "95.5210"]
+  shape: prices
+  map: {ts: date, close: nav}
+
+# ── Near misses: not a table we can map ──
+- name: GST invoice lines
+  headers: [Invoice No, Item, HSN, Taxable Value, CGST, SGST, Total]
+  example: [INV-001, Laptop, "8471", "50000", "4500", "4500", "59000"]
+  shape: none
+  map: {}
+- name: Salary slip
+  headers: [Employee, Month, Basic, HRA, Special Allowance, PF, Net Pay]
+  example: [Test Employee, Apr-2026, "50000", "20000", "30000", "6000", "94000"]
+  shape: none
+  map: {}
+- name: Loan amortisation schedule
+  headers: [EMI No, Due Date, Principal, Interest, EMI, Outstanding]
+  example: ["1", 05/05/2026, "8000", "12000", "20000", "1492000"]
+  shape: none
+  map: {}
+- name: Contact list
+  headers: [Name, Phone, Email, City]
+  example: [Test Person, "9876543210", test@example.com, Pune]
+  shape: none
+  map: {}
+- name: Capital-gains summary (no dates, no sides)
+  headers: [Symbol, Buy Value, Sell Value, Realized P&L]
+  example: [INFY, "14000", "17000", "3000"]
+  shape: none
+  map: {}

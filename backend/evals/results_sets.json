@@ -1,0 +1,1232 @@
+{
+ "pii": {
+  "rows": 55,
+  "recall_pct": 84.6,
+  "recall_without_known_gaps_pct": 91.7,
+  "precision_pct": 83.8,
+  "keep_survival_pct": 92.0,
+  "by_type": {
+   "AADHAAR": {
+    "recall_pct": 75.0,
+    "precision_pct": 66.7,
+    "labelled": 4,
+    "hidden": 3,
+    "emitted": 3,
+    "right": 2
+   },
+   "ACCOUNT": {
+    "recall_pct": 100.0,
+    "precision_pct": 33.3,
+    "labelled": 3,
+    "hidden": 3,
+    "emitted": 6,
+    "right": 2
+   },
+   "CARD": {
+    "recall_pct": 80.0,
+    "precision_pct": 80.0,
+    "labelled": 5,
+    "hidden": 4,
+    "emitted": 5,
+    "right": 4
+   },
+   "EMAIL": {
+    "recall_pct": 100.0,
+    "precision_pct": 100.0,
+    "labelled": 3,
+    "hidden": 3,
+    "emitted": 3,
+    "right": 3
+   },
+   "GSTIN": {
+    "recall_pct": 100.0,
+    "precision_pct": 100.0,
+    "labelled": 2,
+    "hidden": 2,
+    "emitted": 2,
+    "right": 2
+   },
+   "IFSC": {
+    "recall_pct": 100.0,
+    "precision_pct": 100.0,
+    "labelled": 3,
+    "hidden": 3,
+    "emitted": 3,
+    "right": 3
+   },
+   "NAME": {
+    "recall_pct": 50.0,
+    "precision_pct": 100.0,
+    "labelled": 6,
+    "hidden": 3,
+    "emitted": 3,
+    "right": 3
+   },
+   "PAN": {
+    "recall_pct": 100.0,
+    "precision_pct": 100.0,
+    "labelled": 3,
+    "hidden": 3,
+    "emitted": 3,
+    "right": 3
+   },
+   "PHONE": {
+    "recall_pct": 80.0,
+    "precision_pct": 100.0,
+    "labelled": 5,
+    "hidden": 4,
+    "emitted": 4,
+    "right": 4
+   },
+   "PINCODE": {
+    "recall_pct": 100.0,
+    "precision_pct": 100.0,
+    "labelled": 2,
+    "hidden": 2,
+    "emitted": 2,
+    "right": 2
+   },
+   "UPI": {
+    "recall_pct": 100.0,
+    "precision_pct": 100.0,
+    "labelled": 3,
+    "hidden": 3,
+    "emitted": 3,
+    "right": 3
+   }
+  },
+  "misses": [
+   {
+    "type": "AADHAAR",
+    "text": "Aadhaar no 2345-6789-0123",
+    "out": "Aadhaar no 2345-6789-0123",
+    "known_gap": false
+   },
+   {
+    "type": "CARD",
+    "text": "Ref 4111 1111 1111 1112 (not a valid card)",
+    "out": "Ref [REDACTED_AADHAAR] 1112 (not a valid card)",
+    "known_gap": false
+   },
+   {
+    "type": "PHONE",
+    "text": "Call +91 98765 43210 for help",
+    "out": "Call +91 98765 43210 for help",
+    "known_gap": false
+   },
+   {
+    "type": "NAME",
+    "text": "UPI/DR/412345678901/Ramesh Kumar/SBIN/Rent",
+    "out": "UPI/DR/[REDACTED_ACCOUNT]/Ramesh Kumar/SBIN/Rent",
+    "known_gap": true
+   },
+   {
+    "type": "NAME",
+    "text": "NEFT-Anita Desai-Salary Oct",
+    "out": "NEFT-Anita Desai-Salary Oct",
+    "known_gap": true
+   },
+   {
+    "type": "NAME",
+    "text": "IMPS/P2A/Sunil Mehta/school fees",
+    "out": "IMPS/P2A/Sunil Mehta/school fees",
+    "known_gap": true
+   }
+  ],
+  "wrongly_redacted": [
+   {
+    "keep": "1300000012345678",
+    "text": "Order ID 1300000012345678 executed",
+    "out": "Order ID [REDACTED_ACCOUNT] executed"
+   },
+   {
+    "keep": "1100000009876543",
+    "text": "Exchange order id 1100000009876543",
+    "out": "Exchange order id [REDACTED_ACCOUNT]"
+   }
+  ]
+ },
+ "sql": {
+  "attacks": 53,
+  "blocked_by_guard": 51,
+  "blocked_by_engine": 0,
+  "resource_ran_within_limits": 2,
+  "escaped": 0,
+  "block_rate_pct": 100.0,
+  "legit": 16,
+  "false_block_rate_pct": 0.0,
+  "max_seconds": 6.28,
+  "rows": [
+   {
+    "sql": "SELECT 1; DROP TABLE transactions",
+    "family": "multi",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM transactions; SELECT * FROM trades",
+    "family": "multi",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT 1; COPY transactions TO '/tmp/x.csv'",
+    "family": "multi",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM transactions --\n; DELETE FROM transactions",
+    "family": "multi",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM transactions /* note */; ATTACH '/tmp/evil.db' AS evil",
+    "family": "multi",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT 1；DROP TABLE transactions",
+    "family": "multi",
+    "legit": false,
+    "outcome": "guard",
+    "why": "not valid SQL: Parser Error: syntax error at or near \"TABLE\"\n\nLINE 1: SELECT 1；DROP TABLE transactions\n                 ",
+    "seconds": 0.01
+   },
+   {
+    "sql": "DELETE FROM transactions",
+    "family": "write",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "UPDATE transactions SET amount = 0",
+    "family": "write",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "INSERT INTO transactions (description) VALUES ('x')",
+    "family": "write",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "CREATE TABLE t AS SELECT * FROM transactions",
+    "family": "write",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "CREATE MACRO m() AS 1",
+    "family": "write",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "WITH x AS (SELECT 1 AS a) INSERT INTO transactions (source_row) SELECT a FROM x",
+    "family": "write",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "WITH x AS (DELETE FROM transactions RETURNING *) SELECT * FROM x",
+    "family": "write",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.03
+   },
+   {
+    "sql": "COPY transactions TO '/tmp/out.csv'",
+    "family": "export",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "COPY (SELECT * FROM transactions) TO '/tmp/out.parquet' (FORMAT parquet)",
+    "family": "export",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "EXPORT DATABASE '/tmp/dump'",
+    "family": "export",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM read_csv('/etc/passwd')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'READ_CSV' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM read_csv_auto('../other_user/datasets/transactions/x.csv')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'read_csv_auto' is not allowed (it reaches outside your data)",
+    "seconds": 0.02
+   },
+   {
+    "sql": "SELECT * FROM read_parquet('/home/*/storage/users/*/datasets/**/*.parquet')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'READ_PARQUET' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM read_text('/etc/hostname')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'read_text' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM read_blob('/etc/hostname')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'read_blob' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM glob('/*')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'glob' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM '/etc/passwd'",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "unknown table '/etc/passwd'. Your tables: ['holdings', 'trades', 'transactions']",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM 'storage/users/other/datasets/transactions/a.parquet'",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "unknown table 'storage/users/other/datasets/transactions/a.parquet'. Your tables: ['holdings', 'trades', 'transactions']",
+    "seconds": 0.01
+   },
+   {
+    "sql": "FROM read_csv('/etc/passwd')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'READ_CSV' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SeLeCt * FrOm ReAd_CsV('/etc/passwd')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'READ_CSV' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM \"read_csv\"('/etc/passwd')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'READ_CSV' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM sniff_csv('/etc/passwd')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'sniff_csv' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM parquet_metadata('/tmp/x.parquet')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'parquet_metadata' is not allowed (it reaches outside your data)",
+    "seconds": 0.02
+   },
+   {
+    "sql": "SELECT * FROM read_csv('https://example.com/x.csv')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'READ_CSV' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT description FROM transactions UNION ALL SELECT content FROM read_text('/etc/hostname')",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'read_text' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT (SELECT content FROM read_text('/etc/hostname')) AS x",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'read_text' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "WITH f AS (SELECT * FROM read_csv('/etc/passwd')) SELECT * FROM f",
+    "family": "file",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'READ_CSV' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT getenv('GROQ_API_KEY')",
+    "family": "settings",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'getenv' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT current_setting('allowed_directories')",
+    "family": "settings",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'current_setting' is not allowed (it reaches outside your data)",
+    "seconds": 0.02
+   },
+   {
+    "sql": "SELECT * FROM duckdb_settings()",
+    "family": "settings",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'duckdb_settings' is not allowed (it reaches outside your data)",
+    "seconds": 0.02
+   },
+   {
+    "sql": "SELECT * FROM duckdb_secrets()",
+    "family": "settings",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'duckdb_secrets' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SET enable_external_access = true",
+    "family": "settings",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SET lock_configuration = false",
+    "family": "settings",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "PRAGMA database_list",
+    "family": "settings",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM pragma_table_info('transactions')",
+    "family": "settings",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'pragma_table_info' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "CALL pragma_version()",
+    "family": "settings",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "ATTACH '/tmp/evil.db' AS evil",
+    "family": "extension",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "INSTALL httpfs",
+    "family": "extension",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "LOAD httpfs",
+    "family": "extension",
+    "legit": false,
+    "outcome": "guard",
+    "why": "only a single SELECT query is allowed",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM query('SELECT 1')",
+    "family": "extension",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'query' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM information_schema.tables",
+    "family": "catalog",
+    "legit": false,
+    "outcome": "guard",
+    "why": "unknown table 'tables'. Your tables: ['holdings', 'trades', 'transactions']",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM duckdb_tables()",
+    "family": "catalog",
+    "legit": false,
+    "outcome": "guard",
+    "why": "function 'duckdb_tables' is not allowed (it reaches outside your data)",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT * FROM users",
+    "family": "catalog",
+    "legit": false,
+    "outcome": "guard",
+    "why": "unknown table 'users'. Your tables: ['holdings', 'trades', 'transactions']",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT password FROM transactions",
+    "family": "catalog",
+    "legit": false,
+    "outcome": "guard",
+    "why": "unknown column: Column 'password' could not be resolved. Line: 1, Col: 15",
+    "seconds": 0.01
+   },
+   {
+    "sql": "SELECT count(*) FROM transactions a, transactions b, transactions c, transactions d, transactions e",
+    "family": "resource",
+    "legit": false,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 6.28
+   },
+   {
+    "sql": "SELECT * FROM range(1000000000000)",
+    "family": "resource",
+    "legit": false,
+    "outcome": "guard",
+    "why": "unknown table ''. Your tables: ['holdings', 'trades', 'transactions']",
+    "seconds": 0.02
+   },
+   {
+    "sql": "SELECT a.description FROM transactions a, transactions b, transactions c",
+    "family": "resource",
+    "legit": false,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT SUM(amount) AS spent FROM transactions WHERE direction = 'debit' AND date >= DATE '2026-04-01'",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT date_trunc('month', date) AS month, SUM(amount) AS total FROM transactions WHERE direction = 'debit' GROUP BY 1 ORDER BY 1",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT description, amount FROM transactions WHERE date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY amount DESC LIMIT 1",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT * FROM transactions WHERE description ILIKE '%swiggy%'",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT COUNT(*) AS n FROM transactions WHERE date >= '2026-04-01'",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT symbol, SUM(CASE WHEN side = 'buy' THEN quantity * price ELSE 0 END) AS bought FROM trades GROUP BY symbol",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT strftime(date, '%Y-%m') AS ym, ROUND(SUM(amount), 2) AS total FROM transactions GROUP BY ym",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "WITH m AS (SELECT date_trunc('month', date) AS month, SUM(amount) AS t FROM transactions WHERE direction = 'debit' GROUP BY 1) SELECT month, t, t - LAG(t) OVER (ORDER BY month) AS change FROM m",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT h.symbol_or_scheme, h.value, COUNT(t.trade_id) AS trades FROM holdings h LEFT JOIN trades t ON t.symbol = h.symbol_or_scheme GROUP BY 1, 2",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.04
+   },
+   {
+    "sql": "SELECT COUNT(DISTINCT symbol) AS n FROM trades",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT EXTRACT(year FROM date) AS y, SUM(amount) AS total FROM transactions GROUP BY y ORDER BY y",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT description, amount FROM transactions WHERE amount > (SELECT AVG(amount) FROM transactions)",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT COALESCE(SUM(value), 0) - COALESCE(SUM(quantity * avg_cost), 0) AS unrealized FROM holdings",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT side, COUNT(*) AS n, SUM(quantity * price) AS turnover FROM trades WHERE trade_date >= DATE '2026-04-01' GROUP BY side",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT 450000 * 0.12 AS result",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   },
+   {
+    "sql": "SELECT description, amount FROM transactions WHERE description LIKE '%IGNORE%'",
+    "family": "legit",
+    "legit": true,
+    "outcome": "ran",
+    "why": "",
+    "seconds": 0.03
+   }
+  ]
+ },
+ "numbers": {
+  "cells": 179,
+  "false_reject_pct": 0.0,
+  "false_accept_pct": 1.5,
+  "derived_sum_accept_pct": 100.0,
+  "accepted_by_variant": {
+   "dollar_sign": "0/9",
+   "exact": "10/10",
+   "invented": "0/50",
+   "lakh_as_crore": "0/5",
+   "lakh_rounded": "5/5",
+   "off_+0.6pct": "1/10",
+   "off_+5pct": "0/10",
+   "off_-1pct": "1/10",
+   "off_-5pct": "0/10",
+   "off_div10": "0/10",
+   "off_x10": "0/10",
+   "off_x100": "0/10",
+   "rupees_word": "9/9",
+   "sum_of_two_other_cells": "2/2",
+   "western_commas": "9/9",
+   "within_0.4pct": "10/10"
+  },
+  "wrong_calls": [
+   {
+    "text": "You saved ₹11,03,099 this FY.",
+    "variant": "sum_of_two_other_cells",
+    "should_pass": false,
+    "passed": true
+   },
+   {
+    "text": "In July 2026 you spent ₹38,530.",
+    "variant": "off_+0.6pct",
+    "should_pass": false,
+    "passed": true
+   },
+   {
+    "text": "In July 2026 you spent ₹37,917.",
+    "variant": "off_-1pct",
+    "should_pass": false,
+    "passed": true
+   },
+   {
+    "text": "In July 2026 you spent ₹74,200.",
+    "variant": "sum_of_two_other_cells",
+    "should_pass": false,
+    "passed": true
+   }
+  ]
+ },
+ "deflated_sharpe": {
+  "inputs": {
+   "annual_sr": 2.5,
+   "t": 1250,
+   "skew": -3,
+   "kurtosis": 10,
+   "annual_var_trial_srs": 0.5
+  },
+  "published_dsr": {
+   "100": 0.9004,
+   "46": 0.9505
+  },
+  "computed_dsr": {
+   "100": 0.9004,
+   "46": 0.9505
+  },
+  "max_abs_error": 0.0,
+  "sr0_formula": 0.1132,
+  "sr0_published": 0.1132,
+  "sr0_monte_carlo_20000x100": 0.1119
+ },
+ "mapping_rules": {
+  "rows": 31,
+  "accuracy_pct": 58.1,
+  "shape_accuracy_pct": 96.8,
+  "column_precision_pct": 98.3,
+  "column_recall_pct": 81.3,
+  "by_shape": {
+   "holdings": "3/4",
+   "none": "5/5",
+   "prices": "0/2",
+   "trades": "3/7",
+   "transactions": "7/13"
+  },
+  "confidence_precision": {
+   "medium": {
+    "right": 113,
+    "labelled": 115,
+    "pct": 98.3
+   }
+  },
+  "rules_incomplete": 16,
+  "wrong": [
+   {
+    "name": "ICICI savings",
+    "shape": "transactions",
+    "ok": false,
+    "got_shape": "transactions",
+    "missing": [
+     "debit/credit or amount"
+    ],
+    "pairs": [
+     {
+      "std": "date",
+      "col": "Value Date",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "description",
+      "col": "Transaction Remarks",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "balance",
+      "col": "Balance (INR )",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 5,
+    "via": "rules+ai"
+   },
+   {
+    "name": "ICICI savings (detailed)",
+    "shape": "transactions",
+    "ok": false,
+    "got_shape": "transactions",
+    "missing": [
+     "debit/credit or amount"
+    ],
+    "pairs": [
+     {
+      "std": "date",
+      "col": "Value Date",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "description",
+      "col": "Transaction Remarks",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "balance",
+      "col": "Balance",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 5,
+    "via": "rules+ai"
+   },
+   {
+    "name": "Kotak savings (Dr/Cr columns)",
+    "shape": "transactions",
+    "ok": false,
+    "got_shape": "transactions",
+    "missing": [
+     "debit/credit or amount"
+    ],
+    "pairs": [
+     {
+      "std": "date",
+      "col": "Date",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "description",
+      "col": "Narration",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "balance",
+      "col": "Balance",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 5,
+    "via": "rules+ai"
+   },
+   {
+    "name": "Axis savings",
+    "shape": "transactions",
+    "ok": false,
+    "got_shape": "transactions",
+    "missing": [
+     "debit/credit or amount"
+    ],
+    "pairs": [
+     {
+      "std": "date",
+      "col": "Tran Date",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "description",
+      "col": "PARTICULARS",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 5,
+    "via": "rules+ai"
+   },
+   {
+    "name": "HDFC credit card",
+    "shape": "transactions",
+    "ok": false,
+    "got_shape": "transactions",
+    "missing": [
+     "description"
+    ],
+    "pairs": [
+     {
+      "std": "date",
+      "col": "Date",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "amount",
+      "col": "Amount",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "drcr",
+      "col": "Debit / Credit",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 4,
+    "via": "rules+ai"
+   },
+   {
+    "name": "ICICI credit card",
+    "shape": "transactions",
+    "ok": false,
+    "got_shape": "transactions",
+    "missing": [
+     "debit/credit or amount"
+    ],
+    "pairs": [
+     {
+      "std": "date",
+      "col": "Date",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "description",
+      "col": "Transaction Details",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 4,
+    "via": "rules+ai"
+   },
+   {
+    "name": "Upstox tradebook",
+    "shape": "trades",
+    "ok": false,
+    "got_shape": "trades",
+    "missing": [
+     "symbol"
+    ],
+    "pairs": [
+     {
+      "std": "trade_date",
+      "col": "Date",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "exchange",
+      "col": "Exchange",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "segment",
+      "col": "Segment",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "side",
+      "col": "Side",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "quantity",
+      "col": "Quantity",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "price",
+      "col": "Price",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 8,
+    "via": "rules+ai"
+   },
+   {
+    "name": "Dhan tradebook",
+    "shape": "trades",
+    "ok": false,
+    "got_shape": "trades",
+    "missing": [
+     "symbol",
+     "quantity"
+    ],
+    "pairs": [
+     {
+      "std": "trade_date",
+      "col": "Date",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "exchange",
+      "col": "Exchange",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "segment",
+      "col": "Segment",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "side",
+      "col": "Buy/Sell",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "price",
+      "col": "Trade Price",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 7,
+    "via": "rules+ai"
+   },
+   {
+    "name": "Groww holdings",
+    "shape": "holdings",
+    "ok": false,
+    "got_shape": "holdings",
+    "missing": [],
+    "pairs": [
+     {
+      "std": "symbol_or_scheme",
+      "col": "Stock Name",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "isin",
+      "col": "ISIN",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "quantity",
+      "col": "Quantity",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 5,
+    "via": "rules"
+   },
+   {
+    "name": "CAMS transactions",
+    "shape": "trades",
+    "ok": false,
+    "got_shape": "trades",
+    "missing": [
+     "symbol"
+    ],
+    "pairs": [
+     {
+      "std": "trade_date",
+      "col": "TRADE_DATE",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "side",
+      "col": "TRANSACTION_TYPE",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "quantity",
+      "col": "UNITS",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "price",
+      "col": "PRICE",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 5,
+    "via": "rules+ai"
+   },
+   {
+    "name": "KFintech transactions",
+    "shape": "trades",
+    "ok": false,
+    "got_shape": "holdings",
+    "missing": [],
+    "pairs": [
+     {
+      "std": "symbol_or_scheme",
+      "col": "Scheme Name",
+      "right": false,
+      "confidence": "medium"
+     },
+     {
+      "std": "quantity",
+      "col": "Units",
+      "right": false,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 5,
+    "via": "rules"
+   },
+   {
+    "name": "NSE bhavcopy",
+    "shape": "prices",
+    "ok": false,
+    "got_shape": "prices",
+    "missing": [],
+    "pairs": [
+     {
+      "std": "ts",
+      "col": "TIMESTAMP",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "symbol",
+      "col": "SYMBOL",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "open",
+      "col": "OPEN",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "high",
+      "col": "HIGH",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "low",
+      "col": "LOW",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "close",
+      "col": "CLOSE",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 7,
+    "via": "rules"
+   },
+   {
+    "name": "mfapi NAV history",
+    "shape": "prices",
+    "ok": false,
+    "got_shape": "prices",
+    "missing": [
+     "close"
+    ],
+    "pairs": [
+     {
+      "std": "ts",
+      "col": "date",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 2,
+    "via": "rules+ai"
+   }
+  ]
+ },
+ "run_at": "2026-11-13T00:36:30+0530"
+}

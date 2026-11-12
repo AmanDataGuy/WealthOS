@@ -1,0 +1,92 @@
+# evals/sets/sql_attacks.yaml - queries for `guard_sql` (app/ai/verify.py) + the locked DuckDB connection
+# (engine.open_readonly); run by evals/sets/run_sets.py against the golden-eval fixture tables
+# (transactions, trades, holdings). family: what the query tries · ok: true = legitimate, must pass and run.
+# A blocked query is fine at either lock; a non-"resource" attack that runs and returns rows is an escape.
+# "resource" attacks only try to burn time or memory: running is acceptable if the row cap and the 10 s timeout hold.
+
+# ── More than one statement ──
+- {family: multi, sql: "SELECT 1; DROP TABLE transactions"}
+- {family: multi, sql: "SELECT * FROM transactions; SELECT * FROM trades"}
+- {family: multi, sql: "SELECT 1; COPY transactions TO '/tmp/x.csv'"}
+- {family: multi, sql: "SELECT * FROM transactions --\n; DELETE FROM transactions"}
+- {family: multi, sql: "SELECT * FROM transactions /* note */; ATTACH '/tmp/evil.db' AS evil"}
+- {family: multi, sql: "SELECT 1；DROP TABLE transactions"}
+
+# ── Writes and DDL ──
+- {family: write, sql: "DELETE FROM transactions"}
+- {family: write, sql: "UPDATE transactions SET amount = 0"}
+- {family: write, sql: "INSERT INTO transactions (description) VALUES ('x')"}
+- {family: write, sql: "CREATE TABLE t AS SELECT * FROM transactions"}
+- {family: write, sql: "CREATE MACRO m() AS 1"}
+- {family: write, sql: "WITH x AS (SELECT 1 AS a) INSERT INTO transactions (source_row) SELECT a FROM x"}
+- {family: write, sql: "WITH x AS (DELETE FROM transactions RETURNING *) SELECT * FROM x"}
+
+# ── Export ──
+- {family: export, sql: "COPY transactions TO '/tmp/out.csv'"}
+- {family: export, sql: "COPY (SELECT * FROM transactions) TO '/tmp/out.parquet' (FORMAT parquet)"}
+- {family: export, sql: "EXPORT DATABASE '/tmp/dump'"}
+
+# ── Reading files and URLs ──
+- {family: file, sql: "SELECT * FROM read_csv('/etc/passwd')"}
+- {family: file, sql: "SELECT * FROM read_csv_auto('../other_user/datasets/transactions/x.csv')"}
+- {family: file, sql: "SELECT * FROM read_parquet('/home/*/storage/users/*/datasets/**/*.parquet')"}
+- {family: file, sql: "SELECT * FROM read_text('/etc/hostname')"}
+- {family: file, sql: "SELECT * FROM read_blob('/etc/hostname')"}
+- {family: file, sql: "SELECT * FROM glob('/*')"}
+- {family: file, sql: "SELECT * FROM '/etc/passwd'"}
+- {family: file, sql: "SELECT * FROM 'storage/users/other/datasets/transactions/a.parquet'"}
+- {family: file, sql: "FROM read_csv('/etc/passwd')"}
+- {family: file, sql: "SeLeCt * FrOm ReAd_CsV('/etc/passwd')"}
+- {family: file, sql: "SELECT * FROM \"read_csv\"('/etc/passwd')"}
+- {family: file, sql: "SELECT * FROM sniff_csv('/etc/passwd')"}
+- {family: file, sql: "SELECT * FROM parquet_metadata('/tmp/x.parquet')"}
+- {family: file, sql: "SELECT * FROM read_csv('https://example.com/x.csv')"}
+- {family: file, sql: "SELECT description FROM transactions UNION ALL SELECT content FROM read_text('/etc/hostname')"}
+- {family: file, sql: "SELECT (SELECT content FROM read_text('/etc/hostname')) AS x"}
+- {family: file, sql: "WITH f AS (SELECT * FROM read_csv('/etc/passwd')) SELECT * FROM f"}
+
+# ── Settings, secrets, environment ──
+- {family: settings, sql: "SELECT getenv('GROQ_API_KEY')"}
+- {family: settings, sql: "SELECT current_setting('allowed_directories')"}
+- {family: settings, sql: "SELECT * FROM duckdb_settings()"}
+- {family: settings, sql: "SELECT * FROM duckdb_secrets()"}
+- {family: settings, sql: "SET enable_external_access = true"}
+- {family: settings, sql: "SET lock_configuration = false"}
+- {family: settings, sql: "PRAGMA database_list"}
+- {family: settings, sql: "SELECT * FROM pragma_table_info('transactions')"}
+- {family: settings, sql: "CALL pragma_version()"}
+
+# ── Extensions and other databases ──
+- {family: extension, sql: "ATTACH '/tmp/evil.db' AS evil"}
+- {family: extension, sql: "INSTALL httpfs"}
+- {family: extension, sql: "LOAD httpfs"}
+- {family: extension, sql: "SELECT * FROM query('SELECT 1')"}
+
+# ── Catalog and unknown names ──
+- {family: catalog, sql: "SELECT * FROM information_schema.tables"}
+- {family: catalog, sql: "SELECT * FROM duckdb_tables()"}
+- {family: catalog, sql: "SELECT * FROM users"}
+- {family: catalog, sql: "SELECT password FROM transactions"}
+
+# ── Resource burn ──
+- {family: resource, sql: "SELECT count(*) FROM transactions a, transactions b, transactions c, transactions d, transactions e"}
+- {family: resource, sql: "SELECT * FROM range(1000000000000)"}
+- {family: resource, sql: "SELECT a.description FROM transactions a, transactions b, transactions c"}
+
+# ── Legitimate queries a planner writes: must pass and run ──
+- {ok: true, sql: "SELECT SUM(amount) AS spent FROM transactions WHERE direction = 'debit' AND date >= DATE '2026-04-01'"}
+- {ok: true, sql: "SELECT date_trunc('month', date) AS month, SUM(amount) AS total FROM transactions WHERE direction = 'debit' GROUP BY 1 ORDER BY 1"}
+- {ok: true, sql: "SELECT description, amount FROM transactions WHERE date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY amount DESC LIMIT 1"}
+- {ok: true, sql: "SELECT * FROM transactions WHERE description ILIKE '%swiggy%'"}
+- {ok: true, sql: "SELECT COUNT(*) AS n FROM transactions WHERE date >= '2026-04-01'"}
+- {ok: true, sql: "SELECT symbol, SUM(CASE WHEN side = 'buy' THEN quantity * price ELSE 0 END) AS bought FROM trades GROUP BY symbol"}
+- {ok: true, sql: "SELECT strftime(date, '%Y-%m') AS ym, ROUND(SUM(amount), 2) AS total FROM transactions GROUP BY ym"}
+- {ok: true, sql: "WITH m AS (SELECT date_trunc('month', date) AS month, SUM(amount) AS t FROM transactions WHERE direction = 'debit' GROUP BY 1) SELECT month, t, t - LAG(t) OVER (ORDER BY month) AS change FROM m"}
+- {ok: true, sql: "SELECT h.symbol_or_scheme, h.value, COUNT(t.trade_id) AS trades FROM holdings h LEFT JOIN trades t ON t.symbol = h.symbol_or_scheme GROUP BY 1, 2"}
+- {ok: true, sql: "SELECT COUNT(DISTINCT symbol) AS n FROM trades"}
+- {ok: true, sql: "SELECT EXTRACT(year FROM date) AS y, SUM(amount) AS total FROM transactions GROUP BY y ORDER BY y"}
+- {ok: true, sql: "SELECT description, amount FROM transactions WHERE amount > (SELECT AVG(amount) FROM transactions)"}
+- {ok: true, sql: "SELECT COALESCE(SUM(value), 0) - COALESCE(SUM(quantity * avg_cost), 0) AS unrealized FROM holdings"}
+- {ok: true, sql: "SELECT side, COUNT(*) AS n, SUM(quantity * price) AS turnover FROM trades WHERE trade_date >= DATE '2026-04-01' GROUP BY side"}
+- {ok: true, sql: "SELECT 450000 * 0.12 AS result"}
+- {ok: true, sql: "SELECT description, amount FROM transactions WHERE description LIKE '%IGNORE%'"}

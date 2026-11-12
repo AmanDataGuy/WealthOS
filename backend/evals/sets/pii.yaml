@@ -1,0 +1,86 @@
+# evals/sets/pii.yaml - labelled strings for `redact_pii` (app/ai/pii_redaction.py); run by evals/sets/run_sets.py
+# text: the input · hide: [[TYPE, substring that must not survive], ...] · keep: substrings that must survive.
+# TYPE is the placeholder we expect (EMAIL, UPI, PAN, GSTIN, IFSC, CARD, PHONE, AADHAAR, ACCOUNT, PINCODE, NAME).
+# gap: true marks a known weakness kept in the set on purpose so the recall number stays honest.
+# Every value is made up (valid formats, Luhn-valid test cards, no real person).
+
+# ── PAN ──
+- {text: "PAN: ABCDE1234F on file.", hide: [[PAN, ABCDE1234F]]}
+- {text: "Income tax PAN AAAPL1234C linked to folio 12345678", hide: [[PAN, AAAPL1234C]]}
+- {text: "pan=BNZPM2501K;kyc=ok", hide: [[PAN, BNZPM2501K]]}
+- {text: "Symbol HDFCBANK closed at 1,602.50", keep: [HDFCBANK, "1,602.50"]}
+
+# ── GSTIN ──
+- {text: "Supplier GSTIN 27AAPFU0939F1ZV", hide: [[GSTIN, 27AAPFU0939F1ZV]]}
+- {text: "GST No. 29ABCDE1234F1Z5 (Karnataka)", hide: [[GSTIN, 29ABCDE1234F1Z5]]}
+
+# ── Aadhaar ──
+- {text: "Aadhaar 2345 6789 0123 verified.", hide: [[AADHAAR, "2345 6789 0123"]]}
+- {text: "UID: 9876 5432 1098", hide: [[AADHAAR, "9876 5432 1098"]]}
+- {text: "Aadhaar no 2345-6789-0123", hide: [[AADHAAR, "2345-6789-0123"]]}
+- {text: "Aadhaar 234567890123 seeded", hide: [[AADHAAR, "234567890123"]]}
+
+# ── UPI ids ──
+- {text: "UPI/DR/rahul.k@okaxis/Lunch", hide: [[UPI, rahul.k@okaxis]]}
+- {text: "Paid to 9876543210@ybl via PhonePe", hide: [[UPI, 9876543210@ybl]]}
+- {text: "VPA shop.kirana@paytm received 450", hide: [[UPI, shop.kirana@paytm]], keep: ["450"]}
+
+# ── Email ──
+- {text: "Contact priya.sharma@gmail.com for details", hide: [[EMAIL, priya.sharma@gmail.com]]}
+- {text: "Statement sent to a.b+tax@company.co.in", hide: [[EMAIL, a.b+tax@company.co.in]]}
+- {text: "Reply to support@zerodha.example", hide: [[EMAIL, support@zerodha.example]]}
+
+# ── IFSC ──
+- {text: "IFSC HDFC0001234, branch Andheri", hide: [[IFSC, HDFC0001234]]}
+- {text: "NEFT to SBIN0005943 done", hide: [[IFSC, SBIN0005943]]}
+- {text: "ifsc: ICIC0000104", hide: [[IFSC, ICIC0000104]]}
+
+# ── Cards (Luhn-valid test numbers, and one that fails Luhn) ──
+- {text: "Card 4111111111111111 charged", hide: [[CARD, "4111111111111111"]]}
+- {text: "Card no 5500 0000 0000 0004 expires 08/29", hide: [[CARD, "5500 0000 0000 0004"]]}
+- {text: "Amex 3782 822463 10005 on file", hide: [[CARD, "3782 822463 10005"]]}
+- {text: "Card 4111-1111-1111-1111 blocked", hide: [[CARD, "4111-1111-1111-1111"]]}
+- {text: "Ref 4111 1111 1111 1112 (not a valid card)", hide: [[CARD, "4111 1111 1111 1112"]]}
+- {text: "Card ending XXXX XXXX XXXX 1234", keep: ["XXXX XXXX XXXX 1234"]}
+
+# ── Phones ──
+- {text: "Call +91 9876543210 anytime", hide: [[PHONE, "9876543210"]]}
+- {text: "Mobile 09876543210 registered", hide: [[PHONE, "09876543210"]]}
+- {text: "mob: +91-9123456789", hide: [[PHONE, "9123456789"]]}
+- {text: "Call +91 98765 43210 for help", hide: [[PHONE, "98765 43210"]]}
+- {text: "Phone 8800112233.", hide: [[PHONE, "8800112233"]]}
+
+# ── Account numbers ──
+- {text: "Loan A/C No: 123456789012 outstanding.", hide: [[ACCOUNT, "123456789012"]]}
+- {text: "Account Number 50100123456789 (HDFC savings)", hide: [[ACCOUNT, "50100123456789"]]}
+- {text: "A/c 000401234567 credited", hide: [[ACCOUNT, "000401234567"]]}
+- {text: "Account no: XXXXXXXX4567", keep: [XXXXXXXX4567]}
+
+# ── PIN code after an address ──
+- {text: "Andheri East, Mumbai - 400069", hide: [[PINCODE, "400069"]]}
+- {text: "Noida, Uttar Pradesh – 201301", hide: [[PINCODE, "201301"]]}
+
+# ── Labelled names ──
+- {text: "Dear Priya Sharma, your statement is ready.", hide: [[NAME, Priya Sharma]]}
+- {text: "S/O: Ramesh Kumar, B-14, Sector 18", hide: [[NAME, Ramesh Kumar]], keep: [Sector 18]}
+- {text: "To,\nAman Gupta,\nFlat 4, MG Road", hide: [[NAME, Aman Gupta]], keep: [MG Road]}
+
+# ── Known gaps: names inside payment narrations (no label to anchor on) ──
+- {text: "UPI/DR/412345678901/Ramesh Kumar/SBIN/Rent", hide: [[NAME, Ramesh Kumar]], gap: true}
+- {text: "NEFT-Anita Desai-Salary Oct", hide: [[NAME, Anita Desai]], gap: true}
+- {text: "IMPS/P2A/Sunil Mehta/school fees", hide: [[NAME, Sunil Mehta]], gap: true}
+
+# ── Negatives: amounts, dates and references that must survive ──
+- {text: "EMI amount due: ₹1,20,000 this month.", keep: ["₹1,20,000"]}
+- {text: "Rs. 45000.50 debited", keep: ["45000.50"]}
+- {text: "INR 2500000 credited as bonus", keep: ["2500000"]}
+- {text: "Amount: 1500000000.00", keep: ["1500000000.00"]}
+- {text: '{"total": 120000000, "count": 34}', keep: ["120000000"]}
+- {text: "Balance 2,45,678.90 as on 15/06/2026", keep: ["2,45,678.90", "15/06/2026"]}
+- {text: "Trade date 2026-06-15, quantity 1250 at 1,400", keep: ["2026-06-15", "1250", "1,400"]}
+- {text: "ISIN INE009A01021 INFY", keep: [INE009A01021]}
+- {text: "Zerodha trade ID 54321098", keep: ["54321098"]}
+- {text: "Order ID 1300000012345678 executed", keep: ["1300000012345678"]}
+- {text: "Exchange order id 1100000009876543", keep: ["1100000009876543"]}
+- {text: "Cheque no 000123 cleared", keep: ["000123"]}
+- {text: "FY 2025-26 tax at 12.5% on gains above 1.25 lakh", keep: ["2025-26", "12.5%", "1.25 lakh"]}
