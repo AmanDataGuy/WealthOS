@@ -1,7 +1,7 @@
 // Chat.tsx - the home page: ask about your data (agent.py behind /assistant/ask); the same chat, compact, sits on
 // the strategy and rebalancing pages, and can run tax, rebalancing, price and backtest tools.
 // Each answer shows its numbers (rows), how they were computed (SQL, period, source files) and a badge:
-// Trusted = a named metric, Exploratory = a checked free query, External = SEC filings / news.
+// Trusted = a named metric, Exploratory = a checked free query, External = SEC filings / your documents.
 // A clarify question shows its options as buttons (the choice is remembered as a definition), and a data answer
 // can be pinned to a dashboard: the tile stores the query, never the numbers.
 // Chats are saved (left list, each named in a few words): open one to read it or carry on; "New chat" starts fresh.

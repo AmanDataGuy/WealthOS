@@ -6,7 +6,7 @@ uvicorn==0.44.0
 python-multipart==0.0.24      # file uploads
 pydantic==2.12.5
 python-dotenv==1.2.2
-httpx==0.28.1                 # LLM calls, Google Sheets, news
+httpx==0.28.1                 # LLM calls, Google Sheets, SEC
 asyncpg==0.31.0               # users table (sign-in)
 bcrypt==5.0.0
 PyJWT==2.12.1

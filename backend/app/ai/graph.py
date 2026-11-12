@@ -121,15 +121,10 @@ async def run_node(s: State) -> dict:
             "provenance": {"tool": "multi", "steps": steps}, "warnings": s["warnings"] + w, "badges": s["badges"] + [b]}
 
 
-# Explain: one model call over at most 40 rows. News headlines are listed as they are, with no model summary.
+# Explain: one model call over at most 40 rows.
 async def explain_node(s: State) -> dict:
     from app.ai import llm_client as llm
-    plan, rows, warnings = agent.Plan.model_validate(s["plan"]), s["rows"], s["warnings"]
-    if plan.kind == "news":  # headlines speak for themselves: list them, no AI summary to misread them
-        text = (f"Recent headlines for '{plan.news_query}' (from news sources, not checked by us):" if rows
-                else f"No recent news found for '{plan.news_query}'.")
-        return {"answer": agent.Answer(text=text, badge=s["badges"][0], rows=rows, provenance=s["provenance"],
-                                       warnings=warnings, plan=plan).model_dump()}
+    rows, warnings = s["rows"], s["warnings"]
     shown = rows[:agent.MAX_ROWS_TO_EXPLAIN]
     period = (s["provenance"] or {}).get("period")
     raw = await llm.call_llm(agent.EXPLAINER, f"Question: {s['question']}\nPeriod: {period}\nResults: {json.dumps(shown, default=str)}"
@@ -181,7 +176,7 @@ def _build() -> StateGraph:
     g.add_edge(START, "plan")
     g.add_conditional_edges("plan", _after_plan, ["reply", "run", END])
     g.add_conditional_edges("run", _after_run, ["run", "explain", END])
-    g.add_conditional_edges("explain", lambda s: END if s["answer"] else "verify", ["verify", END])
+    g.add_edge("explain", "verify")
     g.add_edge("reply", END)
     g.add_edge("verify", END)
     return g
