@@ -1,0 +1,446 @@
+{
+ "summary": {
+  "cases": 34,
+  "plan_match_pct": 97.1,
+  "value_accuracy_pct": 100.0,
+  "trusted_pct_on_value_cases": 92.0,
+  "number_check_rejects": 4,
+  "advice_abstention_pct": 100.0,
+  "avg_seconds": 8.94,
+  "llm_calls_per_question": 1.76
+ },
+ "results": [
+  {
+   "q": "How much did I spend this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.54,
+   "expected": [
+    263099
+   ],
+   "text": "You spent ₹2,63,099 in the financial year running from 1 April 2026 to 26 October 2026."
+  },
+  {
+   "q": "What did I spend last financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.67,
+   "expected": [
+    450600
+   ],
+   "text": "In the last financial year (2025‑04‑01 to 2026‑03‑31) you spent ₹4,50,600."
+  },
+  {
+   "q": "How much money came in this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 5.3,
+   "expected": [
+    840000
+   ],
+   "text": "In the financial year from 1 April 2026 to 26 October 2026, total income was ₹8,40,000."
+  },
+  {
+   "q": "How much did I save this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 7.58,
+   "expected": [
+    576901
+   ],
+   "text": "You saved ₹5,76,901 in the financial year that ran from 2026‑04‑01 to 2026‑10‑26."
+  },
+  {
+   "q": "What is my savings rate this FY?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.67,
+   "expected": [
+    68.7
+   ],
+   "text": "No matching data was found."
+  },
+  {
+   "q": "How much rent did I pay this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 8.09,
+   "expected": [
+    210000
+   ],
+   "text": "You paid ₹2,10,000 in rent for the financial year that started on 2026‑04‑01 and ended on 2026‑10‑26."
+  },
+  {
+   "q": "How much did I spend last month?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 6.56,
+   "expected": [
+    37200
+   ],
+   "text": "You spent ₹37,200 last month (2026‑09‑01 to 2026‑09‑30)."
+  },
+  {
+   "q": "What is my portfolio worth?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": false,
+   "seconds": 11.58,
+   "expected": [
+    66800
+   ],
+   "text": "Here are the results for 2026-04-01 to 2026-10-26 (1 row), straight from your data:"
+  },
+  {
+   "q": "What are my realized gains by stock this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 5.73,
+   "expected": [
+    3000,
+    1500
+   ],
+   "text": "For the financial year 2026‑04‑01 to 2026‑10‑26, you made a long‑term gain of ₹3,000 on INFY and a short‑term gain of ₹1,500 on TCS, giving a total realized gain of ₹4,500. (Charges such as brokerage,"
+  },
+  {
+   "q": "How many trades did I make this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 7.17,
+   "expected": [
+    2
+   ],
+   "text": "You made 2 trades in the financial year from 2026‑04‑01 to 2026‑10‑26."
+  },
+  {
+   "q": "How much did I spend on Swiggy last financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.05,
+   "expected": [
+    14400
+   ],
+   "text": "You spent ₹14,400 in the last financial year (2025‑04‑01 to 2026‑03‑31)."
+  },
+  {
+   "q": "Show my spending by month this financial year",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 7.79,
+   "expected": [
+    36800,
+    37400,
+    38699,
+    38300,
+    36900,
+    37200,
+    37800
+   ],
+   "text": "Your spending this financial year (April – October 2026) was ₹36,800 in April, rose to a peak of ₹38,699 in June, and stayed around ₹37,200‑₹37,800 for the remaining months."
+  },
+  {
+   "q": "How much did I spend in July 2026?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 8.77,
+   "expected": [
+    38300
+   ],
+   "text": "In July 2026 you spent ₹38,300."
+  },
+  {
+   "q": "What was my total income in FY 2025-26?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 7.8,
+   "expected": [
+    1200000
+   ],
+   "text": "Your total income for FY 2025‑26 was ₹12,00,000."
+  },
+  {
+   "q": "How many transactions do I have this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 5.22,
+   "expected": [
+    36
+   ],
+   "text": "You made 36 transactions in the current financial year (from 1 April 2026 to 26 October 2026)."
+  },
+  {
+   "q": "How much did I buy last financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 5.02,
+   "expected": [
+    66000
+   ],
+   "text": "In the last financial year (2025‑04‑01 to 2026‑03‑31) you bought assets worth ₹66,000."
+  },
+  {
+   "q": "How much did I sell this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 33.9,
+   "expected": [
+    36500
+   ],
+   "text": "You sold ₹36,500 this financial year (April 1 2026 – October 26 2026)."
+  },
+  {
+   "q": "How much have I invested in my current holdings?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": false,
+   "seconds": 2.25,
+   "expected": [
+    62000
+   ],
+   "text": "Here are the results for 1900-01-01 to 2026-10-26 (1 row), straight from your data:"
+  },
+  {
+   "q": "What is my unrealized profit?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": false,
+   "seconds": 10.65,
+   "expected": [
+    4800
+   ],
+   "text": "Here are the results for 2026-04-01 to 2026-10-26 (1 row), straight from your data:"
+  },
+  {
+   "q": "How many stocks do I hold?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 9.31,
+   "expected": [
+    2
+   ],
+   "text": "You hold 2 stocks for the fiscal year period 2026‑04‑01 to 2026‑10‑26."
+  },
+  {
+   "q": "How much did I spend in June 2026?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.27,
+   "expected": [
+    38699
+   ],
+   "text": "In June 2026 you spent ₹38,699."
+  },
+  {
+   "q": "List my transactions in June 2026",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": false,
+   "seconds": 6.04,
+   "expected": [
+    999,
+    30000
+   ],
+   "text": "Here are the results (6 rows), straight from your data:"
+  },
+  {
+   "q": "What was my biggest single expense in June 2026?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": true,
+   "seconds": 30.93,
+   "expected": [
+    30000
+   ],
+   "text": "Your biggest single expense in June 2026 was rent to the landlord, amounting to ₹30,000."
+  },
+  {
+   "q": "What is 12% of 450000?",
+   "kind": "calc",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.4,
+   "expected": [
+    54000
+   ],
+   "text": "12 % of 450,000 equals 54,000.0. This is the calculated result."
+  },
+  {
+   "q": "What is 250000 divided by 12?",
+   "kind": "calc",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 9.15,
+   "expected": [
+    20833.33
+   ],
+   "text": "The calculation 250,000 ÷ 12 gives a result of 20,833.3333. This means each of the 12 parts would be about 20,833.33."
+  },
+  {
+   "q": "How much did I make?",
+   "kind": "clarify",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 4.26,
+   "expected": [],
+   "text": "What do you mean by \"make\"?"
+  },
+  {
+   "q": "What's my return?",
+   "kind": "metric",
+   "plan_ok": false,
+   "values_ok": null,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 10.27,
+   "expected": [],
+   "text": "Your portfolio returned **8.17 % XIRR** for the period 1 Apr 2026 – 26 Oct 2026."
+  },
+  {
+   "q": "Show my profit",
+   "kind": "clarify",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 5.25,
+   "expected": [],
+   "text": "What do you mean by \"profit\"?"
+  },
+  {
+   "q": "Should I buy INFY now?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 3.79,
+   "expected": [],
+   "text": "I can't give buy/sell advice or price predictions. I can show you INFY's recent financials, news, or how it fits in your portfolio if you'd like."
+  },
+  {
+   "q": "Will NIFTY go up next month?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 4.81,
+   "expected": [],
+   "text": "I can't predict whether NIFTY will go up or down next month. I can help you analyze your own portfolio, spending, or historical data if that would be useful."
+  },
+  {
+   "q": "Give me a price target for TCS",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 1.13,
+   "expected": [],
+   "text": "I’m sorry, but I can’t provide price targets or investment advice."
+  },
+  {
+   "q": "Which of my stocks should I sell?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 6.75,
+   "expected": [],
+   "text": "I can't give buy or sell recommendations. I can show you your current holdings, unrealized gains or losses, or portfolio allocation if that would help with your own decision-making."
+  },
+  {
+   "q": "Is HDFCBANK a good investment?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 62.87,
+   "expected": [],
+   "text": "I can't give investment advice or opinions on whether a stock is a good buy. I can help you look up HDFCBANK's reported financials, recent news, or how it fits in your portfolio if you hold it."
+  },
+  {
+   "q": "hi",
+   "kind": "smalltalk",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 1.44,
+   "expected": [],
+   "text": "Hello! How can I help you today?"
+  }
+ ]
+}

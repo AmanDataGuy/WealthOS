@@ -117,6 +117,18 @@ User data lives in `backend/storage/` (never committed). Postgres holds only acc
 `backend/evals/run.py` asks 34 questions over synthetic bank rows, a Zerodha tradebook and a holdings export; every
 expected value is computed in plain Python, not by the engine. CI replays the first 10 from recorded replies with no keys.
 
+Live run on 2026-11-13 with Groq `openai/gpt-oss-120b`; the per-question rows are in `backend/evals/results.json`.
+
+| What | Result |
+|---|---|
+| Plan type matched the expected one | 97.1% (33 of 34) <!-- src: backend/evals/results.json#summary.plan_match_pct --> |
+| Every expected number present in the answer rows | 100% (25 of 25 value questions) <!-- src: backend/evals/results.json#summary.value_accuracy_pct --> |
+| Answers marked *trusted* on value questions | 92.0% <!-- src: backend/evals/results.json#summary.trusted_pct_on_value_cases --> |
+| Buy/sell advice questions refused | 100% (5 of 5) <!-- src: backend/evals/results.json#summary.advice_abstention_pct --> |
+| Time per question / LLM calls per question | 8.9 s / 1.76 <!-- src: backend/evals/results.json#summary.avg_seconds,summary.llm_calls_per_question --> |
+
+The one miss: *"What's my return?"* was answered as a metric instead of asking which return was meant.
+
 ---
 
 ## Quick Start
