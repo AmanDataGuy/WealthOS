@@ -1,7 +1,10 @@
 """
 # llm_client.py - the one place WealthOS talks to a language model
 
-- **Primary**: Groq (`GROQ_API_KEY`, model `LLM_MODEL`, default `openai/gpt-oss-120b`).
+- **Primary**: Groq (`GROQ_API_KEY`, model `LLM_MODEL`, default `openai/gpt-oss-120b`). `LLM_BASE_URL` swaps Groq for
+  any OpenAI-compatible server (e.g. Ollama at `http://localhost:11434/v1`; `GROQ_API_KEY` then only needs to be
+  non-empty), priced at $0 and given `LLM_TIMEOUT_S` (default 30) per call; `LLM_REASONING_EFFORT` (default "low";
+  "none" turns thinking off on Ollama). Used by the local-model eval run.
 - **Fallback**: OpenRouter (`OPENROUTER_API_KEY`, model `LLM_FALLBACK_MODEL`), used only if the primary fails.
   A `:free` fallback is skipped in production unless `WEALTHOS_ALLOW_FREE_FALLBACK=1` (free endpoints may keep prompts).
 - One key per provider.
@@ -54,11 +57,13 @@ CALL_LOG: contextvars.ContextVar[list | None] = contextvars.ContextVar("call_log
 
 # $ per 1M tokens (input, output): Groq gpt-oss-120b list price (the free tier is billed $0, so this is an upper
 # bound); OpenRouter ":free" models cost nothing, other OpenRouter models are estimated at gpt-oss-20b's price.
-_PRICES = {"groq": (0.15, 0.60), "openrouter": (0.0, 0.0) if OPENROUTER_MODEL.endswith(":free") else (0.018, 0.09)}
+_PRICES = {"groq": (0.15, 0.60), "local": (0.0, 0.0),
+           "openrouter": (0.0, 0.0) if OPENROUTER_MODEL.endswith(":free") else (0.018, 0.09)}
 _MAX_DAILY_COST_USD = float(os.getenv("WEALTHOS_MAX_DAILY_COST_USD", "5.0"))
 _MAX_DAILY_COST_USD_USER = float(os.getenv("WEALTHOS_MAX_DAILY_COST_USD_USER", "0.50"))
 _PROVIDERS = [
-    ("groq", "https://api.groq.com/openai/v1/chat/completions", GROQ_API_KEY),
+    ("local" if os.getenv("LLM_BASE_URL") else "groq",
+     os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/") + "/chat/completions", GROQ_API_KEY),
     ("openrouter", "https://openrouter.ai/api/v1/chat/completions", OPENROUTER_API_KEY),
 ]
 
@@ -146,14 +151,16 @@ async def call_llm(system: str, user: str, max_tokens: int = 500, temperature: f
         for provider, url, key in _PROVIDERS:
             if not key or (provider == "openrouter" and not _free_fallback_ok()):
                 continue
-            groq = provider == "groq"
+            groq = provider != "openrouter"  # the primary slot: Groq, or the LLM_BASE_URL server
             model = GROQ_MODEL if groq else OPENROUTER_MODEL
-            payload = {"model": model, "messages": messages, "temperature": temperature, "reasoning_effort": "low",
+            payload = {"model": model, "messages": messages, "temperature": temperature,
+                       "reasoning_effort": os.getenv("LLM_REASONING_EFFORT", "low"),
                        "max_tokens": max_tokens if groq else max(max_tokens, _OPENROUTER_MIN_TOKENS)}
             for attempt in (1, 2):  # second try only when the answer came back empty
                 start = time.perf_counter()
                 try:
-                    resp = await client.post(url, headers={"Authorization": f"Bearer {key}"}, json=payload, timeout=30.0)
+                    resp = await client.post(url, headers={"Authorization": f"Bearer {key}"}, json=payload,
+                                             timeout=float(os.getenv("LLM_TIMEOUT_S", "30")))
                     resp.raise_for_status()
                     data = resp.json()
                 except Exception as e:

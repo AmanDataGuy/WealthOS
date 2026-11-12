@@ -1,8 +1,8 @@
 # tests/test_evals_smoke.py
 """All 34 golden questions (evals/cases.yaml), replayed from the recorded LLM replies (evals/llm_cache*.json) so CI
 needs no network, for every recorded run: the agent (results.json; results_openrouter.json, same model on another
-provider) and the text-to-SQL baseline (results_baseline.json). Fails naming every question whose plan kind, values
-or badge differ from the committed live result file."""
+provider; results_local_qwen3_8b.json, a local model) and the text-to-SQL baseline (results_baseline.json). Fails
+naming every question whose plan kind, values or badge differ from the committed live result file."""
 import json
 import sys
 from pathlib import Path
@@ -17,7 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "evals"))
 import run as evals  # noqa: E402
 
 
-@pytest.mark.parametrize("arm,name", [("agent", ""), ("agent", "openrouter"), ("baseline", "baseline")])
+@pytest.mark.parametrize("arm,name", [("agent", ""), ("agent", "openrouter"), ("agent", "local_qwen3_8b"),
+                                      ("baseline", "baseline")])
 def test_golden_set_replayed(monkeypatch, arm, name):
     cache = evals.CACHE.with_name(f"llm_cache_{name}.json") if name else evals.CACHE
     committed = evals.CACHE.with_name(f"results_{name}.json" if name else "results.json")

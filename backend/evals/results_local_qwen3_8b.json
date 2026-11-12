@@ -1,0 +1,747 @@
+{
+ "summary": {
+  "cases": 34,
+  "plan_match_pct": 97.1,
+  "value_accuracy_pct": 44.0,
+  "trusted_pct_on_value_cases": 60.0,
+  "number_check_rejects": 4,
+  "advice_abstention_pct": 100.0,
+  "avg_seconds": 5.05,
+  "p50_seconds": 4.9,
+  "p95_seconds": 8.49,
+  "llm_call_p50_seconds": 3.28,
+  "llm_call_p95_seconds": 6.48,
+  "tokens_per_question": 2917,
+  "usd_per_question": 0.0,
+  "usd_total": 0.0,
+  "models": [
+   "local:qwen3:8b"
+  ],
+  "llm_calls_per_question": 1.47,
+  "waited_seconds": 0,
+  "run_at": "2026-11-13T00:55:16+0530",
+  "git_sha": "2801a88"
+ },
+ "results": [
+  {
+   "q": "How much did I spend this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "trusted",
+   "verified": false,
+   "seconds": 6.75,
+   "llm_seconds": [
+    3.034,
+    3.208
+   ],
+   "tokens": 3228,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    263099
+   ],
+   "text": "Here are the results for 2026-04-01 to 2026-10-26 (7 rows), straight from your data:"
+  },
+  {
+   "q": "What did I spend last financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 6.32,
+   "llm_seconds": [
+    3.608,
+    2.594
+   ],
+   "tokens": 3090,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    450600
+   ],
+   "text": "In the last financial year from April 2025 to March 2026, you spent ₹3,37,200. Your spending decreased by ₹2,23,800 in the same period."
+  },
+  {
+   "q": "How much money came in this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": false,
+   "seconds": 3.12,
+   "llm_seconds": [
+    1.662,
+    1.322
+   ],
+   "tokens": 2992,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    840000
+   ],
+   "text": "Here are the results for 2026-04-01 to 2026-10-26 (1 row), straight from your data:"
+  },
+  {
+   "q": "How much did I save this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 4.26,
+   "llm_seconds": [
+    1.742,
+    2.386
+   ],
+   "tokens": 3017,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    576901
+   ],
+   "text": "Your net savings for the financial year from April 1, 2026, to October 26, 2026, is ₹5,76,901."
+  },
+  {
+   "q": "What is my savings rate this FY?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": false,
+   "seconds": 3.8,
+   "llm_seconds": [
+    1.959,
+    1.595
+   ],
+   "tokens": 3000,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    68.7
+   ],
+   "text": "Here are the results for 2026-04-01 to 2026-10-26 (1 row), straight from your data:"
+  },
+  {
+   "q": "How much rent did I pay this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 6.49,
+   "llm_seconds": [
+    3.872,
+    2.467
+   ],
+   "tokens": 3058,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    210000
+   ],
+   "text": "During the financial year from April 1, 2026, to October 26, 2026, you paid a total rent of ₹2,10,000."
+  },
+  {
+   "q": "How much did I spend last month?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 4.84,
+   "llm_seconds": [
+    3.681,
+    0.982
+   ],
+   "tokens": 3029,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    37200
+   ],
+   "text": "You spent ₹37,200 last month."
+  },
+  {
+   "q": "What is my portfolio worth?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 5.03,
+   "llm_seconds": [
+    4.145,
+    0.738
+   ],
+   "tokens": 3001,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    66800
+   ],
+   "text": "No matching data was found."
+  },
+  {
+   "q": "What are my realized gains by stock this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": false,
+   "seconds": 7.87,
+   "llm_seconds": [
+    4.469,
+    3.221
+   ],
+   "tokens": 3216,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    3000,
+    1500
+   ],
+   "text": "Here are the results for 2026-04-01 to 2026-10-26 (2 rows), straight from your data:"
+  },
+  {
+   "q": "How many trades did I make this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 6.22,
+   "llm_seconds": [
+    6.075
+   ],
+   "tokens": 2806,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    2
+   ],
+   "text": "I couldn't answer that from your data: cannot split by ['time']; columns available: ['dataset_id', 'exchange', 'isin', 'order_id', 'price', 'quantity', 'segment', 'side', 'source_file', 'source_row', "
+  },
+  {
+   "q": "How much did I spend on Swiggy last financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 6.19,
+   "llm_seconds": [
+    4.776,
+    1.284
+   ],
+   "tokens": 3063,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    14400
+   ],
+   "text": "You spent ₹14,400 on Swiggy last financial year."
+  },
+  {
+   "q": "Show my spending by month this financial year",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 8.9,
+   "llm_seconds": [
+    4.837,
+    3.902
+   ],
+   "tokens": 3259,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    36800,
+    37400,
+    38699,
+    38300,
+    36900,
+    37200,
+    37800
+   ],
+   "text": "In this financial year, your spending was ₹36,800 in April, increased to ₹37,400 in May, and reached ₹38,699 in June. It then slightly dropped to ₹38,300 in July before decreasing to ₹36,900 in August"
+  },
+  {
+   "q": "How much did I spend in July 2026?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 6.82,
+   "llm_seconds": [
+    5.256,
+    1.424
+   ],
+   "tokens": 3087,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    38300
+   ],
+   "text": "In July 2026, you spent a total of ₹38,300."
+  },
+  {
+   "q": "What was my total income in FY 2025-26?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 7.62,
+   "llm_seconds": [
+    5.358,
+    2.013
+   ],
+   "tokens": 3080,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    1200000
+   ],
+   "text": "Your total income for the period FY 2025-26 was ₹12,00,000."
+  },
+  {
+   "q": "How many transactions do I have this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 4.82,
+   "llm_seconds": [
+    4.638
+   ],
+   "tokens": 2790,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    36
+   ],
+   "text": "I couldn't answer that from your data: cannot split by ['time']; columns available: ['amount', 'balance', 'dataset_id', 'date', 'description', 'direction', 'source_file', 'source_row']"
+  },
+  {
+   "q": "How much did I buy last financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 3.56,
+   "llm_seconds": [
+    3.422
+   ],
+   "tokens": 2772,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    66000
+   ],
+   "text": "I couldn't answer that from your data: cannot split by ['time']; columns available: ['dataset_id', 'exchange', 'isin', 'order_id', 'price', 'quantity', 'segment', 'side', 'source_file', 'source_row', "
+  },
+  {
+   "q": "How much did I sell this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 3.49,
+   "llm_seconds": [
+    3.345
+   ],
+   "tokens": 2768,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    36500
+   ],
+   "text": "I couldn't answer that from your data: bad filter {'column': 'direction', 'op': 'in', 'value': ['sell']}: column must be one of ['dataset_id', 'exchange', 'isin', 'order_id', 'price', 'quantity', 'seg"
+  },
+  {
+   "q": "How much have I invested in my current holdings?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 4.15,
+   "llm_seconds": [
+    3.989
+   ],
+   "tokens": 2782,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    62000
+   ],
+   "text": "I couldn't answer that from your data: bad filter {'column': 'as_of', 'op': 'lte', 'value': '2026-03-31'}: column must be one of ['as_of', 'avg_cost', 'dataset_id', 'isin', 'quantity', 'source_file', "
+  },
+  {
+   "q": "What is my unrealized profit?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 7.32,
+   "llm_seconds": [
+    4.477,
+    2.626
+   ],
+   "tokens": 3091,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    4800
+   ],
+   "text": "Your unrealized profit is ₹3,000 for HDFCBANK and ₹1,800 for INFY as of the period ending 2026-10-26."
+  },
+  {
+   "q": "How many stocks do I hold?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 4.27,
+   "llm_seconds": [
+    4.116
+   ],
+   "tokens": 2773,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    2
+   ],
+   "text": "I couldn't answer that from your data: bad filter {'column': 'symbol_or_scheme', 'op': 'is_not_null', 'value': 'true'}: column must be one of ['as_of', 'avg_cost', 'dataset_id', 'isin', 'quantity', 's"
+  },
+  {
+   "q": "How much did I spend in June 2026?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 6.76,
+   "llm_seconds": [
+    4.968,
+    1.593
+   ],
+   "tokens": 3087,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    38699
+   ],
+   "text": "In June 2026, you spent a total of ₹38,699."
+  },
+  {
+   "q": "List my transactions in June 2026",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 6.3,
+   "llm_seconds": [
+    6.179
+   ],
+   "tokens": 2803,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    999,
+    30000
+   ],
+   "text": "I couldn't answer that from your data: unknown metric(s) ['date', 'description', 'amount', 'direction', 'balance']. Available: ['allocation_pct', 'avg_monthly_spend', 'buy_value', 'holdings_count', 'i"
+  },
+  {
+   "q": "What was my biggest single expense in June 2026?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 6.95,
+   "llm_seconds": [
+    6.854
+   ],
+   "tokens": 2825,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    30000
+   ],
+   "text": "I couldn't answer that from your data: unknown metric(s) ['amount']. Available: ['allocation_pct', 'avg_monthly_spend', 'buy_value', 'holdings_count', 'invested_value', 'net_invested', 'net_savings', "
+  },
+  {
+   "q": "What is 12% of 450000?",
+   "kind": "calc",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 2.28,
+   "llm_seconds": [
+    2.203
+   ],
+   "tokens": 2743,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    54000
+   ],
+   "text": "I couldn't answer that from your data: cannot calculate '12%, 450000': invalid syntax (<unknown>, line 1)"
+  },
+  {
+   "q": "What is 250000 divided by 12?",
+   "kind": "calc",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 1.87,
+   "llm_seconds": [
+    1.787
+   ],
+   "tokens": 2743,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [
+    20833.33
+   ],
+   "text": "I couldn't answer that from your data: only numbers, + - * / ** %, brackets and round/abs/min/max are allowed"
+  },
+  {
+   "q": "How much did I make?",
+   "kind": "metric",
+   "plan_ok": false,
+   "values_ok": null,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 7.06,
+   "llm_seconds": [
+    3.461,
+    3.435
+   ],
+   "tokens": 3064,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [],
+   "text": "During the period from April 1, 2026, to October 26, 2026, your total income from Salary ACME PVT LTD was ₹8,40,000. There are no other income sources mentioned in the results."
+  },
+  {
+   "q": "What's my return?",
+   "kind": "clarify",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 4.96,
+   "llm_seconds": [
+    4.879
+   ],
+   "tokens": 2785,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [],
+   "text": "Could you clarify what you mean by 'return'? Are you referring to realized gains, unrealized profit, XIRR, or something else?"
+  },
+  {
+   "q": "Show my profit",
+   "kind": "clarify",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 8.36,
+   "llm_seconds": [
+    8.271
+   ],
+   "tokens": 2790,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [],
+   "text": "Could you clarify what you mean by 'profit'? Are you referring to realized gains, net savings, or something else?"
+  },
+  {
+   "q": "Should I buy INFY now?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 2.56,
+   "llm_seconds": [
+    2.482
+   ],
+   "tokens": 2750,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [],
+   "text": "I can't provide buy/sell advice. Consider your investment goals, risk tolerance, and consult a financial advisor."
+  },
+  {
+   "q": "Will NIFTY go up next month?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 2.44,
+   "llm_seconds": [
+    2.362
+   ],
+   "tokens": 2740,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [],
+   "text": "I can't predict future stock prices or market movements."
+  },
+  {
+   "q": "Give me a price target for TCS",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 1.93,
+   "llm_seconds": [
+    1.825
+   ],
+   "tokens": 2737,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [],
+   "text": "I can't provide price targets or predictions."
+  },
+  {
+   "q": "Which of my stocks should I sell?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 1.96,
+   "llm_seconds": [
+    1.875
+   ],
+   "tokens": 2739,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [],
+   "text": "I can't provide buy/sell advice or recommendations."
+  },
+  {
+   "q": "Is HDFCBANK a good investment?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 1.8,
+   "llm_seconds": [
+    1.717
+   ],
+   "tokens": 2737,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [],
+   "text": "I can't provide investment advice or recommendations."
+  },
+  {
+   "q": "hi",
+   "kind": "smalltalk",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 4.58,
+   "llm_seconds": [
+    4.504
+   ],
+   "tokens": 2729,
+   "usd": 0.0,
+   "models": [
+    "local:qwen3:8b"
+   ],
+   "expected": [],
+   "text": "Hello! How can I assist you today?"
+  }
+ ]
+}
