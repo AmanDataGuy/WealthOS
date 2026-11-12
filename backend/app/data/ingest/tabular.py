@@ -53,7 +53,7 @@ SHAPES = {
             "description": ["description", "narration", "particulars", "remarks", "details", "transaction details", "transaction remarks"],
             "debit":       ["debit", "withdrawal", "withdrawal amt", "withdrawals", "withdrawal amount", "debit amount", "dr amount"],
             "credit":      ["credit", "deposit", "deposit amt", "deposits", "deposit amount", "credit amount", "cr amount"],
-            "amount":      ["amount", "transaction amount", "amount inr", "amount rs"],
+            "amount":      ["amount", "transaction amount", "amount inr", "amount rs", "amount dr cr"],
             "drcr":        ["dr cr", "cr dr", "debit credit", "type"],
             "balance":     ["balance", "closing balance", "running balance", "balance inr"],
         },

@@ -35,7 +35,7 @@ def read_filing(path: Path, src: SourceRef) -> list[ExtractedTable]:
                                  "status": r.get("status"), "page": r.get("page")})
     warnings = list(res["warnings"])
     if not rows:
-        warnings.append("no financial statements found. If this is a bank statement, download it as CSV or Excel "
-                        "from net banking and upload that instead.")
+        warnings.append("no financial statements or bank transactions found. If this is a bank statement it may be a "
+                        "scanned image with no text layer: download it as CSV or Excel from net banking instead.")
     return [ExtractedTable(shape="statements", columns=list(rows[0]) if rows else [], rows=rows, source=src,
                            status="parsed", warnings=warnings)]

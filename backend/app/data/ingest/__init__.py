@@ -7,7 +7,8 @@ One door for every file: `parse_file(path, password)`.
 |---|---|---|
 | `.csv` / `.xlsx` | Find the table, recognise it (broker trades, bank transactions, holdings) by its column names | `tabular.py` |
 | `.pdf` + password | Try it as a CAS statement (CAMS / KFintech / NSDL / CDSL): mutual funds, shares, transactions | `cas.py` |
-| `.pdf` | Read financial statements (10-K, annual report) with finx, each number with a verified/unverified status | `filings.py` |
+| `.pdf` with a transactions header | Bank statement PDF (HDFC / ICICI / SBI style): rebuild the table from word positions | `bank_pdf.py` |
+| other `.pdf` | Read financial statements (10-K, annual report) with finx, each number with a verified/unverified status | `filings.py` |
 
 Every result is an `ExtractedTable`: a shape (what kind of data it is), rows with our standard column names,
 where it came from (file, sheet, page, row) and warnings from the sanity checks in `checks.py`.
@@ -54,7 +55,7 @@ def file_hash(path: str | Path) -> str:
 
 # Read one uploaded file into tables, run the sanity checks on each, and return them.
 def parse_file(path: str | Path, password: str | None = None, filename: str | None = None) -> list[ExtractedTable]:
-    from . import cas, checks, filings, tabular
+    from . import bank_pdf, cas, checks, filings, tabular
 
     path = Path(path)
     src = SourceRef(file=filename or path.name, content_hash=file_hash(path))
@@ -62,7 +63,8 @@ def parse_file(path: str | Path, password: str | None = None, filename: str | No
     if suffix in (".csv", ".xlsx"):
         tables = tabular.read_tables(path, src)
     elif suffix == ".pdf":
-        tables = (cas.read_cas(path, password, src) if password else None) or filings.read_filing(path, src)
+        tables = ((cas.read_cas(path, password, src) if password else None) or bank_pdf.read_statement(path, src)
+                  or filings.read_filing(path, src))
     else:
         raise ValueError(f"Unsupported file type '{suffix}'. Upload .csv, .xlsx or .pdf.")
     for t in tables:
