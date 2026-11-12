@@ -52,6 +52,8 @@ def guard_sql(sql: str, schema: dict[str, dict[str, str]], limit: int = MAX_ROWS
         tree = sqlglot.parse_one(sql, dialect="duckdb")
     except sqlglot.errors.ParseError as e:
         raise SqlRejected(f"could not read the query: {e}") from None
+    if tree.find(exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.Create, exp.Drop, exp.Command):
+        raise SqlRejected("only a single SELECT query is allowed")  # a write hidden inside a CTE or subquery
     for fn in tree.find_all(exp.Func):
         name = fn.name if isinstance(fn, exp.Anonymous) else fn.sql_name()
         if BLOCKED_FUNCTION.match(name or ""):
