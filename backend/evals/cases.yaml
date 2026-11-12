@@ -1,7 +1,7 @@
 # evals/cases.yaml - golden questions for evals/run.py.
 # q: the question · kinds: plan kinds that count as right · values: expected numbers that must appear in the answer's
 # rows (a name from truths() in run.py, or a literal number). "Today" is 2026-10-26, so "this FY" = 2026-04-01..today.
-# The first 10 are the CI smoke set (tests/test_evals_smoke.py replays them from the cache).
+# CI replays all of them from the recorded replies (tests/test_evals_smoke.py).
 
 # ── Personal money: trusted metrics ──
 - {q: "How much did I spend this financial year?", kinds: [metric], values: [spend_fy]}

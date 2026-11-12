@@ -1,6 +1,9 @@
 # tests/test_evals_smoke.py
-"""The first 10 golden questions (evals/cases.yaml), replayed from the recorded LLM replies
-(evals/llm_cache.json) so CI needs no network. Fails if the assistant's plans or numbers get worse."""
+"""All 34 golden questions (evals/cases.yaml), replayed from the recorded LLM replies (evals/llm_cache*.json) so CI
+needs no network, for every recorded run: the agent (results.json; results_openrouter.json, same model on another
+provider) and the text-to-SQL baseline (results_baseline.json). Fails naming every question whose plan kind, values
+or badge differ from the committed live result file."""
+import json
 import sys
 from pathlib import Path
 
@@ -14,12 +17,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "evals"))
 import run as evals  # noqa: E402
 
 
-def test_smoke_set_replayed(monkeypatch):
-    if not evals.CACHE.exists():
-        pytest.skip("no recorded LLM replies yet: run `python evals/run.py` once")
-    for module, name in [(engine, "DATA_ROOT"), (timeexpr, "today_ist"), (llm, "call_json"), (llm, "call_llm")]:
-        monkeypatch.setattr(module, name, getattr(module, name))  # evaluate() patches these; put them back afterwards
+@pytest.mark.parametrize("arm,name", [("agent", ""), ("agent", "openrouter"), ("baseline", "baseline")])
+def test_golden_set_replayed(monkeypatch, arm, name):
+    cache = evals.CACHE.with_name(f"llm_cache_{name}.json") if name else evals.CACHE
+    committed = evals.CACHE.with_name(f"results_{name}.json" if name else "results.json")
+    if not cache.exists() or not committed.exists():
+        pytest.skip(f"no recorded run yet: run `python evals/run.py --arm {arm} --name {name}` once")
+    for module, attr in [(engine, "DATA_ROOT"), (timeexpr, "today_ist"), (llm, "call_json"), (llm, "call_llm")]:
+        monkeypatch.setattr(module, attr, getattr(module, attr))  # evaluate() patches these; put them back afterwards
     monkeypatch.setenv("WEALTHOS_DB_URL", "")
-    results, summary = evals.evaluate(offline=True, only=10)
-    wrong = [r["q"] for r in results if not (r["plan_ok"] and r["values_ok"])]
-    assert summary["value_accuracy_pct"] >= 90 and summary["plan_match_pct"] >= 90, wrong
+    results, _ = evals.evaluate(offline=True, name=name, arm=arm)
+    was = {r["q"]: r for r in json.loads(committed.read_text(encoding="utf-8"))["results"]}
+    keys = ("kind", "plan_ok", "values_ok", "badge")
+    drift = [f"{r['q']}: {[r[k] for k in keys]} (committed {[was[r['q']][k] for k in keys]})"
+             for r in results if [r[k] for k in keys] != [was[r["q"]][k] for k in keys]]
+    assert not drift, drift
