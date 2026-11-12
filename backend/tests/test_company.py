@@ -3,6 +3,7 @@
 and a fake model stands in for the one AI step."""
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import openpyxl
 import pytest
@@ -102,6 +103,16 @@ def test_pipeline_end_to_end_builds_a_workbook_that_recalculates(monkeypatch):
     assert wb["Income Statement"]["B7"].value.startswith("=")  # gross profit is a formula
     with pytest.raises(engine.NotFound):
         pipeline.workbook_path("someone-else", result["run_id"])
+
+
+# Past its deadline the build stops before the AI step and saves nothing (the API has already answered 408).
+def test_build_past_deadline_stops_without_calling_the_ai_or_saving(monkeypatch):
+    clock = iter([0.0, 0.0, 100.0])  # in time for the filings list and the facts, late before the release step
+    monkeypatch.setattr(pipeline, "time", SimpleNamespace(monotonic=lambda: next(clock)))  # this module's clock only
+    monkeypatch.setattr(releases, "read", lambda *a: pytest.fail("the AI step ran after the deadline"))
+    with pytest.raises(TimeoutError):
+        pipeline.run("AAPL", "u1", deadline=50.0)
+    assert not pipeline.runs_dir("u1").exists()
 
 
 def test_ambiguous_query_returns_candidates_without_building():

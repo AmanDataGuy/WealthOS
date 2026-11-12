@@ -4,6 +4,7 @@
 - `POST /company/{user_id}/build` runs the pipeline (`app/company/pipeline.py`); the workbook route serves the result.
 """
 import asyncio
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -13,6 +14,7 @@ from pydantic import BaseModel
 from app.main import USER, XLSX
 
 router = APIRouter()
+COMPANY_BUILD_SECONDS = 240
 
 
 # ── Company analyst: a US-listed company's SEC filings as a checked Excel model ─────────────────────────────
@@ -28,8 +30,11 @@ async def company_build(user_id: str, body: CompanyBody):
     from app.company import pipeline
     if not 1 <= len(body.query.strip()) <= 100:
         raise HTTPException(400, "type a company name or ticker")
-    # shortcut: on timeout the thread finishes in the background (its result is still saved); a job queue fixes it
-    return await asyncio.wait_for(asyncio.to_thread(pipeline.run, body.query, user_id), timeout=240)
+    # shortcut: after the 240 s answer (408) the thread still finishes the step it is in (one SEC fetch or AI call),
+    # then stops without saving; a job queue that reports progress is the upgrade
+    deadline = time.monotonic() + COMPANY_BUILD_SECONDS
+    return await asyncio.wait_for(asyncio.to_thread(pipeline.run, body.query, user_id, deadline),
+                                  timeout=COMPANY_BUILD_SECONDS)
 
 
 @router.get("/company/{user_id}/runs/{run_id}/workbook.xlsx", dependencies=USER)

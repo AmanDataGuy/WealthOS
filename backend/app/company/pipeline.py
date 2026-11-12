@@ -10,6 +10,7 @@ Used by the `/company/...` API routes and `evals/run_company.py`.
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,18 +34,30 @@ def _notes(st: dict) -> list[str]:
     return notes
 
 
-# Build the company model end to end and save it. Raises ValueError for companies the model cannot cover.
-def run(query: str, user_id: str) -> dict:
+# Stop between steps once `deadline` (time.monotonic()) has passed: a thread cannot be stopped mid-step, so the
+# API's timeout would otherwise leave the build running, calling the AI and saving a run nobody receives.
+def _in_time(deadline: float | None) -> None:
+    if deadline is not None and time.monotonic() > deadline:
+        raise TimeoutError("building the company model took too long and was stopped; try again")
+
+
+# Build the company model end to end and save it. Raises ValueError for companies the model cannot cover, and
+# TimeoutError at the next step after `deadline`.
+def run(query: str, user_id: str, deadline: float | None = None) -> dict:
     company = sec.resolve(query)
     if "candidates" in company:
         return {"status": "choose", "query": query, "candidates": company["candidates"]}
+    _in_time(deadline)
     filings = sec.filings(company["cik"])
+    _in_time(deadline)
     st = statements.build(sec.company_facts(company["cik"]))
     years, values = st["years"], st["values"]
     inputs = analysis.dcf_inputs(values)
     valuation = {"inputs": inputs, "skip": inputs["skip"]} if "skip" in inputs else {"inputs": inputs, **analysis.dcf(inputs)}
+    _in_time(deadline)
     rel = (releases.read(filings["earnings"][0], company["name"], user_id) if filings["earnings"]
            else {"items": [], "error": "no earnings release (8-K Item 2.02) found"})
+    _in_time(deadline)
     built = datetime.now(timezone.utc)
     run_id = f"{company['ticker']}-{built:%Y%m%d%H%M%S}"
     result = {"status": "done", "run_id": run_id, "query": query, "company": company, "filings": filings,

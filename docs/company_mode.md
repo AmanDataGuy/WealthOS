@@ -113,6 +113,8 @@ line, so its DCF is skipped.
 
 ## Limits
 
+- A build gets 240 seconds. After that the API answers 408; the build finishes only the step it is in (one SEC
+  fetch or the AI call), then stops without saving. There is no background job queue or progress report.
 - Five fiscal years only: no quarterly, year-to-date or last-twelve-months columns (the latest 10-Q is listed on
   the Cover, not modelled).
 - No segments: company facts carry no dimensional (segment) data; that would need each filing's own XBRL.
