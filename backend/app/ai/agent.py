@@ -27,6 +27,7 @@ One fixed pipeline (no "multi-agent debates"); the AI never produces a number:
 4. **Verify** every number in the explanation (`verify.check_numbers`). If one doesn't match the results, the
    explanation is replaced by a plain sentence and the table is shown instead. Numbers are never "fixed up".
 
+The steps are the nodes of a LangGraph graph (`graph.py`); this file keeps the prompts, plan format and tools.
 The previous plan is sent back with a follow-up ("and last month?") so the planner can reuse it.
 Definitions the user confirmed ("revenue means net of returns") are stored per user and always win.
 The workspace's semantic model (`semantic.py`: column meanings, relationships, its own metrics) is part of the context.
@@ -47,7 +48,6 @@ from app.data import semantic
 from app.data import timeexpr
 from app.ai import tools
 from app.data.engine import MetricQuery
-from app.ai.verify import check_numbers, numbers_in
 
 MAX_ROWS_TO_EXPLAIN = 40
 DISCLAIMER = "Analytics on your own data, not investment advice (WealthOS is not SEBI-registered)."
@@ -85,6 +85,7 @@ class Answer(BaseModel):
     plan: Plan | None = None
     verified: bool = True
     clarify: dict | None = None
+    timings: dict[str, float] = {}  # seconds spent in each step of the graph
 
 
 # ── Definitions memory ──────────────────────────────────────────────────────────────────
@@ -152,12 +153,12 @@ async def chat_title(user_id: str, question: str) -> str:
     return " ".join(question.split()[:3])[:40]
 
 
-# Append a question and its answer; a new chat (chat_id None) gets `title`. Returns the chat id.
+# Append a question and its answer; a new chat (chat_id None, or not saved yet) gets `title`. Returns the chat id.
 def save_turn(user_id: str, chat_id: str | None, workspace_id: str, question: str, answer: dict,
               title: str | None = None) -> str:
     now = datetime.now(timezone.utc)
-    chat = get_chat(user_id, chat_id) if chat_id else {
-        "id": now.strftime("%Y%m%d%H%M%S%f"), "title": title or question[:40], "workspace_id": workspace_id,
+    chat = get_chat(user_id, chat_id) if chat_id and _chat_path(user_id, chat_id).exists() else {
+        "id": engine.safe_id(chat_id) if chat_id else now.strftime("%Y%m%d%H%M%S%f"), "title": title or question[:40], "workspace_id": workspace_id,
         "created_at": now.isoformat(), "turns": []}
     chat["turns"].append({"question": question, "answer": answer})
     chat["updated_at"] = now.isoformat()
@@ -170,6 +171,11 @@ def save_turn(user_id: str, chat_id: str | None, workspace_id: str, question: st
 # Delete one chat (no error if it is already gone).
 def delete_chat(user_id: str, chat_id: str) -> None:
     _chat_path(user_id, chat_id).unlink(missing_ok=True)
+    state = engine.user_dir(user_id) / "agent_state.sqlite"  # the graph's checkpoints for this chat go too
+    if state.exists():
+        from langgraph.checkpoint.sqlite import SqliteSaver
+        with SqliteSaver.from_conn_string(str(state)) as saver:
+            saver.delete_thread(engine.safe_id(chat_id))
 
 
 # ── The pipeline ────────────────────────────────────────────────────────────────────────
@@ -246,69 +252,15 @@ Never give buy/sell/hold advice or predictions. If the results are empty, say no
 
 
 # Answer one question for one user (on one workspace's data when given). `previous_plan` makes follow-ups work;
-# `define` stores a clarification first.
+# `define` stores a clarification first; `chat_id` checkpoints the run under that chat. The steps are in `graph.py`.
 async def ask(user_id: str, question: str, previous_plan: dict | None = None,
-              define: dict | None = None, workspace_id: str | None = None) -> Answer:
-    from app.ai.llm_client import call_json, call_llm
-
-    planned = question
-    if define and define.get("term") and define.get("value"):  # the user just picked what a word means
-        save_definition(user_id, define["term"], define["value"])
-        planned = f'{question} (here "{define["term"]}" means: {define["value"]})'  # said outright, so it isn't asked again
-    if previous_plan and previous_plan.get("kind") == "clarify":
-        previous_plan = None  # the last answer was the question itself, not a plan to build on
-    prompt = f"Context: {_context(user_id, workspace_id)}\nPrevious plan: {json.dumps(previous_plan) if previous_plan else 'none'}\nQuestion: {planned}"
-    plan = await call_json(PLANNER, prompt, Plan, user_id=user_id)
-    if plan is None:
-        return Answer(text="The assistant is unavailable right now (the language model did not answer). "
-                           "Your dashboards still work.", badge="none", verified=True)
-
-    if plan.kind == "remember" and plan.memory and plan.memory.get("term") and plan.memory.get("value"):
-        term, value = str(plan.memory["term"])[:80], str(plan.memory["value"])[:300]
-        save_definition(user_id, term, value)
-        text = f'Noted: "{term}" means {value}. You can remove it under Remembered meanings.'
-        return Answer(text=text if not check_numbers(text, numbers_in(question)) else "Noted.", badge="none", plan=plan)
-
-    if plan.kind == "filing":  # the text of the user's documents: research.py answers and checks with page citations
-        res = await research.answer(user_id, question, workspace_id or "default")
-        return Answer(text=res["text"], badge="external", rows=res["citations"], warnings=res["warnings"], plan=plan,
-                      verified=res["verified"], provenance={"tool": "research", "pages": [c["page"] for c in res["citations"]]})
-
-    try:
-        rows, provenance, warnings, badge = await _run(user_id, plan, workspace_id)
-    except (ValueError, LookupError, TimeoutError) as e:  # SqlRejected is a ValueError
-        return Answer(text=f"I couldn't answer that from your data: {e}", badge="none", plan=plan,
-                      warnings=["the question was not answered"], verified=True)
-    if rows is None:  # clarify / out_of_scope / smalltalk: a sentence with no numbers of its own
-        text = plan.clarify_question if plan.kind == "clarify" else (plan.reply or "I can only answer questions about your data.")
-        bad = check_numbers(text or "", [])
-        return Answer(text=text if text and not bad else "I can only answer questions about your data.", badge="none",
-                      plan=plan, clarify={"term": plan.clarify_term, "options": plan.clarify_options} if plan.kind == "clarify" else None)
-
-    if plan.kind == "news":  # headlines speak for themselves: list them, no AI summary to misread them
-        text = (f"Recent headlines for '{plan.news_query}' (from news sources, not checked by us):" if rows
-                else f"No recent news found for '{plan.news_query}'.")
-        return Answer(text=text, badge=badge, rows=rows, provenance=provenance, warnings=warnings, plan=plan)
-
-    shown = rows[:MAX_ROWS_TO_EXPLAIN]
-    period = (provenance or {}).get("period")
-    raw = await call_llm(EXPLAINER, f"Question: {question}\nPeriod: {period}\nResults: {json.dumps(shown, default=str)}"
-                                    f"\nWarnings: {warnings}", max_tokens=300, temperature=0, user_id=user_id)
-    values = numbers_in(question)  # numbers the user typed may be repeated
-    if plan.kind == "company":  # SEC values are in USD millions, so "215,938 million" must also match 215938
-        values += [v * 1e6 for r in rows for v in r.values() if isinstance(v, (int, float)) and not isinstance(v, bool)]
-    unit = {"company": "USD", "calc": "mixed"}.get(plan.kind, "INR")  # the user's own data is in rupees
-    bad = check_numbers(raw or "", values, unit, rows=rows)
-    verified = bool(raw) and not bad
-    text = raw if verified else _plain_summary(rows, period)
-    if bad:
-        warnings = warnings + [f"the written explanation had numbers not in the results ({', '.join(bad[:3])}), "
-                               "so it was replaced by the table"]
-    return Answer(text=f"{text}\n\n_{DISCLAIMER}_", badge=badge, rows=rows, provenance=provenance,
-                  warnings=warnings, plan=plan, verified=verified)
+              define: dict | None = None, workspace_id: str | None = None, chat_id: str | None = None) -> Answer:
+    from app.ai import graph
+    state = await graph.invoke(user_id, question, previous_plan, define, workspace_id, chat_id)
+    return Answer.model_validate({**state["answer"], "timings": state["timings"]})
 
 
-# Run a plan in code. Returns (rows, provenance, warnings, badge); rows is None for plans that need no data.
+# Run one plan in code (the graph runs a `multi` plan step by step). Returns (rows, provenance, warnings, badge).
 async def _run(user_id: str, plan: Plan, workspace_id: str | None = None):
     if plan.kind == "metric" and plan.metric_query:
         r = await asyncio.to_thread(engine.run_metric, user_id, plan.metric_query, None, workspace_id)
@@ -356,27 +308,12 @@ async def _run(user_id: str, plan: Plan, workspace_id: str | None = None):
         rows = [{"series": "this rule", **res["metrics"]}, {"series": "buy and hold", **res["buy_and_hold"]}]
         return rows, {"tool": "strategy", "run_id": res["run_card"]["id"], "period": res["run_card"]["period"],
                       "rule": res["description"]}, res["warnings"] + [res["label"]], "trusted"
-    if plan.kind == "multi" and plan.steps:
-        rows, provenance, warnings, badges = [], [], [], set()
-        for n, step in enumerate(plan.steps[:3], 1):
-            sub = Plan.model_validate(step)
-            if sub.kind not in ("metric", "sql", "company", "calc", "tax", "rebalance"):
-                raise ValueError(f"step {n} ({sub.kind}) can't be part of a multi-step answer")
-            r, p, w, b = await _run(user_id, sub, workspace_id)
-            rows += [{"step": n, **row} for row in r or []]
-            provenance.append(p)
-            warnings += w
-            badges.add(b)
-        badge = next(b for b in ("exploratory", "external", "trusted") if b in badges | {"trusted"})
-        return rows, {"tool": "multi", "steps": provenance}, warnings, badge
     if plan.kind == "save_metric" and plan.metric and plan.metric.get("key"):
         key = str(plan.metric["key"])
         await asyncio.to_thread(semantic.save_metric, user_id, workspace_id or "default", key, plan.metric)
         r = await asyncio.to_thread(engine.run_metric, user_id, MetricQuery(metrics=[key], time="all"), None, workspace_id)
         return r.rows, r.provenance.model_dump(), r.warnings + [f"saved as the metric '{key}' (use it in chat and dashboards)"], \
             "trusted"
-    if plan.kind in ("clarify", "out_of_scope", "smalltalk"):
-        return None, None, [], "none"
     raise ValueError(f"the plan '{plan.kind}' was missing its details")
 
 

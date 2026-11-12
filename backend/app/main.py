@@ -670,9 +670,10 @@ async def assistant_ask(body: AskBody, authorization: Optional[str] = Header(Non
     await verify_user_token(body.user_id, authorization)
     from app.ai import agent
     workspace = agent.get_chat(body.user_id, body.chat_id)["workspace_id"] if body.chat_id else body.workspace_id or "default"
-    answer = (await agent.ask(body.user_id, body.question, body.previous_plan, body.define, workspace)).model_dump()
+    chat_id = body.chat_id or datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")  # known before the run: its state is saved under it
+    answer = (await agent.ask(body.user_id, body.question, body.previous_plan, body.define, workspace, chat_id)).model_dump()
     title = None if body.chat_id else await agent.chat_title(body.user_id, body.question)
-    chat_id = agent.save_turn(body.user_id, body.chat_id, workspace, body.question, answer, title)
+    agent.save_turn(body.user_id, chat_id, workspace, body.question, answer, title)
     return {**answer, "chat_id": chat_id}
 
 
