@@ -6,6 +6,8 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      WEALTHOS_ENV: test   # unset means production, which turns off NSE and free fallback models the tests exercise
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
