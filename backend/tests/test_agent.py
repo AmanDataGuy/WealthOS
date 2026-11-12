@@ -136,6 +136,14 @@ def test_multi_runs_each_step(monkeypatch):
     assert set(a.timings) == {"plan", "run", "explain", "verify"}
 
 
+# Without Langfuse keys no tracing callback is attached, so nothing leaves the machine.
+def test_no_tracing_without_keys(monkeypatch):
+    from app.ai import graph
+    monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
+    monkeypatch.delenv("LANGFUSE_SECRET_KEY", raising=False)
+    assert graph._callbacks() == []
+
+
 # With a chat id, each question's graph state is checkpointed under that chat, in the user's own folder.
 def test_state_checkpointed_per_chat(monkeypatch):
     from langgraph.checkpoint.sqlite import SqliteSaver
