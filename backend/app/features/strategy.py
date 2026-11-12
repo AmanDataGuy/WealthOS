@@ -345,14 +345,20 @@ def deflated_sharpe(daily: pd.Series, n_trials: int, trial_srs: list[float]) -> 
     if t < 3 or not std > 0:
         return None
     sr = daily.mean() / std
-    skew, kurt = float(daily.skew()), float(daily.kurt()) + 3
+    spread = float(np.var(trial_srs, ddof=1)) if len(trial_srs) >= 2 else None
+    return round(dsr(sr, t, float(daily.skew()), float(daily.kurt()) + 3, n_trials, spread), 4)
+
+
+# The deflated Sharpe from summary numbers: Sharpe `sr` over `t` observations with skew and (non-excess) kurtosis,
+# the best of `n_trials` tries whose Sharpes vary by `var_trials` (None: use this Sharpe's own sampling variance).
+def dsr(sr: float, t: int, skew: float, kurt: float, n_trials: int, var_trials: float | None) -> float:
     var_sr = max((1 - skew * sr + (kurt - 1) / 4 * sr ** 2) / (t - 1), 1e-12)
     sr0 = 0.0
     if n_trials > 1:
-        spread = float(np.var(trial_srs, ddof=1)) if len(trial_srs) >= 2 else var_sr
+        spread = var_sr if var_trials is None else var_trials
         z, euler = NormalDist().inv_cdf, 0.5772156649
         sr0 = math.sqrt(spread) * ((1 - euler) * z(1 - 1 / n_trials) + euler * z(1 - 1 / (n_trials * math.e)))
-    return round(NormalDist().cdf((sr - sr0) / math.sqrt(var_sr)), 4)
+    return NormalDist().cdf((sr - sr0) / math.sqrt(var_sr))
 
 
 # ── What the API calls ──────────────────────────────────────────────────────────────────

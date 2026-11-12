@@ -117,6 +117,17 @@ def test_split_check_and_run_cards(tmp_path):
     assert len(first["equity_curve"]) > 50 and first["metrics"]["time_invested_pct"] > 0
 
 
+# Deflated Sharpe against the published worked example (López de Prado, Nomura QIS conference slides 2015, from
+# Bailey & López de Prado 2014): annual SR 2.5 on T=1250 daily returns, skew -3, kurtosis 10, variance of the trial
+# Sharpes 0.5 (annual) -> DSR 0.9004 after 100 trials, 0.9505 after 46. Daily units: SR/sqrt(250), variance/250.
+def test_deflated_sharpe_known_answer():
+    sr, var = 2.5 / 250 ** 0.5, 0.5 / 250
+    assert abs(strategy.dsr(sr, 1250, -3, 10, 100, var) - 0.9004) < 5e-5
+    assert abs(strategy.dsr(sr, 1250, -3, 10, 46, var) - 0.9505) < 5e-5
+    one_trial = strategy.NormalDist().cdf(sr / ((1 + 3 * sr + 9 / 4 * sr ** 2) / 1249) ** 0.5)  # no deflation
+    assert abs(strategy.dsr(sr, 1250, -3, 10, 1, None) - one_trial) < 1e-12
+
+
 # Plain English -> spec: the AI only translates; symbols and windows are checked, and code writes the description.
 def test_parse_with_fake_llm(tmp_path, monkeypatch):
     from app.ai import llm_client as llm
