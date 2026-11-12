@@ -135,6 +135,11 @@ Live run on 2026-11-13 with Groq `openai/gpt-oss-120b`; the per-question rows ar
 
 The one miss: *"What's my return?"* was answered as a metric instead of asking which return was meant.
 
+Same model, same 34 questions, letting it write SQL directly instead: **72.0%** of numbers right
+<!-- src: backend/evals/results_baseline.json#summary.value_accuracy_pct -->. The metrics layer and the number check
+are the difference. Guard tests (53 SQL attacks, 179 perturbed sentences, 55 PII strings, 31 mapping layouts), the
+company-mode tie-outs and a local-model run are in **[TECHNICAL_REPORT.md](TECHNICAL_REPORT.md)**.
+
 ---
 
 ## Quick Start
