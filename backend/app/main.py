@@ -92,13 +92,25 @@ async def _secure_accounts(conn) -> None:
         print(f"demo account created: {name} / {password}  (shown once)", flush=True)
 
 
+POOL: Optional[asyncpg.Pool] = None  # one shared set of Postgres connections, opened at startup
+
+
+# The shared connection pool; opened here if startup could not reach the database. 503 without a database.
+async def _pool() -> asyncpg.Pool:
+    global POOL
+    if not DB_URL:
+        raise HTTPException(503, "sign-in needs the database (WEALTHOS_DB_URL)")
+    if POOL is None:  # shortcut: two first requests at once may each open a pool (one leaks); fine for one process
+        POOL = await asyncpg.create_pool(DB_URL, min_size=1, max_size=10)
+    return POOL
+
+
 # Create the two Postgres tables the app uses (users, llm_usage) and secure the accounts in it.
 async def _prepare_database() -> None:
     if not DB_URL:
         return
     try:
-        conn = await asyncpg.connect(DB_URL)
-        try:
+        async with (await _pool()).acquire() as conn:
             await conn.execute("""CREATE TABLE IF NOT EXISTS users (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(), username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())""")
@@ -110,8 +122,6 @@ async def _prepare_database() -> None:
                 completion_tokens INTEGER NOT NULL, total_tokens INTEGER NOT NULL, estimated_cost_usd NUMERIC NOT NULL,
                 user_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
             await _secure_accounts(conn)
-        finally:
-            await conn.close()
     except Exception as e:
         logger.warning("database not ready, sign-in will fail until it is: %s", e)
 
@@ -119,12 +129,15 @@ async def _prepare_database() -> None:
 # Refuse to start on a weak or missing secret (settings.py), then set up the database.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global JWT_SECRET
+    global JWT_SECRET, POOL
     JWT_SECRET = settings.check_api()
     if not JWT_SECRET:
         logger.warning("WEALTHOS_DEV_INSECURE_AUTH=1: sign-in checks are OFF (local development only)")
     await _prepare_database()
     yield
+    if POOL:
+        await POOL.close()
+        POOL = None
 
 
 app = FastAPI(title="WealthOS API", description="Your data in, trusted numbers and dashboards out", lifespan=lifespan)
@@ -290,13 +303,7 @@ class Credentials(BaseModel):
 
 # Run one query against the users table.
 async def _users(query: str, *args):
-    if not DB_URL:
-        raise HTTPException(503, "sign-in needs the database (WEALTHOS_DB_URL)")
-    conn = await asyncpg.connect(DB_URL)
-    try:
-        return await conn.fetchrow(query, *args)
-    finally:
-        await conn.close()
+    return await (await _pool()).fetchrow(query, *args)
 
 
 @app.post("/auth/signup")
@@ -356,12 +363,9 @@ async def account_export(user_id: str):
     from app.core import account
     usage = []
     if DB_URL:
-        conn = await asyncpg.connect(DB_URL)
-        try:
-            usage = await conn.fetch("SELECT created_at, provider, model, prompt_tokens, completion_tokens, "
-                                     "estimated_cost_usd FROM llm_usage WHERE user_id = $1 ORDER BY created_at", user_id)
-        finally:
-            await conn.close()
+        usage = await (await _pool()).fetch("SELECT created_at, provider, model, prompt_tokens, completion_tokens, "
+                                            "estimated_cost_usd FROM llm_usage WHERE user_id = $1 ORDER BY created_at",
+                                            user_id)
     out = io.StringIO()
     writer = csv.writer(out)
     writer.writerow(["created_at", "provider", "model", "prompt_tokens", "completion_tokens", "estimated_cost_usd"])
@@ -380,13 +384,9 @@ async def account_delete(user_id: str, body: DeleteAccount):
     if not row or row["username"] != body.confirm.strip():
         raise HTTPException(400, "type your username to confirm")
     files = await asyncio.to_thread(account.delete_files, user_id)
-    conn = await asyncpg.connect(DB_URL)
-    try:
-        async with conn.transaction():
-            await conn.execute("UPDATE llm_usage SET user_id = NULL WHERE user_id = $1", user_id)
-            await conn.execute("DELETE FROM users WHERE id::text = $1", user_id)
-    finally:
-        await conn.close()
+    async with (await _pool()).acquire() as conn, conn.transaction():
+        await conn.execute("UPDATE llm_usage SET user_id = NULL WHERE user_id = $1", user_id)
+        await conn.execute("DELETE FROM users WHERE id::text = $1", user_id)
     _USER_SEEN.pop(user_id, None)
     logger.info("account deleted (%d files)", files)
     return {"deleted_files": files, "at": datetime.now(timezone.utc).isoformat()}
