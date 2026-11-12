@@ -25,5 +25,9 @@ defusedxml==0.7.1             # openpyxl refuses XML-bomb workbooks
 casparser==1.4.1              # CAMS / KFintech / NSDL / CDSL statements
 pypdfium2==5.14.0             # PDF text (finx)
 
+# Assistant graph (app/ai/graph.py) and its per-chat state file
+langgraph==1.2.21
+langgraph-checkpoint-sqlite==3.1.3
+
 # Outward MCP server (mcp_server.py)
 mcp==1.27.2
