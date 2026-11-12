@@ -124,3 +124,25 @@ def test_chosen_meaning_reaches_the_planner(monkeypatch):
     _ask("Show my profit", define={"term": "profit", "value": "realized gains"},
          previous_plan={"kind": "clarify", "clarify_term": "profit"})
     assert '(here "profit" means: realized gains)' in seen[0] and "Previous plan: none" in seen[0]
+
+
+# A multi plan runs each step in turn (the graph loops over them), tags rows by step and keeps each step's source.
+def test_multi_runs_each_step(monkeypatch):
+    spend = {"kind": "metric", "metric_query": {"metrics": ["total_spend"], "time": "2026-04-01..2026-06-30"}}
+    _fake_llm(monkeypatch, {"kind": "multi", "steps": [spend, {"kind": "calc", "expression": "2 + 3"}]}, "")
+    a = _ask("spending and 2 + 3")
+    assert [r["step"] for r in a.rows] == [1, 2] and a.rows[1]["result"] == 5
+    assert a.provenance["tool"] == "multi" and len(a.provenance["steps"]) == 2 and a.badge == "trusted"
+    assert set(a.timings) == {"plan", "run", "explain", "verify"}
+
+
+# With a chat id, each question's graph state is checkpointed under that chat, in the user's own folder.
+def test_state_checkpointed_per_chat(monkeypatch):
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    _fake_llm(monkeypatch, {"kind": "metric", "metric_query": {"metrics": ["total_spend"], "time": "2026-04-01..2026-06-30"}},
+              "You spent ₹29,000.")
+    _ask("How much did I spend?", chat_id="c1")
+    _ask("and in May?", chat_id="c1")
+    with SqliteSaver.from_conn_string(str(engine.user_dir("u") / "agent_state.sqlite")) as saver:
+        state = saver.get_tuple({"configurable": {"thread_id": "c1"}}).checkpoint["channel_values"]
+    assert state["question"] == "and in May?" and state["answer"]["rows"] == [{"total_spend": 29000.0}]
