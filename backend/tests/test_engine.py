@@ -342,50 +342,26 @@ def test_export_xlsx(tmp_path):
     assert book["Provenance"]["C3"].value == "trusted" and "SELECT" in book["Provenance"]["E3"].value
 
 
-# Every template applies on sample data (slots suggested from column names) and refreshes with no errors.
+# Every template applies on sample data and refreshes with no errors; one needs its table in the workspace.
 def test_templates_render_on_sample_data(tmp_path):
-    import pandas as pd
-
     from app.features import dashboards
     from app.features import templates
     from app.core import workspaces
-    ws = workspaces.create_workspace("u", "Company")["id"]
-    days = pd.date_range("2026-05-01", "2026-10-20", freq="9D").date
-    biz = pd.DataFrame({"order_date": days, "customer_id": [i % 4 for i in range(len(days))],
-                        "region": ["North", "South"] * (len(days) // 2) + ["North"] * (len(days) % 2),
-                        "product": "Widget", "category": "Ops", "vendor": "Acme",
-                        **{c: [100.0 + i for i in range(len(days))] for c in
-                           ("revenue", "cost", "amount", "inflow", "outflow", "actual", "budget")}})
-    folder = engine.user_dir("u") / "datasets" / "biz"
-    folder.mkdir(parents=True)
-    biz.to_parquet(folder / "biz1.parquet", index=False)
-    (folder / "biz1.json").write_text(json.dumps({"dataset_id": "biz1", "workspace_id": ws, "shape": "biz", "rows": len(biz),
-                                                  "source": {"file": "biz.csv", "content_hash": "x"}, "columns": list(biz),
-                                                  "warnings": [], "created_at": "2026-10-27T00:00:00+00:00"}))
+    ws = workspaces.create_workspace("u", "Other")["id"]
     _upload(tmp_path, "bank.csv", BANK)
     _upload(tmp_path, "trades.csv", TRADES)
     _upload(tmp_path, "holdings.csv", "Instrument,Qty.,Avg. cost,Cur. val\nINFY,6,1400,9600\nTCS,1,3800,4100\n")
 
-    assert templates.suggest("u", ws, "sales")["mapping"] == {"date": "order_date", "amount": "amount", "customer": "customer_id",
-                                                              "product": "product", "region": "region"}
-    assert templates.suggest("u", "default", "portfolio")["missing"] == []
-    assert templates.suggest("u", ws, "portfolio")["missing"]  # no holdings in the Company workspace
+    assert sorted(t["id"] for t in templates.catalog()) == ["capital_gains", "portfolio", "spending"]
+    assert templates.suggest("u", ws, "portfolio")["missing"]  # no holdings in the other workspace
     for t in templates.catalog():
-        target = ws if t["audience"] == "business" else "default"
-        s = templates.suggest("u", target, t["id"])
+        s = templates.suggest("u", "default", t["id"])
         assert not s["missing"], (t["id"], s)
-        spec = templates.apply("u", target, t["id"], s["table"], s["mapping"])
+        spec = templates.apply("u", "default", t["id"], s["table"], s["mapping"])
         result = dashboards.refresh("u", spec.id)
         errors = {k: v["error"] for k, v in result["tiles"].items() if "error" in v}
         assert len(spec.tiles) >= 3 and not errors, (t["id"], errors)
         assert all(r["rows"] for r in result["tiles"].values()), t["id"]
-    # sales again with amount = the revenue column: SUM(revenue) is the P&L template's revenue_biz (reused), while
-    # avg_order differs from the first sales dashboard's, so it gets a new id instead of changing that dashboard
-    again = templates.apply("u", ws, "sales", "biz", {"date": "order_date", "amount": "revenue"})
-    used = {m for tile in again.tiles.values() for m in tile.query.metrics}
-    assert {"revenue_biz", "avg_order_biz_2"} <= used
-    with pytest.raises(ValueError):
-        templates.apply("u", ws, "sales", "biz", {"date": "order_date"})  # amount still missing
     with pytest.raises(LookupError):
         templates.suggest("u", ws, "nope")
 
