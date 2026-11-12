@@ -12,7 +12,7 @@ services:
     env_file:
       - .env
     environment:
-      WEALTHOS_DB_URL: postgresql://wealthos:wealthos_secure_password@wealthos-db:5432/wealthos
+      WEALTHOS_DB_URL: postgresql://wealthos:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@wealthos-db:5432/wealthos
       WEALTHOS_ENV: production
     volumes:
       - ./backend/storage:/app/storage
@@ -29,7 +29,7 @@ services:
     env_file:
       - .env
     environment:
-      WEALTHOS_DB_URL: postgresql://wealthos:wealthos_secure_password@wealthos-db:5432/wealthos
+      WEALTHOS_DB_URL: postgresql://wealthos:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@wealthos-db:5432/wealthos
     volumes:
       - ./backend/storage:/app/storage
     depends_on:
@@ -50,10 +50,10 @@ services:
     image: postgres:16-alpine
     container_name: wealthos-db
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # loopback only: local dev reaches it, the network does not
     environment:
       POSTGRES_USER: wealthos
-      POSTGRES_PASSWORD: wealthos_secure_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: wealthos
     volumes:
       - postgres_data:/var/lib/postgresql/data
