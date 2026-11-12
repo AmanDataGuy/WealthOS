@@ -119,6 +119,7 @@ def test_lockout_after_ten_failures(monkeypatch):
     rows = {"real": _row("2", "real", main._hash("right-pw"))}
     fake_users_table(monkeypatch, rows)
     monkeypatch.setattr(main, "JWT_SECRET", STRONG)
+    monkeypatch.setattr(main.ratelimit, "hit", lambda *a: 0.0)  # 23 logins from one IP would hit the 10/min limit first
     client = TestClient(main.app)
     login = lambda pw: client.post("/auth/login", json={"username": "real", "password": pw})
     for _ in range(9):
