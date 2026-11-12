@@ -1,4 +1,4 @@
-# Only app/ and requirements.txt go into the image; keep the build context small.
+# Only app/, migrations/ and requirements.txt go into the image; keep the build context small.
 storage/
 tests/
 evals/

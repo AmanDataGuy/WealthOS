@@ -105,22 +105,15 @@ async def _pool() -> asyncpg.Pool:
     return POOL
 
 
-# Create the two Postgres tables the app uses (users, llm_usage) and secure the accounts in it.
+# Bring the Postgres schema up to date (backend/migrations/, core/migrate.py) and secure the accounts in it.
 async def _prepare_database() -> None:
     if not DB_URL:
         return
+    from app.core.migrate import migrate
     try:
         async with (await _pool()).acquire() as conn:
-            await conn.execute("""CREATE TABLE IF NOT EXISTS users (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(), username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())""")
-            # ponytail: in-place column adds until Alembic owns the schema
-            await conn.execute("""ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_logins INTEGER NOT NULL DEFAULT 0,
-                ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ""")
-            await conn.execute("""CREATE TABLE IF NOT EXISTS llm_usage (
-                id SERIAL PRIMARY KEY, provider TEXT NOT NULL, model TEXT NOT NULL, prompt_tokens INTEGER NOT NULL,
-                completion_tokens INTEGER NOT NULL, total_tokens INTEGER NOT NULL, estimated_cost_usd NUMERIC NOT NULL,
-                user_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+            if applied := await migrate(conn):
+                logger.info("database migrations applied: %s", ", ".join(applied))
             await _secure_accounts(conn)
     except Exception as e:
         logger.warning("database not ready, sign-in will fail until it is: %s", e)

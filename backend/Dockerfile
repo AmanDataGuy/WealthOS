@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libreoffice-cal
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 COPY app ./app
+COPY migrations ./migrations
 
 ENV PYTHONIOENCODING=utf-8
 EXPOSE 8000
