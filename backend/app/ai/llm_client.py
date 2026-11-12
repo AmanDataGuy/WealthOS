@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import time
 
 import httpx
 from dotenv import load_dotenv
@@ -47,6 +48,9 @@ _OPENROUTER_MIN_TOKENS = 300
 # The model that wrote the latest answer in this request or task (the fallback's name when Groq failed). Read it right
 # after a call to record which model really answered; "" before any call. A ContextVar, so parallel requests don't mix.
 SERVED_MODEL: contextvars.ContextVar[str] = contextvars.ContextVar("served_model", default="")
+# Opt-in per-call log: when a caller (the eval runner) sets a list here, every provider reply appends
+# {provider, model, prompt_tokens, completion_tokens, usd, seconds}. None (the default) records nothing.
+CALL_LOG: contextvars.ContextVar[list | None] = contextvars.ContextVar("call_log", default=None)
 
 # $ per 1M tokens (input, output): Groq gpt-oss-120b list price (the free tier is billed $0, so this is an upper
 # bound); OpenRouter ":free" models cost nothing, other OpenRouter models are estimated at gpt-oss-20b's price.
@@ -109,11 +113,14 @@ async def _check_cost_cap(user_id: str | None = None):
 
 
 # Log a call's tokens and cost, and save them to the llm_usage table (best effort: never breaks a call).
-async def _track_usage(usage: dict, model: str, provider: str, user_id: str | None):
+async def _track_usage(usage: dict, model: str, provider: str, user_id: str | None, seconds: float = 0.0):
     prompt, completion = usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
     cost_in, cost_out = _PRICES.get(provider, _PRICES["groq"])
-    cost = prompt / 1e6 * cost_in + completion / 1e6 * cost_out
-    logger.info("[llm] %s/%s prompt=%d completion=%d cost=$%.6f", provider, model, prompt, completion, cost)
+    cost = usage.get("cost") or prompt / 1e6 * cost_in + completion / 1e6 * cost_out  # OpenRouter reports the real cost
+    logger.info("[llm] %s/%s prompt=%d completion=%d cost=$%.6f %.2fs", provider, model, prompt, completion, cost, seconds)
+    if (log := CALL_LOG.get()) is not None:
+        log.append({"provider": provider, "model": model, "prompt_tokens": prompt, "completion_tokens": completion,
+                    "usd": cost, "seconds": round(seconds, 3)})
     if not _db_url():
         return
     try:
@@ -144,6 +151,7 @@ async def call_llm(system: str, user: str, max_tokens: int = 500, temperature: f
             payload = {"model": model, "messages": messages, "temperature": temperature, "reasoning_effort": "low",
                        "max_tokens": max_tokens if groq else max(max_tokens, _OPENROUTER_MIN_TOKENS)}
             for attempt in (1, 2):  # second try only when the answer came back empty
+                start = time.perf_counter()
                 try:
                     resp = await client.post(url, headers={"Authorization": f"Bearer {key}"}, json=payload, timeout=30.0)
                     resp.raise_for_status()
@@ -152,7 +160,7 @@ async def call_llm(system: str, user: str, max_tokens: int = 500, temperature: f
                     logger.warning("[llm_client] %s failed: %s", provider, e)
                     break
                 if "usage" in data:
-                    await _track_usage(data["usage"], model, provider, user_id)
+                    await _track_usage(data["usage"], model, provider, user_id, time.perf_counter() - start)
                 content = (data["choices"][0]["message"].get("content") or "").strip()
                 if content:
                     SERVED_MODEL.set(model)

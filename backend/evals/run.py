@@ -9,12 +9,18 @@ Measures the assistant end to end on synthetic data whose right answers are comp
 2. **Truths** (`truths`): every expected value, summed in plain Python from the fixture rows.
 3. **Cases** (`cases.yaml`): question -> accepted plan kinds -> expected values (by truth name, or literal numbers).
 4. **Score**: plan match %, value accuracy % (every expected value appears in the answer rows, within 0.5%), trusted
-   badge % on value cases, number-check rejects, abstention on advice questions, latency, LLM calls per question.
+   badge % on value cases, number-check rejects, abstention on advice questions, LLM calls per question, and on a
+   live run p50/p95 seconds per question plus tokens and list-price USD per question (`llm_client.CALL_LOG`).
+   Seconds exclude the time spent waiting out a provider rate limit (`waited_seconds` in the summary).
 
 LLM replies are cached in `evals/llm_cache.json` keyed by a hash of the prompt:
-- `python evals/run.py` runs live and records every new reply (needs the Groq / OpenRouter keys);
-- `python evals/run.py --offline` replays the cache only (no network; a miss is an error): this is what CI runs;
-- `--only N` runs the first N cases.
+- `python evals/run.py` runs live and records every new reply (needs the Groq / OpenRouter keys); a cached prompt is
+  replayed, so for fresh latency and cost numbers move `llm_cache.json` aside first;
+- `python evals/run.py --offline` replays the cache only (no network; a miss is an error; writes no result file):
+  this is what CI runs;
+- `--only N` runs the first N cases;
+- `--name X` keeps a separate run (another provider or model) in `results_X.json` with its replies in
+  `llm_cache_X.json`, e.g. `GROQ_API_KEY= LLM_FALLBACK_MODEL=openai/gpt-oss-120b python evals/run.py --name openrouter`.
 """
 from __future__ import annotations
 
@@ -24,6 +30,8 @@ import calendar
 import hashlib
 import json
 import os
+import statistics
+import subprocess
 import sys
 import tempfile
 import time
@@ -86,10 +94,10 @@ def truths() -> dict[str, float]:
 # ── LLM cache: record live replies, or replay them offline ─────────────────────────────────────────────────
 
 # Wrap the two LLM entry points: a cached prompt is replayed; a new one is sent live and recorded (unless offline).
-def install_cache(offline: bool, stats: dict) -> None:
+def install_cache(offline: bool, stats: dict, path: Path = CACHE) -> None:
     from app.ai import llm_client as llm
 
-    cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
+    cache = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     live = {"json": llm.call_json, "text": llm.call_llm}
 
     # Return the stored reply for this prompt, or call the model and store it.
@@ -101,11 +109,16 @@ def install_cache(offline: bool, stats: dict) -> None:
         if k not in cache:
             if offline:
                 raise LookupError(f"no cached LLM reply for prompt {k}; run evals/run.py live once to record it")
-            out = await call()
-            if not out:  # the model did not answer (rate limit, outage): report it, never record it as the answer
+            for wait in (0, 15, 30, 60, 60):  # no answer is usually a rate limit: wait it out (not counted as latency)
+                await asyncio.sleep(wait)
+                stats["waited"] = stats.get("waited", 0) + wait
+                out = await call()
+                if out:
+                    break
+            if not out:  # still no answer (outage): report it, never record it as the answer
                 return out
             cache[k] = out
-            CACHE.write_text(json.dumps(cache, indent=0, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+            path.write_text(json.dumps(cache, indent=0, ensure_ascii=False, sort_keys=True), encoding="utf-8")
         return cache[k]
 
     # Cached stand-in for the JSON model call.
@@ -142,17 +155,26 @@ def values_match(expected: list[float], rows: list[dict]) -> bool:
 
 
 # Ask every case; returns (per-case results, summary).
-async def run(cases: list[dict], t: dict) -> tuple[list[dict], dict]:
-    results = []
+async def run(cases: list[dict], t: dict, stats: dict) -> tuple[list[dict], dict]:
+    from app.ai import llm_client as llm
+
+    results, log = [], []
+    llm.CALL_LOG.set(log)  # live provider replies land here; cache hits add nothing
     for c in cases:
-        start = time.perf_counter()
+        start, waited, first = time.perf_counter(), stats.get("waited", 0), len(log)
         a = await agent.ask(USER, c["q"])
+        seconds = time.perf_counter() - start - (stats.get("waited", 0) - waited)
+        calls = log[first:]
         expected = [t[v] if isinstance(v, str) else v for v in c.get("values", [])]
         results.append({"q": c["q"], "kind": a.plan.kind if a.plan else None,
                         "plan_ok": bool(a.plan) and a.plan.kind in c["kinds"],
                         "values_ok": values_match(expected, a.rows) if expected else None, "badge": a.badge,
-                        "verified": a.verified, "seconds": round(time.perf_counter() - start, 2), "expected": expected,
-                        "text": a.text.split("\n\n_")[0][:200]})
+                        "verified": a.verified, "seconds": round(seconds, 2),
+                        "llm_seconds": [x["seconds"] for x in calls],
+                        "tokens": sum(x["prompt_tokens"] + x["completion_tokens"] for x in calls),
+                        "usd": round(sum(x["usd"] for x in calls), 6),
+                        "models": sorted({f"{x['provider']}:{x['model']}" for x in calls}),
+                        "expected": expected, "text": a.text.split("\n\n_")[0][:200]})
     valued = [r for r in results if r["values_ok"] is not None]
     advice = [r for r, c in zip(results, cases) if c["kinds"] == ["out_of_scope"]]
     pct = lambda xs: round(100 * sum(xs) / len(xs), 1) if xs else None
@@ -162,25 +184,43 @@ async def run(cases: list[dict], t: dict) -> tuple[list[dict], dict]:
         "trusted_pct_on_value_cases": pct([r["badge"] == "trusted" for r in valued]),
         "number_check_rejects": sum(not r["verified"] for r in results),
         "advice_abstention_pct": pct([r["kind"] == "out_of_scope" for r in advice]),
-        "avg_seconds": round(sum(r["seconds"] for r in results) / len(results), 2)}
+        **latency_cost(results)}
+
+
+# Latency percentiles and cost per question over a run's rows (the usd is list price: Groq's free tier bills $0).
+def latency_cost(results: list[dict]) -> dict:
+    secs, llm_secs = [r["seconds"] for r in results], [s for r in results for s in r["llm_seconds"]]
+    p95 = lambda xs: round(statistics.quantiles(xs, n=20)[18], 2) if len(xs) > 1 else None
+    return {"avg_seconds": round(statistics.mean(secs), 2), "p50_seconds": round(statistics.median(secs), 2),
+            "p95_seconds": p95(secs), "llm_call_p50_seconds": round(statistics.median(llm_secs), 2) if llm_secs else None,
+            "llm_call_p95_seconds": p95(llm_secs),
+            "tokens_per_question": round(sum(r["tokens"] for r in results) / len(results)),
+            "usd_per_question": round(sum(r["usd"] for r in results) / len(results), 6),
+            "usd_total": round(sum(r["usd"] for r in results), 6),
+            "models": sorted({m for r in results for m in r["models"]})}
 
 
 # Load the cases, build the fixtures in a temp folder, run, print and save the scores.
-def evaluate(offline: bool = False, only: int = 0) -> tuple[list[dict], dict]:
+def evaluate(offline: bool = False, only: int = 0, name: str = "") -> tuple[list[dict], dict]:
     cases = yaml.safe_load(Path(__file__).with_name("cases.yaml").read_text(encoding="utf-8"))
     cases = cases[:only] if only else cases
     stats = {"calls": 0}
     os.environ["WEALTHOS_DB_URL"] = ""  # no usage logging / cost-cap lookups: an unreachable DB costs 5 s per call
     timeexpr.today_ist = lambda: TODAY
-    install_cache(offline, stats)
+    cache = CACHE.with_name(f"llm_cache_{name}.json") if name else CACHE
+    install_cache(offline, stats, cache)
     with tempfile.TemporaryDirectory() as tmp:
         engine.DATA_ROOT = Path(tmp) / "users"
         make_fixtures(Path(tmp))
-        results, summary = asyncio.run(run(cases, truths()))
+        results, summary = asyncio.run(run(cases, truths(), stats))
     summary["llm_calls_per_question"] = round(stats["calls"] / len(cases), 2)
+    summary["waited_seconds"] = stats.get("waited", 0)
+    summary["run_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    summary["git_sha"] = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
+                                        cwd=ROOT).stdout.strip()
     if not offline and not only:  # a full live run: keep only the replies the current prompts use
         kept = {k: v for k, v in stats["cache"].items() if k in stats.get("used", ())}
-        CACHE.write_text(json.dumps(kept, indent=0, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        cache.write_text(json.dumps(kept, indent=0, ensure_ascii=False, sort_keys=True), encoding="utf-8")
     return results, summary
 
 
@@ -188,13 +228,14 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true", help="replay cached LLM replies only (CI)")
     ap.add_argument("--only", type=int, default=0, help="run only the first N cases")
+    ap.add_argument("--name", default="", help="write results_NAME.json and use llm_cache_NAME.json")
     args = ap.parse_args()
-    results, summary = evaluate(args.offline, args.only)
+    results, summary = evaluate(args.offline, args.only, args.name)
     for r in results:
         ok = r["plan_ok"] and r["values_ok"] is not False
         values = "" if r["values_ok"] is None else "values ok" if r["values_ok"] else f"values WRONG, expected {r['expected']}"
         print(f"{'ok ' if ok else 'BAD'} {r['kind'] or '-':12} {r['badge']:11} {r['q'][:60]:60} {values}")
     print(json.dumps(summary, indent=1))
-    if not args.only:
-        Path(__file__).with_name("results.json").write_text(
+    if not args.only and not args.offline:  # an offline replay has no real timings: keep the live file
+        Path(__file__).with_name(f"results_{args.name}.json" if args.name else "results.json").write_text(
             json.dumps({"summary": summary, "results": results}, indent=1, ensure_ascii=False), encoding="utf-8")
