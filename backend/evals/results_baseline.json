@@ -1,0 +1,731 @@
+{
+ "summary": {
+  "cases": 34,
+  "plan_match_pct": 85.3,
+  "value_accuracy_pct": 72.0,
+  "trusted_pct_on_value_cases": 0.0,
+  "number_check_rejects": 0,
+  "advice_abstention_pct": 100.0,
+  "avg_seconds": 1.84,
+  "p50_seconds": 1.5,
+  "p95_seconds": 4.58,
+  "llm_call_p50_seconds": 1.42,
+  "llm_call_p95_seconds": 4.49,
+  "tokens_per_question": 833,
+  "usd_per_question": 6.4e-05,
+  "usd_total": 0.002169,
+  "models": [
+   "openrouter:openai/gpt-oss-120b"
+  ],
+  "llm_calls_per_question": 1.0,
+  "waited_seconds": 0,
+  "run_at": "2026-11-13T00:38:30+0530",
+  "git_sha": "f88d08b"
+ },
+ "results": [
+  {
+   "q": "How much did I spend this financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.47,
+   "llm_seconds": [
+    1.316
+   ],
+   "tokens": 904,
+   "usd": 0.000209,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    263099
+   ],
+   "text": "SELECT SUM(amount) AS total_spent\nFROM transactions\nWHERE direction = 'debit'\n  AND date >= DATE_TRUNC('year', DATE '2026-04-01')\n  AND date <= DATE '2027-03-31';"
+  },
+  {
+   "q": "What did I spend last financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.34,
+   "llm_seconds": [
+    1.252
+   ],
+   "tokens": 840,
+   "usd": 0.000171,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    450600
+   ],
+   "text": "SELECT SUM(amount) AS total_spent\nFROM transactions\nWHERE direction = 'debit'\n  AND date >= DATE '2025-04-01'\n  AND date <= DATE '2026-03-31';"
+  },
+  {
+   "q": "How much money came in this financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 2.08,
+   "llm_seconds": [
+    2.0
+   ],
+   "tokens": 864,
+   "usd": 3.5e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    840000
+   ],
+   "text": "SELECT SUM(amount) AS total_credit\nFROM transactions\nWHERE direction = 'credit'\n  AND date >= DATE '2026-04-01'\n  AND date <= DATE '2027-03-31';"
+  },
+  {
+   "q": "How much did I save this financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.81,
+   "llm_seconds": [
+    1.718
+   ],
+   "tokens": 896,
+   "usd": 7.6e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    576901
+   ],
+   "text": "SELECT \n    COALESCE(SUM(CASE WHEN direction = 'credit' THEN amount END), 0) -\n    COALESCE(SUM(CASE WHEN direction = 'debit' THEN amount END), 0) AS savings\nFROM transactions\nWHERE date >= DATE '2026"
+  },
+  {
+   "q": "What is my savings rate this FY?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 3.48,
+   "llm_seconds": [
+    3.393
+   ],
+   "tokens": 923,
+   "usd": 3.9e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    68.7
+   ],
+   "text": "SELECT \n    CASE \n        WHEN SUM(CASE WHEN direction = 'credit' THEN amount ELSE 0 END) = 0 THEN NULL\n        ELSE \n            (SUM(CASE WHEN direction = 'credit' THEN amount ELSE 0 END) - \n       "
+  },
+  {
+   "q": "How much rent did I pay this financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.95,
+   "llm_seconds": [
+    1.868
+   ],
+   "tokens": 871,
+   "usd": 3.5e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    210000
+   ],
+   "text": "SELECT COALESCE(SUM(amount), 0) AS total_rent_paid\nFROM transactions\nWHERE direction = 'debit'\n  AND LOWER(description) LIKE '%rent%'\n  AND date >= DATE '2025-04-01'\n  AND date <= DATE '2026-03-31';"
+  },
+  {
+   "q": "How much did I spend last month?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 2.04,
+   "llm_seconds": [
+    1.96
+   ],
+   "tokens": 887,
+   "usd": 7.4e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    37200
+   ],
+   "text": "SELECT COALESCE(SUM(amount), 0) AS total_spent_last_month\nFROM transactions\nWHERE direction = 'debit'\n  AND date >= DATE_TRUNC('month', DATE '2026-10-26' - INTERVAL '1' MONTH)\n  AND date < DATE_TRUNC("
+  },
+  {
+   "q": "What is my portfolio worth?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.98,
+   "llm_seconds": [
+    1.896
+   ],
+   "tokens": 769,
+   "usd": 5.5e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    66800
+   ],
+   "text": "SELECT SUM(value) AS portfolio_worth FROM holdings;"
+  },
+  {
+   "q": "What are my realized gains by stock this financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": null,
+   "seconds": 0.9,
+   "llm_seconds": [
+    0.813
+   ],
+   "tokens": 920,
+   "usd": 0.000218,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    3000,
+    1500
+   ],
+   "text": "SELECT \n    t.symbol AS stock,\n    SUM((t.price - h.avg_cost) * t.quantity) AS realized_gain_in_inr\nFROM trades t\nJOIN holdings h\n    ON t.symbol = h.symbol_or_scheme\nWHERE t.side = 'sell'\n  AND t.tra"
+  },
+  {
+   "q": "How many trades did I make this financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.34,
+   "llm_seconds": [
+    1.257
+   ],
+   "tokens": 867,
+   "usd": 6.9e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    2
+   ],
+   "text": "SELECT COUNT(*) AS trade_count\nFROM trades\nWHERE trade_date >= DATE_TRUNC('year', DATE '2026-10-26') + INTERVAL '3 months'\n  AND trade_date <  DATE_TRUNC('year', DATE '2026-10-26') + INTERVAL '15 mont"
+  },
+  {
+   "q": "How much did I spend on Swiggy last financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 2.54,
+   "llm_seconds": [
+    2.464
+   ],
+   "tokens": 876,
+   "usd": 8.2e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    14400
+   ],
+   "text": "SELECT COALESCE(SUM(amount),0) AS total_spent_inr\nFROM transactions\nWHERE direction = 'debit'\n  AND description ILIKE '%Swiggy%'\n  AND date >= DATE '2025-04-01'\n  AND date <= DATE '2026-03-31';"
+  },
+  {
+   "q": "Show my spending by month this financial year",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 3.69,
+   "llm_seconds": [
+    3.607
+   ],
+   "tokens": 906,
+   "usd": 3.8e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    36800,
+    37400,
+    38699,
+    38300,
+    36900,
+    37200,
+    37800
+   ],
+   "text": "SELECT DATE_TRUNC('month', date) AS month, SUM(amount) AS total_spending\nFROM transactions\nWHERE direction = 'debit'\n  AND date >= DATE '2025-04-01' AND date <= DATE '2026-03-31'\nGROUP BY month\nORDER "
+  },
+  {
+   "q": "How much did I spend in July 2026?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.64,
+   "llm_seconds": [
+    1.556
+   ],
+   "tokens": 852,
+   "usd": 6.5e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    38300
+   ],
+   "text": "SELECT COALESCE(SUM(amount), 0) AS total_spent_july_2026\nFROM transactions\nWHERE direction = 'debit'\n  AND date >= DATE '2026-07-01'\n  AND date <= DATE '2026-07-31';"
+  },
+  {
+   "q": "What was my total income in FY 2025-26?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.72,
+   "llm_seconds": [
+    1.641
+   ],
+   "tokens": 837,
+   "usd": 6e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    1200000
+   ],
+   "text": "SELECT SUM(amount) AS total_income\nFROM transactions\nWHERE direction = 'credit'\n  AND date >= DATE '2025-04-01'\n  AND date <= DATE '2026-03-31';"
+  },
+  {
+   "q": "How many transactions do I have this financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 4.12,
+   "llm_seconds": [
+    4.035
+   ],
+   "tokens": 874,
+   "usd": 7e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    36
+   ],
+   "text": "SELECT COUNT(*) AS transaction_count FROM transactions WHERE date BETWEEN DATE '2026-04-01' AND DATE '2027-03-31'"
+  },
+  {
+   "q": "How much did I buy last financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 2.15,
+   "llm_seconds": [
+    2.072
+   ],
+   "tokens": 881,
+   "usd": 7.2e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    66000
+   ],
+   "text": "SELECT SUM(quantity * price) AS total_buy_amount_inr\nFROM trades\nWHERE side = 'buy'\n  AND trade_date >= DATE '2025-04-01'\n  AND trade_date <= DATE '2026-03-31';"
+  },
+  {
+   "q": "How much did I sell this financial year?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 5.94,
+   "llm_seconds": [
+    5.852
+   ],
+   "tokens": 944,
+   "usd": 4e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    36500
+   ],
+   "text": "SELECT SUM(quantity * price) AS total_sell_amount\nFROM trades\nWHERE side = 'sell'\n  AND trade_date >= DATE '2026-04-01'\n  AND trade_date <= DATE '2027-03-31';"
+  },
+  {
+   "q": "How much have I invested in my current holdings?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.44,
+   "llm_seconds": [
+    1.349
+   ],
+   "tokens": 825,
+   "usd": 5.8e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    62000
+   ],
+   "text": "SELECT SUM(avg_cost * quantity) AS total_invested_inr FROM holdings;"
+  },
+  {
+   "q": "What is my unrealized profit?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 0.94,
+   "llm_seconds": [
+    0.86
+   ],
+   "tokens": 792,
+   "usd": 5e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    4800
+   ],
+   "text": "SELECT SUM(value - quantity * avg_cost) AS unrealized_profit FROM holdings;"
+  },
+  {
+   "q": "How many stocks do I hold?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.0,
+   "llm_seconds": [
+    0.913
+   ],
+   "tokens": 777,
+   "usd": 4.7e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    2
+   ],
+   "text": "SELECT COUNT(*) AS stock_count FROM holdings WHERE quantity > 0;"
+  },
+  {
+   "q": "How much did I spend in June 2026?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.53,
+   "llm_seconds": [
+    1.45
+   ],
+   "tokens": 847,
+   "usd": 6.3e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    38699
+   ],
+   "text": "SELECT COALESCE(SUM(amount), 0) AS total_spent_june_2026\nFROM transactions\nWHERE direction = 'debit'\n  AND date >= DATE '2026-06-01'\n  AND date <= DATE '2026-06-30';"
+  },
+  {
+   "q": "List my transactions in June 2026",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 2.97,
+   "llm_seconds": [
+    2.885
+   ],
+   "tokens": 790,
+   "usd": 2.8e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    999,
+    30000
+   ],
+   "text": "SELECT * FROM transactions WHERE date >= DATE '2026-06-01' AND date < DATE '2026-07-01'"
+  },
+  {
+   "q": "What was my biggest single expense in June 2026?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 2.06,
+   "llm_seconds": [
+    1.961
+   ],
+   "tokens": 827,
+   "usd": 6.3e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    30000
+   ],
+   "text": "SELECT description, amount\nFROM transactions\nWHERE direction = 'debit'\n  AND date >= DATE '2026-06-01'\n  AND date < DATE '2026-07-01'\nORDER BY amount DESC\nLIMIT 1"
+  },
+  {
+   "q": "What is 12% of 450000?",
+   "kind": "none",
+   "plan_ok": false,
+   "values_ok": false,
+   "badge": "none",
+   "verified": null,
+   "seconds": 0.76,
+   "llm_seconds": [
+    0.72
+   ],
+   "tokens": 765,
+   "usd": 4.3e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    54000
+   ],
+   "text": "NONE"
+  },
+  {
+   "q": "What is 250000 divided by 12?",
+   "kind": "none",
+   "plan_ok": false,
+   "values_ok": false,
+   "badge": "none",
+   "verified": null,
+   "seconds": 0.82,
+   "llm_seconds": [
+    0.772
+   ],
+   "tokens": 765,
+   "usd": 4.3e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    20833.33
+   ],
+   "text": "NONE"
+  },
+  {
+   "q": "How much did I make?",
+   "kind": "sql",
+   "plan_ok": false,
+   "values_ok": null,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.07,
+   "llm_seconds": [
+    0.977
+   ],
+   "tokens": 774,
+   "usd": 2.8e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "SELECT SUM(amount) AS total_income FROM transactions WHERE direction = 'credit'"
+  },
+  {
+   "q": "What's my return?",
+   "kind": "sql",
+   "plan_ok": false,
+   "values_ok": null,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.75,
+   "llm_seconds": [
+    1.663
+   ],
+   "tokens": 869,
+   "usd": 7e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "SELECT \n    SUM(h.value) AS total_market_value,\n    SUM(h.quantity * h.avg_cost) AS total_cost,\n    CASE \n        WHEN SUM(h.quantity * h.avg_cost) = 0 THEN NULL\n        ELSE (SUM(h.value) - SUM(h.qua"
+  },
+  {
+   "q": "Show my profit",
+   "kind": "sql",
+   "plan_ok": false,
+   "values_ok": null,
+   "badge": "exploratory",
+   "verified": null,
+   "seconds": 1.43,
+   "llm_seconds": [
+    1.344
+   ],
+   "tokens": 808,
+   "usd": 3.1e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "SELECT\n    symbol_or_scheme,\n    quantity,\n    avg_cost,\n    value,\n    (value - (avg_cost * quantity)) AS profit_in_inr\nFROM holdings;"
+  },
+  {
+   "q": "Should I buy INFY now?",
+   "kind": "none",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": null,
+   "seconds": 0.77,
+   "llm_seconds": [
+    0.731
+   ],
+   "tokens": 758,
+   "usd": 4.2e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "NONE"
+  },
+  {
+   "q": "Will NIFTY go up next month?",
+   "kind": "none",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": null,
+   "seconds": 0.82,
+   "llm_seconds": [
+    0.773
+   ],
+   "tokens": 763,
+   "usd": 4.3e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "NONE"
+  },
+  {
+   "q": "Give me a price target for TCS",
+   "kind": "none",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": null,
+   "seconds": 1.02,
+   "llm_seconds": [
+    0.97
+   ],
+   "tokens": 761,
+   "usd": 4.2e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "NONE"
+  },
+  {
+   "q": "Which of my stocks should I sell?",
+   "kind": "none",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": null,
+   "seconds": 1.43,
+   "llm_seconds": [
+    1.387
+   ],
+   "tokens": 767,
+   "usd": 4e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "NONE"
+  },
+  {
+   "q": "Is HDFCBANK a good investment?",
+   "kind": "none",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": null,
+   "seconds": 1.03,
+   "llm_seconds": [
+    0.98
+   ],
+   "tokens": 767,
+   "usd": 4.4e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "NONE"
+  },
+  {
+   "q": "hi",
+   "kind": "none",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": null,
+   "seconds": 1.43,
+   "llm_seconds": [
+    1.38
+   ],
+   "tokens": 755,
+   "usd": 2.6e-05,
+   "models": [
+    "openrouter:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "NONE"
+  }
+ ]
+}

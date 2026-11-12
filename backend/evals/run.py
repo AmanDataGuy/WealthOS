@@ -20,7 +20,11 @@ LLM replies are cached in `evals/llm_cache.json` keyed by a hash of the prompt:
   this is what CI runs;
 - `--only N` runs the first N cases;
 - `--name X` keeps a separate run (another provider or model) in `results_X.json` with its replies in
-  `llm_cache_X.json`, e.g. `GROQ_API_KEY= LLM_FALLBACK_MODEL=openai/gpt-oss-120b python evals/run.py --name openrouter`.
+  `llm_cache_X.json`, e.g. `GROQ_API_KEY= LLM_FALLBACK_MODEL=openai/gpt-oss-120b python evals/run.py --name openrouter`;
+- `--arm baseline` asks a plain text-to-SQL bot instead of the assistant (`ask_baseline`: one model call writes SQL
+  from the table schema and two sample rows per table, `guard_sql` + the read-only engine run it; no planner, no
+  metrics layer, no number check; it may answer NONE to decline). Written to `results_baseline.json` unless `--name`
+  says otherwise. Same scoring; a clarify / advice / small-talk case counts as right only if it declined.
 """
 from __future__ import annotations
 
@@ -30,6 +34,7 @@ import calendar
 import hashlib
 import json
 import os
+import re
 import statistics
 import subprocess
 import sys
@@ -146,6 +151,36 @@ async def _dump(coro, stats: dict):
     return out.model_dump() if out is not None else None
 
 
+# ── The text-to-SQL baseline ───────────────────────────────────────────────────────────────────────────────
+
+BASELINE = """You write ONE read-only DuckDB SELECT query that answers the user's question from their own tables.
+Today is {today}. Amounts are in INR. The Indian financial year runs 1 April to 31 March.
+Tables with their columns and types, and two sample rows each: {tables}
+Answer with the SQL only: no prose, no code fences. If the question cannot be answered with SQL over these tables,
+answer NONE."""
+
+
+# The baseline arm: one model call writes SQL, guard_sql and the locked engine run it. Returns (kind, rows, note).
+async def ask_baseline(question: str) -> tuple[str, list[dict], str]:
+    from app.ai import llm_client as llm
+
+    con = engine.open_readonly(USER)
+    # sample rows without the bookkeeping columns (as_of is the load date, so it would change the prompt every day)
+    tables = {t: {"columns": cols, "sample_rows": engine._execute(
+        con, f'SELECT * EXCLUDE (source_row, source_file, dataset_id{", as_of" if "as_of" in cols else ""}) '
+             f'FROM "{t}" ORDER BY source_row LIMIT 2')}
+              for t, cols in engine.schema(con).items()}
+    raw = await llm.call_llm(BASELINE.format(today=TODAY.isoformat(), tables=json.dumps(tables, default=str)),
+                             question, max_tokens=800, temperature=0)
+    sql = re.sub(r"^```(?:sql)?\s*|\s*```$", "", (raw or "").strip(), flags=re.I).strip()
+    if not sql or sql.upper().startswith("NONE"):
+        return "none", [], sql
+    try:
+        return "sql", engine.run_sql(USER, sql).rows, sql
+    except Exception as e:  # guard_sql refused it, or it failed on the data
+        return "error", [], f"{sql} -> {e}"
+
+
 # ── Scoring ────────────────────────────────────────────────────────────────────────────────────────────────
 
 # True when every expected number appears among the answer's row values (within 0.5%, and at least 1).
@@ -155,14 +190,21 @@ def values_match(expected: list[float], rows: list[dict]) -> bool:
 
 
 # Ask every case; returns (per-case results, summary).
-async def run(cases: list[dict], t: dict, stats: dict) -> tuple[list[dict], dict]:
+async def run(cases: list[dict], t: dict, stats: dict, baseline: bool = False) -> tuple[list[dict], dict]:
     from app.ai import llm_client as llm
 
     results, log = [], []
     llm.CALL_LOG.set(log)  # live provider replies land here; cache hits add nothing
     for c in cases:
         start, waited, first = time.perf_counter(), stats.get("waited", 0), len(log)
-        a = await agent.ask(USER, c["q"])
+        if baseline:
+            kind, rows, note = await ask_baseline(c["q"])
+            refuse = not set(c["kinds"]) & {"metric", "sql", "calc"}
+            a = argparse.Namespace(plan=argparse.Namespace(kind=kind), rows=rows, badge="exploratory" if rows else "none",
+                                   verified=None, text=note)
+            c = c | {"kinds": ["none"] if refuse else ["sql"]}
+        else:
+            a = await agent.ask(USER, c["q"])
         seconds = time.perf_counter() - start - (stats.get("waited", 0) - waited)
         calls = log[first:]
         expected = [t[v] if isinstance(v, str) else v for v in c.get("values", [])]
@@ -182,8 +224,8 @@ async def run(cases: list[dict], t: dict, stats: dict) -> tuple[list[dict], dict
         "cases": len(results), "plan_match_pct": pct([r["plan_ok"] for r in results]),
         "value_accuracy_pct": pct([r["values_ok"] for r in valued]),
         "trusted_pct_on_value_cases": pct([r["badge"] == "trusted" for r in valued]),
-        "number_check_rejects": sum(not r["verified"] for r in results),
-        "advice_abstention_pct": pct([r["kind"] == "out_of_scope" for r in advice]),
+        "number_check_rejects": sum(r["verified"] is False for r in results),
+        "advice_abstention_pct": pct([r["kind"] in ("out_of_scope", "none") for r in advice]),
         **latency_cost(results)}
 
 
@@ -201,7 +243,7 @@ def latency_cost(results: list[dict]) -> dict:
 
 
 # Load the cases, build the fixtures in a temp folder, run, print and save the scores.
-def evaluate(offline: bool = False, only: int = 0, name: str = "") -> tuple[list[dict], dict]:
+def evaluate(offline: bool = False, only: int = 0, name: str = "", arm: str = "agent") -> tuple[list[dict], dict]:
     cases = yaml.safe_load(Path(__file__).with_name("cases.yaml").read_text(encoding="utf-8"))
     cases = cases[:only] if only else cases
     stats = {"calls": 0}
@@ -212,7 +254,7 @@ def evaluate(offline: bool = False, only: int = 0, name: str = "") -> tuple[list
     with tempfile.TemporaryDirectory() as tmp:
         engine.DATA_ROOT = Path(tmp) / "users"
         make_fixtures(Path(tmp))
-        results, summary = asyncio.run(run(cases, truths(), stats))
+        results, summary = asyncio.run(run(cases, truths(), stats, baseline=arm == "baseline"))
     summary["llm_calls_per_question"] = round(stats["calls"] / len(cases), 2)
     summary["waited_seconds"] = stats.get("waited", 0)
     summary["run_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
@@ -229,8 +271,10 @@ if __name__ == "__main__":
     ap.add_argument("--offline", action="store_true", help="replay cached LLM replies only (CI)")
     ap.add_argument("--only", type=int, default=0, help="run only the first N cases")
     ap.add_argument("--name", default="", help="write results_NAME.json and use llm_cache_NAME.json")
+    ap.add_argument("--arm", choices=["agent", "baseline"], default="agent", help="baseline: plain text-to-SQL")
     args = ap.parse_args()
-    results, summary = evaluate(args.offline, args.only, args.name)
+    args.name = args.name or ("" if args.arm == "agent" else args.arm)
+    results, summary = evaluate(args.offline, args.only, args.name, args.arm)
     for r in results:
         ok = r["plan_ok"] and r["values_ok"] is not False
         values = "" if r["values_ok"] is None else "values ok" if r["values_ok"] else f"values WRONG, expected {r['expected']}"
