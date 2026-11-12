@@ -63,13 +63,10 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
   );
 }
 
-// Sign in with a username and password, or (local development only) paste a token made with:
-// cd backend && python -c "from app.main import _issue_token; print(_issue_token('me', 'me'))"
+// Sign in with a username and password.
 function Login({ onDone }: { onDone: (s: Session) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [devUser, setDevUser] = useState("");
-  const [devToken, setDevToken] = useState("");
   const [error, setError] = useState("");
   // Log in or register, then remember the session.
   async function auth(path: string) {
@@ -88,14 +85,6 @@ function Login({ onDone }: { onDone: (s: Session) => void }) {
         <button onClick={() => auth("/auth/signup")}>Create account</button>
       </div>
       {error && <div className="error">{error}</div>}
-      {import.meta.env.DEV && (  // dev server only: production builds drop this panel
-        <details>
-          <summary>Local development: use a token</summary>
-          <input placeholder="User id" value={devUser} onChange={(e) => setDevUser(e.target.value)} />
-          <input placeholder="Token" value={devToken} onChange={(e) => setDevToken(e.target.value)} />
-          <button disabled={!devUser || !devToken} onClick={() => onDone({ userId: devUser, token: devToken })}>Continue</button>
-        </details>
-      )}
     </div>
   );
 }

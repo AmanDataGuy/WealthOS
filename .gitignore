@@ -26,3 +26,11 @@ backend/storage/
 .DS_Store
 Thumbs.db
 *.log
+
+# Reference material only, never committed
+suggested_addition/
+
+# Local planning docs and history, never committed
+BUILD_PLAN.md
+AUDIT.md
+docs/history/
