@@ -1,0 +1,67 @@
+{
+"0": {
+"cik_str": 320193,
+"ticker": "AAPL",
+"title": "Apple Inc."
+},
+"1": {
+"cik_str": 1045810,
+"ticker": "NVDA",
+"title": "NVIDIA CORP"
+},
+"2": {
+"cik_str": 789019,
+"ticker": "MSFT",
+"title": "MICROSOFT CORP"
+},
+"3": {
+"cik_str": 1652044,
+"ticker": "GOOGL",
+"title": "Alphabet Inc."
+},
+"4": {
+"cik_str": 1067983,
+"ticker": "BRK-B",
+"title": "BERKSHIRE HATHAWAY INC"
+},
+"5": {
+"cik_str": 200406,
+"ticker": "JNJ",
+"title": "JOHNSON & JOHNSON"
+},
+"6": {
+"cik_str": 40545,
+"ticker": "GE",
+"title": "GENERAL ELECTRIC CO"
+},
+"7": {
+"cik_str": 1996810,
+"ticker": "GEV",
+"title": "GE Vernova Inc."
+},
+"8": {
+"cik_str": 40533,
+"ticker": "GD",
+"title": "GENERAL DYNAMICS CORP"
+},
+"9": {
+"cik_str": 1467858,
+"ticker": "GM",
+"title": "General Motors Co"
+},
+"10": {
+"cik_str": 40704,
+"ticker": "GIS",
+"title": "GENERAL MILLS INC"
+},
+"11": {
+"cik_str": 1652044,
+"ticker": "GOOG",
+"title": "Alphabet Inc."
+},
+"12": {
+"cik_str": 1067983,
+"ticker": "BRK-A",
+"title": "BERKSHIRE HATHAWAY INC"
+}
+}

@@ -83,8 +83,8 @@ _sec_lock = threading.Lock()
 _sec_last_call = 0.0
 
 
-# Download one JSON page from SEC, waiting so we stay well under its 10 requests per second limit.
-def _sec_get(url: str) -> dict:
+# Download one JSON page (or the raw bytes) from SEC, waiting so we stay well under its 10 requests per second limit.
+def _sec_get(url: str, raw: bool = False):
     global _sec_last_call
     with _sec_lock:
         time.sleep(max(0.0, 0.15 - (time.monotonic() - _sec_last_call)))
@@ -92,7 +92,7 @@ def _sec_get(url: str) -> dict:
     agent = os.getenv("SEC_USER_AGENT", "WealthOS research@wealthos.app")
     resp = httpx.get(url, headers={"User-Agent": agent}, timeout=30, follow_redirects=True)
     resp.raise_for_status()
-    return resp.json()
+    return resp.content if raw else resp.json()
 
 
 # Ticker -> (10-digit company id, name) for every company SEC lists. Fetched once per run.
@@ -106,11 +106,11 @@ def _sec_companies() -> dict:
 # A year is picked by its real end date: the latest 10-K also repeats last year's numbers (same "fy"), and those
 # must not pass as this year. If one end date is reported twice, the latest filing wins; the first tag that has
 # a value for that year wins over later tags.
-def _sec_annual_values(facts: dict, kind: str, tags: list[str]) -> list[dict]:
+def _sec_annual_values(facts: dict, kind: str, tags: list[str], unit: str = "USD") -> list[dict]:
     best = {}  # period end date -> (tag position, filed, row)
     for position, tag in enumerate(tags):
         for taxonomy in ("us-gaap", "ifrs-full"):
-            for e in facts.get("facts", {}).get(taxonomy, {}).get(tag, {}).get("units", {}).get("USD", []):
+            for e in facts.get("facts", {}).get(taxonomy, {}).get(tag, {}).get("units", {}).get(unit, []):
                 if e.get("form") not in _ANNUAL_FORMS or e.get("val") is None or "end" not in e:
                     continue
                 start = e.get("start")
