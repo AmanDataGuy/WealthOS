@@ -155,7 +155,7 @@
   "block_rate_pct": 100.0,
   "legit": 16,
   "false_block_rate_pct": 0.0,
-  "max_seconds": 6.28,
+  "max_seconds": 6.49,
   "rows": [
    {
     "sql": "SELECT 1; DROP TABLE transactions",
@@ -179,7 +179,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "only a single SELECT query is allowed",
-    "seconds": 0.01
+    "seconds": 0.02
    },
    {
     "sql": "SELECT * FROM transactions --\n; DELETE FROM transactions",
@@ -299,7 +299,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "function 'read_csv_auto' is not allowed (it reaches outside your data)",
-    "seconds": 0.02
+    "seconds": 0.01
    },
    {
     "sql": "SELECT * FROM read_parquet('/home/*/storage/users/*/datasets/**/*.parquet')",
@@ -307,7 +307,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "function 'READ_PARQUET' is not allowed (it reaches outside your data)",
-    "seconds": 0.01
+    "seconds": 0.02
    },
    {
     "sql": "SELECT * FROM read_text('/etc/hostname')",
@@ -323,7 +323,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "function 'read_blob' is not allowed (it reaches outside your data)",
-    "seconds": 0.01
+    "seconds": 0.02
    },
    {
     "sql": "SELECT * FROM glob('/*')",
@@ -387,7 +387,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "function 'parquet_metadata' is not allowed (it reaches outside your data)",
-    "seconds": 0.02
+    "seconds": 0.01
    },
    {
     "sql": "SELECT * FROM read_csv('https://example.com/x.csv')",
@@ -435,7 +435,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "function 'current_setting' is not allowed (it reaches outside your data)",
-    "seconds": 0.02
+    "seconds": 0.01
    },
    {
     "sql": "SELECT * FROM duckdb_settings()",
@@ -443,7 +443,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "function 'duckdb_settings' is not allowed (it reaches outside your data)",
-    "seconds": 0.02
+    "seconds": 0.01
    },
    {
     "sql": "SELECT * FROM duckdb_secrets()",
@@ -563,7 +563,7 @@
     "legit": false,
     "outcome": "ran",
     "why": "",
-    "seconds": 6.28
+    "seconds": 6.49
    },
    {
     "sql": "SELECT * FROM range(1000000000000)",
@@ -651,7 +651,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.04
+    "seconds": 0.03
    },
    {
     "sql": "SELECT COUNT(DISTINCT symbol) AS n FROM trades",
@@ -784,183 +784,32 @@
  },
  "mapping_rules": {
   "rows": 31,
-  "accuracy_pct": 58.1,
+  "accuracy_pct": 83.9,
   "shape_accuracy_pct": 96.8,
-  "column_precision_pct": 98.3,
-  "column_recall_pct": 81.3,
+  "column_precision_pct": 97.7,
+  "column_recall_pct": 92.1,
   "by_shape": {
-   "holdings": "3/4",
+   "holdings": "4/4",
    "none": "5/5",
-   "prices": "0/2",
-   "trades": "3/7",
-   "transactions": "7/13"
+   "prices": "1/2",
+   "trades": "4/7",
+   "transactions": "12/13"
   },
   "confidence_precision": {
    "medium": {
-    "right": 113,
-    "labelled": 115,
-    "pct": 98.3
+    "right": 128,
+    "labelled": 131,
+    "pct": 97.7
    }
   },
-  "rules_incomplete": 16,
+  "rules_incomplete": 8,
   "wrong": [
-   {
-    "name": "ICICI savings",
-    "shape": "transactions",
-    "ok": false,
-    "got_shape": "transactions",
-    "missing": [
-     "debit/credit or amount"
-    ],
-    "pairs": [
-     {
-      "std": "date",
-      "col": "Value Date",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "description",
-      "col": "Transaction Remarks",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "balance",
-      "col": "Balance (INR )",
-      "right": true,
-      "confidence": "medium"
-     }
-    ],
-    "expected_pairs": 5,
-    "via": "rules+ai"
-   },
-   {
-    "name": "ICICI savings (detailed)",
-    "shape": "transactions",
-    "ok": false,
-    "got_shape": "transactions",
-    "missing": [
-     "debit/credit or amount"
-    ],
-    "pairs": [
-     {
-      "std": "date",
-      "col": "Value Date",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "description",
-      "col": "Transaction Remarks",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "balance",
-      "col": "Balance",
-      "right": true,
-      "confidence": "medium"
-     }
-    ],
-    "expected_pairs": 5,
-    "via": "rules+ai"
-   },
-   {
-    "name": "Kotak savings (Dr/Cr columns)",
-    "shape": "transactions",
-    "ok": false,
-    "got_shape": "transactions",
-    "missing": [
-     "debit/credit or amount"
-    ],
-    "pairs": [
-     {
-      "std": "date",
-      "col": "Date",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "description",
-      "col": "Narration",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "balance",
-      "col": "Balance",
-      "right": true,
-      "confidence": "medium"
-     }
-    ],
-    "expected_pairs": 5,
-    "via": "rules+ai"
-   },
-   {
-    "name": "Axis savings",
-    "shape": "transactions",
-    "ok": false,
-    "got_shape": "transactions",
-    "missing": [
-     "debit/credit or amount"
-    ],
-    "pairs": [
-     {
-      "std": "date",
-      "col": "Tran Date",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "description",
-      "col": "PARTICULARS",
-      "right": true,
-      "confidence": "medium"
-     }
-    ],
-    "expected_pairs": 5,
-    "via": "rules+ai"
-   },
-   {
-    "name": "HDFC credit card",
-    "shape": "transactions",
-    "ok": false,
-    "got_shape": "transactions",
-    "missing": [
-     "description"
-    ],
-    "pairs": [
-     {
-      "std": "date",
-      "col": "Date",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "amount",
-      "col": "Amount",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "drcr",
-      "col": "Debit / Credit",
-      "right": true,
-      "confidence": "medium"
-     }
-    ],
-    "expected_pairs": 4,
-    "via": "rules+ai"
-   },
    {
     "name": "ICICI credit card",
     "shape": "transactions",
     "ok": false,
     "got_shape": "transactions",
-    "missing": [
-     "debit/credit or amount"
-    ],
+    "missing": [],
     "pairs": [
      {
       "std": "date",
@@ -973,10 +822,16 @@
       "col": "Transaction Details",
       "right": true,
       "confidence": "medium"
+     },
+     {
+      "std": "amount",
+      "col": "Amount(in Rs)",
+      "right": true,
+      "confidence": "medium"
      }
     ],
     "expected_pairs": 4,
-    "via": "rules+ai"
+    "via": "rules"
    },
    {
     "name": "Upstox tradebook",
@@ -1072,87 +927,27 @@
     "via": "rules+ai"
    },
    {
-    "name": "Groww holdings",
-    "shape": "holdings",
-    "ok": false,
-    "got_shape": "holdings",
-    "missing": [],
-    "pairs": [
-     {
-      "std": "symbol_or_scheme",
-      "col": "Stock Name",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "isin",
-      "col": "ISIN",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "quantity",
-      "col": "Quantity",
-      "right": true,
-      "confidence": "medium"
-     }
-    ],
-    "expected_pairs": 5,
-    "via": "rules"
-   },
-   {
-    "name": "CAMS transactions",
-    "shape": "trades",
-    "ok": false,
-    "got_shape": "trades",
-    "missing": [
-     "symbol"
-    ],
-    "pairs": [
-     {
-      "std": "trade_date",
-      "col": "TRADE_DATE",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "side",
-      "col": "TRANSACTION_TYPE",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "quantity",
-      "col": "UNITS",
-      "right": true,
-      "confidence": "medium"
-     },
-     {
-      "std": "price",
-      "col": "PRICE",
-      "right": true,
-      "confidence": "medium"
-     }
-    ],
-    "expected_pairs": 5,
-    "via": "rules+ai"
-   },
-   {
     "name": "KFintech transactions",
     "shape": "trades",
     "ok": false,
-    "got_shape": "holdings",
+    "got_shape": "transactions",
     "missing": [],
     "pairs": [
      {
-      "std": "symbol_or_scheme",
-      "col": "Scheme Name",
+      "std": "date",
+      "col": "Transaction Date",
       "right": false,
       "confidence": "medium"
      },
      {
-      "std": "quantity",
-      "col": "Units",
+      "std": "description",
+      "col": "Transaction Description",
+      "right": false,
+      "confidence": "medium"
+     },
+     {
+      "std": "amount",
+      "col": "Amount",
       "right": false,
       "confidence": "medium"
      }
@@ -1206,27 +1001,268 @@
     ],
     "expected_pairs": 7,
     "via": "rules"
+   }
+  ]
+ },
+ "run_at": "2026-11-13T00:42:38+0530",
+ "mapping_rules_ai": {
+  "rows": 31,
+  "accuracy_pct": 83.9,
+  "shape_accuracy_pct": 96.8,
+  "column_precision_pct": 96.4,
+  "column_recall_pct": 95.0,
+  "by_shape": {
+   "holdings": "4/4",
+   "none": "5/5",
+   "prices": "1/2",
+   "trades": "4/7",
+   "transactions": "12/13"
+  },
+  "confidence_precision": {
+   "high": {
+    "right": 17,
+    "labelled": 17,
+    "pct": 100.0
    },
+   "medium": {
+    "right": 115,
+    "labelled": 120,
+    "pct": 95.8
+   }
+  },
+  "rules_incomplete": 8,
+  "wrong": [
    {
-    "name": "mfapi NAV history",
-    "shape": "prices",
+    "name": "ICICI credit card",
+    "shape": "transactions",
     "ok": false,
-    "got_shape": "prices",
-    "missing": [
-     "close"
-    ],
+    "got_shape": "transactions",
+    "missing": [],
     "pairs": [
      {
-      "std": "ts",
-      "col": "date",
+      "std": "date",
+      "col": "Date",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "description",
+      "col": "Transaction Details",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "amount",
+      "col": "Amount(in Rs)",
       "right": true,
       "confidence": "medium"
      }
     ],
-    "expected_pairs": 2,
+    "expected_pairs": 4,
+    "via": "rules"
+   },
+   {
+    "name": "Groww stocks order history",
+    "shape": "trades",
+    "ok": false,
+    "got_shape": "trades",
+    "missing": [
+     "price"
+    ],
+    "pairs": [
+     {
+      "std": "trade_date",
+      "col": "Execution date and time",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "symbol",
+      "col": "Stock name",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "isin",
+      "col": "ISIN",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "exchange",
+      "col": "Exchange",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "side",
+      "col": "Type",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "quantity",
+      "col": "Quantity",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "trade_id",
+      "col": "Exchange Order Id",
+      "right": false,
+      "confidence": "medium"
+     },
+     {
+      "std": "order_id",
+      "col": "Exchange Order Id",
+      "right": true,
+      "confidence": "high"
+     }
+    ],
+    "expected_pairs": 7,
     "via": "rules+ai"
+   },
+   {
+    "name": "Dhan tradebook",
+    "shape": "trades",
+    "ok": false,
+    "got_shape": "trades",
+    "missing": [],
+    "pairs": [
+     {
+      "std": "trade_date",
+      "col": "Date",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "symbol",
+      "col": "Name",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "exchange",
+      "col": "Exchange",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "segment",
+      "col": "Segment",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "side",
+      "col": "Buy/Sell",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "quantity",
+      "col": "Quantity/Lot",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "price",
+      "col": "Trade Price",
+      "right": true,
+      "confidence": "high"
+     },
+     {
+      "std": "order_id",
+      "col": "Order",
+      "right": false,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 7,
+    "via": "rules+ai"
+   },
+   {
+    "name": "KFintech transactions",
+    "shape": "trades",
+    "ok": false,
+    "got_shape": "transactions",
+    "missing": [],
+    "pairs": [
+     {
+      "std": "date",
+      "col": "Transaction Date",
+      "right": false,
+      "confidence": "medium"
+     },
+     {
+      "std": "description",
+      "col": "Transaction Description",
+      "right": false,
+      "confidence": "medium"
+     },
+     {
+      "std": "amount",
+      "col": "Amount",
+      "right": false,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 5,
+    "via": "rules"
+   },
+   {
+    "name": "NSE bhavcopy",
+    "shape": "prices",
+    "ok": false,
+    "got_shape": "prices",
+    "missing": [],
+    "pairs": [
+     {
+      "std": "ts",
+      "col": "TIMESTAMP",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "symbol",
+      "col": "SYMBOL",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "open",
+      "col": "OPEN",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "high",
+      "col": "HIGH",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "low",
+      "col": "LOW",
+      "right": true,
+      "confidence": "medium"
+     },
+     {
+      "std": "close",
+      "col": "CLOSE",
+      "right": true,
+      "confidence": "medium"
+     }
+    ],
+    "expected_pairs": 7,
+    "via": "rules"
    }
+  ],
+  "llm_calls": 8,
+  "live_calls": 8,
+  "usd": 0.00053,
+  "models": [
+   "openrouter:openai/gpt-oss-120b"
   ]
- },
- "run_at": "2026-11-13T00:36:30+0530"
+ }
 }

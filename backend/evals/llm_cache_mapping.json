@@ -1,0 +1,10 @@
+{
+"1d4d3bb3a0fbe276ecdb1b9f": "{\n  \"shape\": \"holdings\",\n  \"columns\": {\n    \"symbol_or_scheme\": \"Symbol\"\n  }\n}",
+"391cdaaac716e266ba85b357": "{\"shape\": null, \"columns\": {}}",
+"669cae0298cc176dcfda5b30": "{\n  \"shape\": \"transactions\",\n  \"columns\": {\n    \"date\": \"Due Date\",\n    \"balance\": \"Outstanding\"\n  }\n}",
+"79b006f7658646af0bac5b6d": "{\"shape\":\"transactions\",\"columns\":{}}",
+"7bce11dd33d24411b18300a6": "{\n  \"shape\": \"trades\",\n  \"columns\": {\n    \"trade_date\": \"Date\",\n    \"symbol\": \"Name\",\n    \"exchange\": \"Exchange\",\n    \"segment\": \"Segment\",\n    \"side\": \"Buy/Sell\",\n    \"quantity\": \"Quantity/Lot\",\n    \"price\": \"Trade Price\",\n    \"order_id\": \"Order\"\n  }\n}",
+"7c931db9dc0055630aa618d7": "{\n  \"shape\": \"transactions\",\n  \"columns\": {\n    \"description\": \"Item\"\n  }\n}",
+"d41f0c03e8730e7e74718278": "{\n  \"shape\": \"trades\",\n  \"columns\": {\n    \"trade_date\": \"Date\",\n    \"symbol\": \"Scrip Code\",\n    \"exchange\": \"Exchange\",\n    \"segment\": \"Segment\",\n    \"side\": \"Side\",\n    \"quantity\": \"Quantity\",\n    \"price\": \"Price\",\n    \"trade_id\": \"Trade Num\"\n  }\n}",
+"febbdc49c16056ca22aa610e": "{\n  \"shape\": \"trades\",\n  \"columns\": {\n    \"trade_date\": \"Execution date and time\",\n    \"symbol\": \"Symbol\",\n    \"isin\": \"ISIN\",\n    \"exchange\": \"Exchange\",\n    \"side\": \"Type\",\n    \"quantity\": \"Quantity\",\n    \"trade_id\": \"Exchange Order Id\",\n    \"order_id\": \"Exchange Order Id\"\n  }\n}"
+}

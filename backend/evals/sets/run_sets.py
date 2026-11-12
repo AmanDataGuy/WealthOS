@@ -25,6 +25,7 @@ import argparse
 import asyncio
 import json
 import math
+import os
 import random
 import re
 import sys
@@ -293,9 +294,15 @@ if __name__ == "__main__":
     out = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
     out |= keyless()
     if args.live:
-        stats = {"calls": 0}
+        from app.ai import llm_client as llm
+
+        os.environ["WEALTHOS_DB_URL"] = ""  # no usage logging / cost-cap lookups, as in evals/run.py
+        stats, log = {"calls": 0}, []
+        llm.CALL_LOG.set(log)  # live replies only: a replayed (cached) row adds nothing here
         golden.install_cache(False, stats, MAPPING_CACHE)
-        out["mapping_rules_ai"] = asyncio.run(mapping_set(with_ai=True)) | {"llm_calls": stats["calls"]}
+        out["mapping_rules_ai"] = asyncio.run(mapping_set(with_ai=True)) | {
+            "llm_calls": stats["calls"], "live_calls": len(log), "usd": round(sum(x["usd"] for x in log), 6),
+            "models": sorted({f"{x['provider']}:{x['model']}" for x in log})}
     out["run_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     for name, res in out.items():
         if isinstance(res, dict):
