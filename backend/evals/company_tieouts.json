@@ -1,0 +1,472 @@
+{
+  "run_at": "2026-11-12T19:02:30+00:00",
+  "model": "openai/gpt-oss-20b",
+  "tolerance_usd_millions": 2.0,
+  "tickers": {
+    "AAPL": {
+      "company": "Apple Inc.",
+      "years": [
+        "2022-09-24",
+        "2023-09-30",
+        "2024-09-28",
+        "2025-09-27",
+        "2026-09-26"
+      ],
+      "seconds": 3.8,
+      "llm_cost_usd": 0.001872,
+      "checks": {
+        "balance_sheet_balances": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "reported_totals_agree": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "cash_flow_sums": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "cash_roll_forward": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "gross_profit_ties": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "workbook_recalculates": {
+          "status": "pass",
+          "years_passed": 128,
+          "years_tested": 128,
+          "max_abs_delta": 0.0
+        }
+      },
+      "release": {
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000024/a8-kex991q4202609262026.htm",
+        "error": null,
+        "verified": 13,
+        "unverified": 5,
+        "unverified_items": [
+          {
+            "name": "Operating cash flow",
+            "value": 28000.0,
+            "quote": "generated $28 billion in operating cash flow"
+          },
+          {
+            "name": "Total net sales FY2026",
+            "value": 478834.0,
+            "quote": "Total net sales 478,834"
+          },
+          {
+            "name": "Total net sales Q4 FY2026",
+            "value": 114477.0,
+            "quote": "Total net sales 114,477"
+          },
+          {
+            "name": "iPhone revenue Q4 FY2026",
+            "value": 57583.0,
+            "quote": "iPhone 57,583"
+          },
+          {
+            "name": "Tariff refund impact on EPS",
+            "value": 0.05,
+            "quote": "including a favorable impact of $0.05 from tariff refunds"
+          }
+        ]
+      },
+      "valuation": {
+        "enterprise_value": 2543508.75,
+        "per_share": 171.2
+      },
+      "notes": [
+        "Not tagged in the latest 10-K (left blank, ratios that need them too): Interest expense, Goodwill, Redeemable (temporary) equity, Effect of exchange rates on cash.",
+        "Per-share amounts and share counts of older years are as filed, so they are not restated for later stock splits.",
+        "Segments are not included: SEC company facts carry no segment breakdown."
+      ]
+    },
+    "MSFT": {
+      "company": "MICROSOFT CORP",
+      "years": [
+        "2022-06-30",
+        "2023-06-30",
+        "2024-06-30",
+        "2025-06-30",
+        "2026-06-30"
+      ],
+      "seconds": 2.3,
+      "llm_cost_usd": 0.000893,
+      "checks": {
+        "balance_sheet_balances": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "reported_totals_agree": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "cash_flow_sums": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "cash_roll_forward": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "gross_profit_ties": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "workbook_recalculates": {
+          "status": "pass",
+          "years_passed": 129,
+          "years_tested": 129,
+          "max_abs_delta": 0.0
+        }
+      },
+      "release": {
+        "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436122/msft-ex99_1.htm",
+        "error": null,
+        "verified": 14,
+        "unverified": 5,
+        "unverified_items": [
+          {
+            "name": "Net income (GAAP)",
+            "value": 36.629,
+            "quote": "Net income was $36.6 billion"
+          },
+          {
+            "name": "Net income (non-GAAP)",
+            "value": 36.422,
+            "quote": "Net income was $36.4 billion"
+          },
+          {
+            "name": "Diluted EPS (non-GAAP)",
+            "value": 4.89,
+            "quote": "Diluted earnings per share was $4.89"
+          },
+          {
+            "name": "OpenAI impact on net income",
+            "value": -207.0,
+            "quote": "Impact from OpenAI* $207 million"
+          },
+          {
+            "name": "OpenAI impact on diluted EPS",
+            "value": -0.03,
+            "quote": "Impact from OpenAI* $0.03"
+          }
+        ]
+      },
+      "valuation": {
+        "enterprise_value": 1804020.93,
+        "per_share": 246.96
+      },
+      "notes": [
+        "Not tagged in the latest 10-K (left blank, ratios that need them too): Selling, general and administrative, Short-term borrowings and commercial paper, Redeemable (temporary) equity, Depreciation and amortization.",
+        "Per-share amounts and share counts of older years are as filed, so they are not restated for later stock splits.",
+        "Segments are not included: SEC company facts carry no segment breakdown."
+      ]
+    },
+    "NVDA": {
+      "company": "NVIDIA CORP",
+      "years": [
+        "2022-01-30",
+        "2023-01-29",
+        "2024-01-28",
+        "2025-01-26",
+        "2026-01-25"
+      ],
+      "seconds": 4.2,
+      "llm_cost_usd": 0.00095,
+      "checks": {
+        "balance_sheet_balances": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "reported_totals_agree": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "cash_flow_sums": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "cash_roll_forward": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "gross_profit_ties": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "workbook_recalculates": {
+          "status": "pass",
+          "years_passed": 131,
+          "years_tested": 131,
+          "max_abs_delta": 0.0
+        }
+      },
+      "release": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000073/q2fy27pr.htm",
+        "error": null,
+        "verified": 15,
+        "unverified": 5,
+        "unverified_items": [
+          {
+            "name": "Operating Income",
+            "value": 63.734,
+            "quote": "Operating income $63,734"
+          },
+          {
+            "name": "Net Income",
+            "value": 59.688,
+            "quote": "Net income $59,688"
+          },
+          {
+            "name": "Diluted EPS Non-GAAP",
+            "value": 2.22,
+            "quote": "Non-GAAP earnings per diluted share were $2.22"
+          },
+          {
+            "name": "Operating Expenses",
+            "value": 8.408,
+            "quote": "Operating expenses $8,408"
+          },
+          {
+            "name": "Q3 FY27 Operating Expenses Non-GAAP",
+            "value": 9.0,
+            "quote": "Non-GAAP operating expenses are expected to be approximately $9.0 billion"
+          }
+        ]
+      },
+      "valuation": {
+        "enterprise_value": 2738818.64,
+        "per_share": 111.81
+      },
+      "notes": [
+        "Not tagged in the latest 10-K (left blank, ratios that need them too): Short-term investments, Short-term borrowings and commercial paper, Redeemable (temporary) equity, Effect of exchange rates on cash.",
+        "Per-share amounts and share counts of older years are as filed, so they are not restated for later stock splits.",
+        "Segments are not included: SEC company facts carry no segment breakdown."
+      ]
+    },
+    "JNJ": {
+      "company": "JOHNSON & JOHNSON",
+      "years": [
+        "2022-01-02",
+        "2023-01-01",
+        "2023-12-31",
+        "2024-12-29",
+        "2025-12-28"
+      ],
+      "seconds": 3.7,
+      "llm_cost_usd": 0.001912,
+      "checks": {
+        "balance_sheet_balances": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "reported_totals_agree": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "cash_flow_sums": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "cash_roll_forward": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "gross_profit_ties": {
+          "status": "pass",
+          "years_passed": 5,
+          "years_tested": 5,
+          "max_abs_delta": 0.0
+        },
+        "workbook_recalculates": {
+          "status": "pass",
+          "years_passed": 119,
+          "years_tested": 119,
+          "max_abs_delta": 0.0
+        }
+      },
+      "release": {
+        "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000189/a2026q3exhibit991.htm",
+        "error": null,
+        "verified": 14,
+        "unverified": 1,
+        "unverified_items": [
+          {
+            "name": "Q3 2026 Reported Sales",
+            "value": 25.399,
+            "quote": "$25,399"
+          }
+        ]
+      },
+      "valuation": {
+        "enterprise_value": 362091.75,
+        "per_share": 136.77
+      },
+      "notes": [
+        "Not tagged in the latest 10-K (left blank, ratios that need them too): Operating income, Redeemable (temporary) equity, Shareholders' equity, Dividends paid.",
+        "Per-share amounts and share counts of older years are as filed, so they are not restated for later stock splits.",
+        "Segments are not included: SEC company facts carry no segment breakdown."
+      ]
+    },
+    "GEV": {
+      "company": "GE Vernova Inc.",
+      "years": [
+        "2022-12-31",
+        "2023-12-31",
+        "2024-12-31",
+        "2025-12-31"
+      ],
+      "seconds": 2.4,
+      "llm_cost_usd": 0.001022,
+      "checks": {
+        "balance_sheet_balances": {
+          "status": "pass",
+          "years_passed": 3,
+          "years_tested": 3,
+          "max_abs_delta": 0.0
+        },
+        "reported_totals_agree": {
+          "status": "pass",
+          "years_passed": 3,
+          "years_tested": 3,
+          "max_abs_delta": 0.0
+        },
+        "cash_flow_sums": {
+          "status": "pass",
+          "years_passed": 4,
+          "years_tested": 4,
+          "max_abs_delta": 1.0
+        },
+        "cash_roll_forward": {
+          "status": "fail",
+          "years_passed": 1,
+          "years_tested": 3,
+          "max_abs_delta": 603.0
+        },
+        "gross_profit_ties": {
+          "status": "pass",
+          "years_passed": 4,
+          "years_tested": 4,
+          "max_abs_delta": 0.0
+        },
+        "workbook_recalculates": {
+          "status": "pass",
+          "years_passed": 66,
+          "years_tested": 66,
+          "max_abs_delta": 0.0
+        }
+      },
+      "release": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1996810/000199681026000162/gevpressrelease3q26.htm",
+        "error": null,
+        "verified": 18,
+        "unverified": 2,
+        "unverified_items": [
+          {
+            "name": "Backlog",
+            "value": 197.0,
+            "quote": "backlog growth of $20B sequentially from equipment and services, reaching $197B in total"
+          },
+          {
+            "name": "Litigation resolved",
+            "value": 0.0,
+            "quote": "Resolved all outstanding litigation regarding the Vineyard Wind offshore wind project"
+          }
+        ]
+      },
+      "valuation": "not enough data for a DCF (missing: total_debt for the latest year)",
+      "notes": [
+        "Not tagged in the latest 10-K (left blank, ratios that need them too): Interest expense, Short-term investments, Property, plant and equipment, net, Accounts payable, Current portion of long-term debt, Long-term debt, Redeemable (temporary) equity, Depreciation and amortization.",
+        "Per-share amounts and share counts of older years are as filed, so they are not restated for later stock splits.",
+        "Segments are not included: SEC company facts carry no segment breakdown."
+      ]
+    }
+  },
+  "pass_rates": {
+    "balance_sheet_balances": {
+      "tickers_passed": 5,
+      "tickers_tested": 5,
+      "years_passed": 23,
+      "years_tested": 23
+    },
+    "cash_flow_sums": {
+      "tickers_passed": 5,
+      "tickers_tested": 5,
+      "years_passed": 24,
+      "years_tested": 24
+    },
+    "cash_roll_forward": {
+      "tickers_passed": 4,
+      "tickers_tested": 5,
+      "years_passed": 21,
+      "years_tested": 23
+    },
+    "gross_profit_ties": {
+      "tickers_passed": 5,
+      "tickers_tested": 5,
+      "years_passed": 24,
+      "years_tested": 24
+    },
+    "reported_totals_agree": {
+      "tickers_passed": 5,
+      "tickers_tested": 5,
+      "years_passed": 23,
+      "years_tested": 23
+    },
+    "workbook_recalculates": {
+      "tickers_passed": 5,
+      "tickers_tested": 5,
+      "years_passed": 573,
+      "years_tested": 573
+    }
+  },
+  "release_figures": {
+    "verified": 74,
+    "total": 92,
+    "verified_rate": 0.804
+  },
+  "llm_cost_usd": 0.007549
+}
