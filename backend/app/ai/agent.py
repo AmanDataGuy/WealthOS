@@ -171,6 +171,11 @@ def save_turn(user_id: str, chat_id: str | None, workspace_id: str, question: st
 # Delete one chat (no error if it is already gone).
 def delete_chat(user_id: str, chat_id: str) -> None:
     _chat_path(user_id, chat_id).unlink(missing_ok=True)
+    state = engine.user_dir(user_id) / "agent_state.sqlite"  # the graph's checkpoints for this chat go too
+    if state.exists():
+        from langgraph.checkpoint.sqlite import SqliteSaver
+        with SqliteSaver.from_conn_string(str(state)) as saver:
+            saver.delete_thread(engine.safe_id(chat_id))
 
 
 # ── The pipeline ────────────────────────────────────────────────────────────────────────

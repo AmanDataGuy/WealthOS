@@ -154,3 +154,6 @@ def test_state_checkpointed_per_chat(monkeypatch):
     with SqliteSaver.from_conn_string(str(engine.user_dir("u") / "agent_state.sqlite")) as saver:
         state = saver.get_tuple({"configurable": {"thread_id": "c1"}}).checkpoint["channel_values"]
     assert state["question"] == "and in May?" and state["answer"]["rows"] == [{"total_spend": 29000.0}]
+    agent.delete_chat("u", "c1")  # deleting the chat deletes its checkpoints
+    with SqliteSaver.from_conn_string(str(engine.user_dir("u") / "agent_state.sqlite")) as saver:
+        assert saver.get_tuple({"configurable": {"thread_id": "c1"}}) is None
