@@ -75,7 +75,7 @@ backend/
     main.py          the HTTP API: app, middleware, startup, sign-in checks
     api/             the routes, one router per area (account, sources, assistant, dashboards, strategy, company)
     worker.py        background job: evening price refresh
-    mcp_server.py    read-only MCP server for Claude Desktop
+    mcp_server.py    read-only MCP server for Claude Desktop (setup and tools: docs/mcp.md)
     ai/              the assistant: LangGraph graph, LLM client, PII redaction, SQL + number checks, tools, filing search
     company/         company analyst: SEC facts, statements, ratios, valuation, release reader, tie-outs, workbook
     core/            settings, rate limits, account export / delete, workspaces
