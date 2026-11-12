@@ -16,18 +16,20 @@
 
 ## What It Does
 
-The home page is a chat. Under the message box, **+ Query your own data** takes bank and card statements, broker
-tradebooks, holdings, CAS PDFs, daily prices, annual reports, Google Sheets and plain notes. Then ask:
+The home page is a chat. Under the message box, **+ Query your own data** takes bank and card statements (CSV,
+Excel or PDF in HDFC, ICICI and SBI layouts), broker tradebooks, holdings, CAS PDFs, daily prices, annual reports,
+Google Sheets and plain notes. New here? **Load sample data** fills an account with a synthetic year in one click. Then ask:
 *"How much did I spend on food this FY?"*, *"Old or new tax regime for me?"*, *"Is my portfolio off target?"*,
 *"Backtest INFY when RSI is below 30, sell above 70"*. Chats are kept on the left, each named in a few words.
 
-Three more pages sit on the top bar, each with the same chat:
+Four more pages sit on the top bar:
 
 | Page | What you do there |
 |---|---|
 | **Dashboards** | Build by hand (drag, resize, remove, rearrange tiles) or with AI ("make spending monthly"); start from a template; download as Excel; fill your own Excel template (formulas and all) with your data |
 | **Strategy lab** | Describe a rule in words, or upload a Python file defining `weights(close)`; backtest with Indian charges against buy-and-hold |
 | **Rebalancing** | Set a target mix; see each holding's drift and the rupee change back to target |
+| **Company** | Type a US-listed company or ticker; get a five-year workbook built from its SEC filings, where every reported figure carries its XBRL concept and filing, every total and ratio is a live Excel formula, and accounting tie-outs are checked ([docs](docs/company_mode.md)) |
 
 The AI plans and explains. Code computes every number. No buy/sell advice, ever.
 
@@ -47,8 +49,9 @@ flowchart LR
     Ingest --> PQ[(Parquet per user<br>backend/storage/)]:::data
     Worker[worker.py<br>evening prices]:::core --> PQ
 
-    UI[React app<br>Chat · Dashboards · Strategy lab · Rebalancing]:::interface -- HTTP --> API[FastAPI<br>app/main.py]:::interface
-    API --> Agent[ai/agent.py<br>plan → run a tool → explain → verify]:::core
+    UI[React app<br>Chat · Dashboards · Strategy lab · Rebalancing · Company]:::interface -- HTTP --> API[FastAPI<br>app/main.py]:::interface
+    API --> Agent[ai/graph.py · LangGraph<br>plan → run a tool → explain → verify<br>checkpointed per chat]:::core
+    API --> Company[company/<br>SEC filings → statements → ratios → DCF → workbook<br>one checked AI read of the earnings release]:::core
     Agent --> Tools[metric · SQL · SEC · news · filings<br>tax · rebalance · prices · backtest]:::core
     Tools --> Engine[data/engine.py<br>locked DuckDB]:::core
     API --> Features[features/<br>dashboards · strategy · rebalance · excel]:::core
@@ -72,14 +75,15 @@ backend/
     main.py          the HTTP API (every route)
     worker.py        background job: evening price refresh
     mcp_server.py    read-only MCP server for Claude Desktop
-    ai/              the assistant: agent, LLM client, PII redaction, SQL + number checks, tools, filing search
+    ai/              the assistant: LangGraph graph, LLM client, PII redaction, SQL + number checks, tools, filing search
+    company/         company analyst: SEC facts, statements, ratios, valuation, release reader, tie-outs, workbook
     core/            settings, rate limits, account export / delete, workspaces
     data/            DuckDB engine, metrics.yaml, file parsers (ingest/, finx/), column mapping, prices, time periods
     features/        dashboards, templates, Excel templates, reports, strategy lab + Python sandbox, rebalancing, tax
   tests/  evals/  scripts/
   requirements.txt  Dockerfile
 frontend/
-  src/               App (top bar) · Chat · Upload · Dashboards · Strategy · Rebalance · tiles, panel, report
+  src/               App (top bar) · Chat · Upload · Dashboards · Strategy · Rebalance · Company · tiles, panel, report
   Dockerfile  nginx.conf
 docker-compose.yml   web, API, price worker, Postgres
 ```
@@ -95,7 +99,7 @@ User data lives in `backend/storage/` (never committed). Postgres holds only acc
 | Category | Stack | Detail |
 |:---:|:---|:---|
 | **Engine** | DuckDB over Parquet | In-memory connection per request; no external access or extensions; memory/thread limits; locked config; 10 s timeout |
-| **Assistant** | One plan, up to 3 tools, one explanation | Tools: metrics, guarded SQL, SEC XBRL, news, filing pages, calc, tax, rebalancing, price fetch, backtest, save a new metric; "remember that ..." and clarifications become remembered meanings |
+| **Assistant** | LangGraph: one plan, up to 3 tools, one explanation | State saved per chat (SQLite checkpointer per user); seconds per node on every answer; optional Langfuse tracing ([docs](docs/agent_graph.md)). Tools: metrics, guarded SQL, SEC XBRL, news, filing pages, calc, tax, rebalancing, price fetch, backtest, save a new metric; "remember that ..." and clarifications become remembered meanings |
 | **SQL Guard** | DuckDB parser + sqlglot | One SELECT, no file/URL/settings functions, every table and column checked, 5,000-row cap |
 | **Number Check** | `ai/verify.py` | Every number in a written answer must match a result (or a sum / difference / % change within one row or column); currency must match |
 | **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | PII redacted on every prompt; per-user and server daily cost caps; usage logged per user |
