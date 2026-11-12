@@ -47,9 +47,18 @@ def test_cas_holdings_and_trades(cas_returns):
     mf, eq = holdings.rows
     assert (mf["symbol_or_scheme"], mf["quantity"], mf["avg_cost"], mf["value"]) == \
         ("Sample Flexi Cap Fund - Direct Growth", 150.0, 100.0, 18000.0)  # avg cost = 15000 / 150
-    assert (eq["asset_class"], eq["quantity"], eq["as_of"]) == ("equity", 10.0, "31-Mar-2026")
+    assert (eq["asset_class"], eq["quantity"], eq["as_of"]) == ("equity", 10.0, "2026-03-31")  # ISO, like MF rows
     assert [(t["side"], t["quantity"], t["price"]) for t in trades.rows] == [("buy", 100.0, 90.0), ("buy", 80.0, 100.0), ("sell", 30.0, 110.0)]
     assert {"trade_date", "symbol", "isin", "side", "quantity", "price"} <= set(trades.columns)
+
+
+# The statement-period end becomes an ISO date whichever way casparser writes it; a demat-only CAS (no MF
+# valuation date) still gets a holdings date the engine can compare.
+@pytest.mark.parametrize("period_end", ["05-Apr-2026", "05/04/2026", "2026-04-05"])
+def test_cas_demat_as_of_is_iso(cas_returns, period_end):
+    cas_returns({"statement_period": {"to": period_end}, "folios": [], "accounts": CAMS["accounts"]})
+    [holdings] = read_cas("cas.pdf", "ABCDE1234F", SRC)
+    assert holdings.rows[0]["as_of"] == "2026-04-05"
 
 
 # A wrong password (casparser raises) gives None, so the caller tries the next reader.

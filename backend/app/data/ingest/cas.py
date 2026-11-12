@@ -17,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import ExtractedTable, SourceRef
+from .tabular import _date
 
 
 # Read a CAS PDF into holdings (+ mutual fund trades); None if the file is not a CAS or the password is wrong.
@@ -26,7 +27,8 @@ def read_cas(path: Path, password: str, src: SourceRef) -> list[ExtractedTable] 
         data = casparser.read_cas_pdf(str(path), password)  # plain dicts
     except Exception:
         return None  # not a CAS (or a wrong password): the caller tries the next reader
-    as_of = str((data.get("statement_period") or {}).get("to") or "") or None
+    period_end = (data.get("statement_period") or {}).get("to")  # casparser gives text like "31-Mar-2026"
+    as_of = _date(str(period_end)) if period_end else None
     holdings, trades, warnings = [], [], [str(w) for w in data.get("parse_warnings") or []]
 
     for folio in data.get("folios") or []:  # CAMS / KFintech layout
