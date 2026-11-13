@@ -1,8 +1,10 @@
 // Company.tsx - company analyst: type a US-listed company or ticker, get an Excel model built from its SEC filings.
 // Shows the key lines, the accounting tie-outs (pass / fail), the DCF value and what the one AI step read from the
 // earnings release (each figure verified against the release text or flagged). Banks and insurers are refused.
+// Sub-tabs add the earnings loop: compare companies, earnings review, rebalance plan (CompanyLoop.tsx).
 import { useState } from "react";
 import { download, formatNumber, post, safeHref } from "./api";
+import { Compare, EarningsReview, Plan } from "./CompanyLoop";
 
 type Props = { u: string; onError: (m: string) => void };
 const KEY_LINES: [string, string][] = [["revenue", "Revenue"], ["gross_profit", "Gross profit"], ["operating_income", "Operating income"],
@@ -15,6 +17,7 @@ export default function Company({ u, onError }: Props) {
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [r, setR] = useState<any>(null);
+  const [view, setView] = useState("model");
 
   // Build the model (or get the list of companies to choose from).
   async function build(q = query) {
@@ -29,6 +32,12 @@ export default function Company({ u, onError }: Props) {
     <div className="lab">
       <section className="lab-main">
         <h2>Company analyst</h2>
+        <div className="row">{[["model", "Build model"], ["compare", "Compare"], ["review", "Earnings review"], ["plan", "Rebalance plan"]].map(([k, label]) => (
+          <button key={k} className={view === k ? "primary" : ""} onClick={() => setView(k)}>{label}</button>))}</div>
+        {view === "compare" && <Compare u={u} onError={onError} />}
+        {view === "review" && <EarningsReview u={u} onError={onError} />}
+        {view === "plan" && <Plan u={u} onError={onError} />}
+        {view === "model" && <>
         <p className="muted">A US-listed company's last five fiscal years from its SEC filings, as an Excel model: every reported number
           copied from a 10-K, every derived number a live formula. Not investment advice.</p>
         <div className="row">
@@ -95,6 +104,7 @@ export default function Company({ u, onError }: Props) {
               </table></>}
           </div>
         </>)}
+        </>}
       </section>
     </div>
   );
