@@ -52,7 +52,7 @@ flowchart LR
     UI[React app<br>Chat · Dashboards · Strategy lab · Rebalancing · Company]:::interface -- HTTP --> API[FastAPI<br>app/main.py]:::interface
     API --> Agent[ai/graph.py · LangGraph<br>plan → run a tool → explain → verify<br>checkpointed per chat]:::core
     API --> Company[company/<br>SEC filings → statements → ratios → DCF → workbook<br>one checked AI read of the earnings release]:::core
-    Agent --> Tools[metric · SQL · SEC · news · filings<br>tax · rebalance · prices · backtest]:::core
+    Agent --> Tools[metric · SQL · SEC · filings<br>tax · rebalance · prices · backtest]:::core
     Tools --> Engine[data/engine.py<br>locked DuckDB]:::core
     API --> Features[features/<br>dashboards · strategy · rebalance · excel]:::core
     Features --> Engine
@@ -101,7 +101,7 @@ User data lives in `backend/storage/` (never committed). Postgres holds only acc
 | Category | Stack | Detail |
 |:---:|:---|:---|
 | **Engine** | DuckDB over Parquet | In-memory connection per request; no external access or extensions; memory/thread limits; locked config; 10 s timeout |
-| **Assistant** | LangGraph: one plan, up to 3 tools, one explanation | State saved per chat (SQLite checkpointer per user); seconds per node on every answer; optional Langfuse tracing ([docs](docs/agent_graph.md)). Tools: metrics, guarded SQL, SEC XBRL, news, filing pages, calc, tax, rebalancing, price fetch, backtest, save a new metric; "remember that ..." and clarifications become remembered meanings |
+| **Assistant** | LangGraph: one plan, up to 3 tools, one explanation | State saved per chat (SQLite checkpointer per user); seconds per node on every answer; optional Langfuse tracing ([docs](docs/agent_graph.md)). Tools: metrics, guarded SQL, SEC XBRL, filing pages, calc, tax, rebalancing, price fetch, backtest, save a new metric; "remember that ..." and clarifications become remembered meanings |
 | **SQL Guard** | DuckDB parser + sqlglot | One SELECT, no file/URL/settings functions, every table and column checked, 5,000-row cap |
 | **Number Check** | `ai/verify.py` | Every number in a written answer must match a result (or a sum / difference / % change within one row or column); currency must match |
 | **LLM** | Groq `openai/gpt-oss-120b` + OpenRouter fallback | PII redacted on every prompt; per-user and server daily cost caps; usage logged per user |
@@ -121,19 +121,22 @@ User data lives in `backend/storage/` (never committed). Postgres holds only acc
 ## Eval Results
 
 `backend/evals/run.py` asks 34 questions over synthetic bank rows, a Zerodha tradebook and a holdings export; every
-expected value is computed in plain Python, not by the engine. CI replays the first 10 from recorded replies with no keys.
+expected value is computed in plain Python, not by the engine. CI replays all 34 from recorded replies with no keys.
 
-Live run on 2026-11-13 with Groq `openai/gpt-oss-120b`; the per-question rows are in `backend/evals/results.json`.
+Live run on 2026-11-13 with `openai/gpt-oss-120b` served by OpenRouter; the per-question rows are in
+`backend/evals/results_openrouter.json`.
 
 | What | Result |
 |---|---|
-| Plan type matched the expected one | 97.1% (33 of 34) <!-- src: backend/evals/results.json#summary.plan_match_pct --> |
-| Every expected number present in the answer rows | 100% (25 of 25 value questions) <!-- src: backend/evals/results.json#summary.value_accuracy_pct --> |
-| Answers marked *trusted* on value questions | 92.0% <!-- src: backend/evals/results.json#summary.trusted_pct_on_value_cases --> |
-| Buy/sell advice questions refused | 100% (5 of 5) <!-- src: backend/evals/results.json#summary.advice_abstention_pct --> |
-| Time per question / LLM calls per question | 8.9 s / 1.76 <!-- src: backend/evals/results.json#summary.avg_seconds,summary.llm_calls_per_question --> |
+| Plan type matched the expected one | 94.1% (32 of 34) <!-- src: backend/evals/results_openrouter.json#summary.plan_match_pct --> |
+| Every expected number present in the answer rows | 100% (25 of 25 value questions) <!-- src: backend/evals/results_openrouter.json#summary.value_accuracy_pct --> |
+| Answers marked *trusted* on value questions | 92.0% <!-- src: backend/evals/results_openrouter.json#summary.trusted_pct_on_value_cases --> |
+| Buy/sell advice questions refused | 100% (5 of 5) <!-- src: backend/evals/results_openrouter.json#summary.advice_abstention_pct --> |
+| Seconds per question, p50 / p95 | 3.2 / 6.5 <!-- src: backend/evals/results_openrouter.json#summary.p50_seconds,summary.p95_seconds --> |
+| Cost per question | $0.00024 <!-- src: backend/evals/results_openrouter.json#summary.usd_per_question --> |
 
-The one miss: *"What's my return?"* was answered as a metric instead of asking which return was meant.
+The two misses: *"What's my return?"* and *"How much did I make?"* were answered with a metric instead of asking
+which one was meant.
 
 Same model, same 34 questions, letting it write SQL directly instead: **72.0%** of numbers right
 <!-- src: backend/evals/results_baseline.json#summary.value_accuracy_pct -->. The metrics layer and the number check

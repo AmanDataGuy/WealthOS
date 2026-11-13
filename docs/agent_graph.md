@@ -14,7 +14,6 @@ graph TD
     run --> explain
     run -.->|filing, or a plan that can't run| END
     explain --> verify
-    explain -.->|news: headlines listed as they are| END
     reply --> END
     verify --> END
 ```
@@ -23,8 +22,8 @@ graph TD
 |---|---|
 | `plan` | One structured model call (`PLANNER`) returns a checked `Plan`. A confirmed meaning (`define`) is saved first; a `remember` plan is saved here and ends the run. |
 | `reply` | `clarify`, `out_of_scope` and `smalltalk` need no data: the planner's sentence is shown if it holds no numbers. A clarify answer is an end state; the next question carries the user's choice (`define`). |
-| `run` | Runs the plan in code (`agent._run`: engine metrics, guarded SQL, SEC figures, calc, tax, rebalance, prices, backtest, save metric, news). A `multi` plan loops back here once per step (at most 3), tagging rows by step. `filing` questions are answered by `research.py` with page citations and end here. A plan that fails (rejected SQL, missing data) ends with the reason. |
-| `explain` | One model call (`EXPLAINER`) over at most 40 result rows. News headlines skip the model and are listed as they are. |
+| `run` | Runs the plan in code (`agent._run`: engine metrics, guarded SQL, SEC figures, calc, tax, rebalance, prices, backtest, save metric). A `multi` plan loops back here once per step (at most 3), tagging rows by step. `filing` questions are answered by `research.py` with page citations and end here. A plan that fails (rejected SQL, missing data) ends with the reason. |
+| `explain` | One model call (`EXPLAINER`) over at most 40 result rows. |
 | `verify` | `verify.check_numbers` on the explanation. If any number is not in the rows (or the question), the text is replaced by a plain summary and the table. |
 
 ## State and checkpoints

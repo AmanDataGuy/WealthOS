@@ -9,7 +9,6 @@ What fails and why: [ERROR_ANALYSIS.md](ERROR_ANALYSIS.md).
 
 | File | What it is | Command | Recorded replies |
 |---|---|---|---|
-| `backend/evals/results.json` | The assistant on the 34 golden questions, live on Groq `openai/gpt-oss-120b` (run before latency and cost were recorded) | `python evals/run.py` | `evals/llm_cache.json` |
 | `backend/evals/results_openrouter.json` | The same assistant and model weights served by OpenRouter (Groq's free daily token budget is smaller than one full run); carries latency and cost | `GROQ_API_KEY= LLM_FALLBACK_MODEL=openai/gpt-oss-120b WEALTHOS_ENV=dev python evals/run.py --name openrouter` | `evals/llm_cache_openrouter.json` |
 | `backend/evals/results_baseline.json` | A plain text-to-SQL bot on the same 34 questions and the same model (one call writes SQL; `guard_sql` and the read-only engine run it; no planner, metrics layer or number check) | `GROQ_API_KEY= LLM_FALLBACK_MODEL=openai/gpt-oss-120b WEALTHOS_ENV=dev python evals/run.py --arm baseline` | `evals/llm_cache_baseline.json` |
 | `backend/evals/results_local_qwen3_8b.json` | The assistant on a local model (Ollama `qwen3:8b`, 6 GB laptop GPU) | `LLM_BASE_URL=http://localhost:11434/v1 GROQ_API_KEY=ollama LLM_MODEL=qwen3:8b LLM_REASONING_EFFORT=none OPENROUTER_API_KEY= LLM_TIMEOUT_S=300 WEALTHOS_ENV=dev python evals/run.py --name local_qwen3_8b` (thinking off: with it on, a short trial was far too slow for the time budget and its thinking filled Ollama's default context window) | `evals/llm_cache_local_qwen3_8b.json` |
@@ -21,25 +20,26 @@ labelled sets, failing if any rate is worse than `results_sets.json` (`tests/tes
 
 ## Golden questions: assistant vs plain text-to-SQL
 
-| | Assistant (Groq) | Assistant (OpenRouter) | Text-to-SQL baseline | Assistant, local `qwen3:8b` |
-|---|---|---|---|---|
-| Right numbers on the 25 value questions | 100.0% <!-- src: backend/evals/results.json#summary.value_accuracy_pct --> | 100.0% <!-- src: backend/evals/results_openrouter.json#summary.value_accuracy_pct --> | 72.0% <!-- src: backend/evals/results_baseline.json#summary.value_accuracy_pct --> | 44.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.value_accuracy_pct --> |
-| Right kind of answer (plan, clarify, refuse) on all 34 | 97.1% <!-- src: backend/evals/results.json#summary.plan_match_pct --> | 94.1% <!-- src: backend/evals/results_openrouter.json#summary.plan_match_pct --> | 85.3% <!-- src: backend/evals/results_baseline.json#summary.plan_match_pct --> | 97.1% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.plan_match_pct --> |
-| Value answers with the trusted badge | 92.0% <!-- src: backend/evals/results.json#summary.trusted_pct_on_value_cases --> | 92.0% <!-- src: backend/evals/results_openrouter.json#summary.trusted_pct_on_value_cases --> | 0.0% <!-- src: backend/evals/results_baseline.json#summary.trusted_pct_on_value_cases --> | 60.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.trusted_pct_on_value_cases --> |
-| Advice questions refused | 100.0% <!-- src: backend/evals/results.json#summary.advice_abstention_pct --> | 100.0% <!-- src: backend/evals/results_openrouter.json#summary.advice_abstention_pct --> | 100.0% <!-- src: backend/evals/results_baseline.json#summary.advice_abstention_pct --> | 100.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.advice_abstention_pct --> |
-| Sentences the number check threw away | 4 <!-- src: backend/evals/results.json#summary.number_check_rejects --> | 5 <!-- src: backend/evals/results_openrouter.json#summary.number_check_rejects --> | no check | 4 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.number_check_rejects --> |
-| Seconds per question, p50 / p95 | not recorded | 4.0 / 9.04 <!-- src: backend/evals/results_openrouter.json#summary.p50_seconds, summary.p95_seconds --> | 1.5 / 4.58 <!-- src: backend/evals/results_baseline.json#summary.p50_seconds, summary.p95_seconds --> | 4.9 / 8.49 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.p50_seconds, summary.p95_seconds --> |
-| Model calls per question | 1.76 <!-- src: backend/evals/results.json#summary.llm_calls_per_question --> | 1.79 <!-- src: backend/evals/results_openrouter.json#summary.llm_calls_per_question --> | 1.0 <!-- src: backend/evals/results_baseline.json#summary.llm_calls_per_question --> | 1.47 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.llm_calls_per_question --> |
-| Tokens per question | not recorded | 3299 <!-- src: backend/evals/results_openrouter.json#summary.tokens_per_question --> | 833 <!-- src: backend/evals/results_baseline.json#summary.tokens_per_question --> | 2917 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.tokens_per_question --> |
-| USD per question (as billed by OpenRouter) | not recorded | $0.000219 <!-- src: backend/evals/results_openrouter.json#summary.usd_per_question --> | $0.000064 <!-- src: backend/evals/results_baseline.json#summary.usd_per_question --> | $0 (local) |
+| | Assistant (`gpt-oss-120b`, OpenRouter) | Text-to-SQL baseline | Assistant, local `qwen3:8b` |
+|---|---|---|---|
+| Right numbers on the 25 value questions | 100.0% <!-- src: backend/evals/results_openrouter.json#summary.value_accuracy_pct --> | 72.0% <!-- src: backend/evals/results_baseline.json#summary.value_accuracy_pct --> | 44.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.value_accuracy_pct --> |
+| Right kind of answer (plan, clarify, refuse) on all 34 | 94.1% <!-- src: backend/evals/results_openrouter.json#summary.plan_match_pct --> | 85.3% <!-- src: backend/evals/results_baseline.json#summary.plan_match_pct --> | 97.1% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.plan_match_pct --> |
+| Value answers with the trusted badge | 92.0% <!-- src: backend/evals/results_openrouter.json#summary.trusted_pct_on_value_cases --> | 0.0% <!-- src: backend/evals/results_baseline.json#summary.trusted_pct_on_value_cases --> | 60.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.trusted_pct_on_value_cases --> |
+| Advice questions refused | 100.0% <!-- src: backend/evals/results_openrouter.json#summary.advice_abstention_pct --> | 100.0% <!-- src: backend/evals/results_baseline.json#summary.advice_abstention_pct --> | 100.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.advice_abstention_pct --> |
+| Sentences the number check threw away | 6 <!-- src: backend/evals/results_openrouter.json#summary.number_check_rejects --> | no check | 5 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.number_check_rejects --> |
+| Seconds per question, p50 / p95 | 3.18 / 6.49 <!-- src: backend/evals/results_openrouter.json#summary.p50_seconds, summary.p95_seconds --> | 1.5 / 4.58 <!-- src: backend/evals/results_baseline.json#summary.p50_seconds, summary.p95_seconds --> | 4.62 / 22.14 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.p50_seconds, summary.p95_seconds --> |
+| Model calls per question | 1.79 <!-- src: backend/evals/results_openrouter.json#summary.llm_calls_per_question --> | 1.0 <!-- src: backend/evals/results_baseline.json#summary.llm_calls_per_question --> | 1.56 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.llm_calls_per_question --> |
+| Tokens per question | 3146 <!-- src: backend/evals/results_openrouter.json#summary.tokens_per_question --> | 833 <!-- src: backend/evals/results_baseline.json#summary.tokens_per_question --> | 2988 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.tokens_per_question --> |
+| USD per question (as billed by OpenRouter) | $0.000241 <!-- src: backend/evals/results_openrouter.json#summary.usd_per_question --> | $6.4e-05 <!-- src: backend/evals/results_baseline.json#summary.usd_per_question --> | $0 (local) |
 
 Notes:
 - Each column is one live run. Two live runs of the same arm can differ by a question or two (the model is not
-  deterministic even at temperature 0): the Groq and OpenRouter columns use the same weights and differ on one clarify
-  question. Read differences of one or two questions as noise.
-- The latency and cost columns time the assistant before it became a LangGraph graph (same prompts and calls; CI
-  replays the recorded replies through the graph and gets the same answers). Seconds exclude time spent waiting out a
-  rate limit; the runs here waited 0 s.
+  deterministic even at temperature 0); read differences of one or two questions as noise.
+- The two assistant columns were recorded on 2026-11-13 through the LangGraph graph. The app's default provider is
+  Groq with the same `gpt-oss-120b` weights; its free daily token cap (200,000) is smaller than two full runs, so the
+  Groq run is recorded on its own day (`python evals/run.py` with `OPENROUTER_API_KEY=` so a rate limit waits instead
+  of switching to the fallback model) and CI skips it until then.
+- Seconds exclude time spent waiting out a rate limit; the runs here waited 0 s.
 - USD is what OpenRouter reported per call (`usage.cost`). On Groq's free tier the same calls are billed $0.
 
 ## Labelled sets

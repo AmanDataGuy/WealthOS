@@ -4,23 +4,23 @@
   "plan_match_pct": 94.1,
   "value_accuracy_pct": 100.0,
   "trusted_pct_on_value_cases": 92.0,
-  "number_check_rejects": 5,
+  "number_check_rejects": 6,
   "advice_abstention_pct": 100.0,
-  "avg_seconds": 4.29,
-  "p50_seconds": 4.0,
-  "p95_seconds": 9.04,
-  "llm_call_p50_seconds": 1.73,
-  "llm_call_p95_seconds": 6.21,
-  "tokens_per_question": 3299,
-  "usd_per_question": 0.000219,
-  "usd_total": 0.007449,
+  "avg_seconds": 3.52,
+  "p50_seconds": 3.18,
+  "p95_seconds": 6.49,
+  "llm_call_p50_seconds": 1.48,
+  "llm_call_p95_seconds": 4.1,
+  "tokens_per_question": 3146,
+  "usd_per_question": 0.000241,
+  "usd_total": 0.008198,
   "models": [
    "openrouter:openai/gpt-oss-120b"
   ],
   "llm_calls_per_question": 1.79,
   "waited_seconds": 0,
-  "run_at": "2026-11-13T00:31:01+0530",
-  "git_sha": "97dc244"
+  "run_at": "2026-11-13T08:22:07+0530",
+  "git_sha": "81bdd68"
  },
  "results": [
   {
@@ -30,20 +30,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 2.63,
+   "seconds": 2.91,
    "llm_seconds": [
-    1.03,
-    1.493
+    1.664,
+    0.704
    ],
-   "tokens": 3277,
-   "usd": 0.000549,
+   "tokens": 3199,
+   "usd": 0.000269,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     263099
    ],
-   "text": "You spent ₹2,63,099 in the financial year that runs from 1 April 2026 to 26 October 2026."
+   "text": "You spent ₹2,63,099 in the financial year that ran from 1 April 2026 to 26 October 2026."
   },
   {
    "q": "What did I spend last financial year?",
@@ -52,13 +52,13 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 3.99,
+   "seconds": 2.55,
    "llm_seconds": [
-    2.723,
-    1.176
+    0.999,
+    1.402
    ],
-   "tokens": 3332,
-   "usd": 0.00029,
+   "tokens": 3217,
+   "usd": 0.00054,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -74,20 +74,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.02,
+   "seconds": 3.44,
    "llm_seconds": [
-    3.334,
-    1.595
+    2.587,
+    0.728
    ],
-   "tokens": 3291,
-   "usd": 0.000166,
+   "tokens": 3234,
+   "usd": 0.000225,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     840000
    ],
-   "text": "In the financial year 2026‑04‑01 to 2026‑10‑26, total income was ₹8,40,000."
+   "text": "In the financial year from 1 April 2026 to 26 October 2026, total income was ₹8,40,000."
   },
   {
    "q": "How much did I save this financial year?",
@@ -96,20 +96,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 10.65,
+   "seconds": 4.14,
    "llm_seconds": [
-    7.341,
-    3.22
+    2.466,
+    1.476
    ],
-   "tokens": 3252,
-   "usd": 0.000226,
+   "tokens": 3216,
+   "usd": 0.00015,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     576901
    ],
-   "text": "You saved ₹5,76,901 in the financial year that started on 2026‑04‑01 and ends on 2026‑10‑26."
+   "text": "You saved ₹5,76,901 in the financial year running from 1 April 2026 to 26 Oct 2026."
   },
   {
    "q": "What is my savings rate this FY?",
@@ -118,13 +118,13 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 6.26,
+   "seconds": 4.9,
    "llm_seconds": [
-    4.976,
-    1.189
+    3.979,
+    0.787
    ],
-   "tokens": 3276,
-   "usd": 0.000159,
+   "tokens": 3228,
+   "usd": 0.000331,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -140,20 +140,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 4.1,
+   "seconds": 3.98,
    "llm_seconds": [
-    1.888,
-    2.115
+    1.358,
+    2.474
    ],
-   "tokens": 3348,
-   "usd": 0.000215,
+   "tokens": 3283,
+   "usd": 0.000209,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     210000
    ],
-   "text": "You paid ₹2,10,000 in rent for the financial year that started on 2026‑04‑01 and runs through 2026‑10‑26."
+   "text": "You paid ₹2,10,000 in rent for the financial year that started on 2026‑04‑01 and runs up to 2026‑10‑26."
   },
   {
    "q": "How much did I spend last month?",
@@ -161,21 +161,21 @@
    "plan_ok": true,
    "values_ok": true,
    "badge": "trusted",
-   "verified": false,
-   "seconds": 3.47,
+   "verified": true,
+   "seconds": 5.14,
    "llm_seconds": [
-    2.006,
-    1.371
+    3.321,
+    1.665
    ],
-   "tokens": 3301,
-   "usd": 0.000224,
+   "tokens": 3265,
+   "usd": 0.000209,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     37200
    ],
-   "text": "Here are the results for 2026-09-01 to 2026-09-30 (1 row), straight from your data:"
+   "text": "In the period September 2026 (last month), you spent ₹37,200."
   },
   {
    "q": "What is my portfolio worth?",
@@ -184,13 +184,13 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": false,
-   "seconds": 6.11,
+   "seconds": 3.17,
    "llm_seconds": [
-    5.275,
-    0.735
+    1.366,
+    1.667
    ],
-   "tokens": 3260,
-   "usd": 0.00022,
+   "tokens": 3257,
+   "usd": 0.000549,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -206,13 +206,13 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 4.02,
+   "seconds": 6.86,
    "llm_seconds": [
-    1.618,
-    2.308
+    3.831,
+    2.888
    ],
-   "tokens": 3521,
-   "usd": 0.000217,
+   "tokens": 3386,
+   "usd": 0.000136,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -220,7 +220,7 @@
     3000,
     1500
    ],
-   "text": "Your realized gains this financial year (2026‑04‑01 to 2026‑10‑26) are ₹3,000 from INFY (long‑term) and ₹1,500 from TCS (short‑term)."
+   "text": "Your realized gains this financial year (2026‑04‑01 to 2026‑10‑26) are ₹3,000 from INFY (long‑term) and ₹1,500 from TCS (short‑term). The total gain is ₹4,500. (Charges are not deducted.)"
   },
   {
    "q": "How many trades did I make this financial year?",
@@ -229,20 +229,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.3,
+   "seconds": 4.41,
    "llm_seconds": [
-    3.832,
-    1.373
+    2.786,
+    1.462
    ],
-   "tokens": 3258,
-   "usd": 0.000157,
+   "tokens": 3227,
+   "usd": 0.000153,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     2
    ],
-   "text": "You made **2 trades** in the financial year running from 1 April 2026 to 26 October 2026."
+   "text": "You made **2** trades in the financial year from 1 April 2026 to 26 October 2026."
   },
   {
    "q": "How much did I spend on Swiggy last financial year?",
@@ -251,13 +251,13 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 4.02,
+   "seconds": 2.86,
    "llm_seconds": [
-    2.513,
-    1.415
+    1.288,
+    1.417
    ],
-   "tokens": 3358,
-   "usd": 0.000223,
+   "tokens": 3304,
+   "usd": 0.000575,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -273,13 +273,13 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 7.87,
+   "seconds": 6.04,
    "llm_seconds": [
-    6.289,
-    1.467
+    1.456,
+    4.424
    ],
-   "tokens": 3500,
-   "usd": 0.00017,
+   "tokens": 3367,
+   "usd": 0.0002,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -292,7 +292,7 @@
     37200,
     37800
    ],
-   "text": "Your spending this financial year (April – October 2026) ranged from ₹36,800 in April to ₹38,600 in June, staying around ₹37,000 each month. The highest month was June at ₹38,699, and the lowest was A"
+   "text": "Your spending this financial year has been roughly ₹36,800 in April, rising to about ₹37,400 in May, peaking at ₹38,699 in June, then staying around ₹38,300‑₹37,800 through July‑October."
   },
   {
    "q": "How much did I spend in July 2026?",
@@ -301,13 +301,13 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 7.19,
+   "seconds": 4.04,
    "llm_seconds": [
-    1.311,
-    5.788
+    2.907,
+    0.991
    ],
-   "tokens": 3353,
-   "usd": 0.000217,
+   "tokens": 3206,
+   "usd": 0.000134,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -323,13 +323,13 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 2.66,
+   "seconds": 2.92,
    "llm_seconds": [
-    1.245,
-    1.288
+    1.811,
+    0.952
    ],
-   "tokens": 3369,
-   "usd": 0.000237,
+   "tokens": 3347,
+   "usd": 0.000245,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -345,20 +345,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 3.18,
+   "seconds": 2.05,
    "llm_seconds": [
-    1.902,
-    1.195
+    1.169,
+    0.735
    ],
-   "tokens": 3247,
-   "usd": 0.000211,
+   "tokens": 3185,
+   "usd": 0.000263,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     36
    ],
-   "text": "You made 36 transactions in this financial year (from 2026‑04‑01 to 2026‑10‑26)."
+   "text": "You made **36 transactions** in the current financial year (from 2026‑04‑01 to 2026‑10‑26)."
   },
   {
    "q": "How much did I buy last financial year?",
@@ -367,20 +367,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.22,
+   "seconds": 4.5,
    "llm_seconds": [
-    3.996,
-    1.137
+    3.185,
+    1.117
    ],
-   "tokens": 3267,
-   "usd": 0.000273,
+   "tokens": 3290,
+   "usd": 0.000217,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     66000
    ],
-   "text": "In the last financial year (2025‑04‑01 to 2026‑03‑31) you bought ₹66,000."
+   "text": "You bought ₹66,000 in the last financial year (2025‑04‑01 to 2026‑03‑31)."
   },
   {
    "q": "How much did I sell this financial year?",
@@ -389,13 +389,13 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": false,
-   "seconds": 5.02,
+   "seconds": 3.9,
    "llm_seconds": [
-    2.517,
-    2.396
+    2.372,
+    1.353
    ],
-   "tokens": 3305,
-   "usd": 0.00017,
+   "tokens": 3245,
+   "usd": 0.000158,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -411,20 +411,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 2.97,
+   "seconds": 2.87,
    "llm_seconds": [
-    1.767,
-    1.104
+    1.462,
+    1.232
    ],
-   "tokens": 3329,
-   "usd": 0.00023,
+   "tokens": 3239,
+   "usd": 0.00022,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     62000
    ],
-   "text": "Your total invested amount across all holdings is ₹62,000 for the entire period."
+   "text": "Your current holdings show an invested amount of ₹62,000 for the period FY 2026‑04‑01 to 2026‑10‑26."
   },
   {
    "q": "What is my unrealized profit?",
@@ -433,20 +433,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": false,
-   "seconds": 3.07,
+   "seconds": 6.04,
    "llm_seconds": [
-    1.527,
-    1.445
+    4.11,
+    1.743
    ],
-   "tokens": 3284,
-   "usd": 0.00022,
+   "tokens": 3237,
+   "usd": 0.000175,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     4800
    ],
-   "text": "Here are the results for 2026-10-26 to 2026-10-26 (1 row), straight from your data:"
+   "text": "Here are the results for 2026-04-01 to 2026-10-26 (1 row), straight from your data:"
   },
   {
    "q": "How many stocks do I hold?",
@@ -457,18 +457,18 @@
    "verified": true,
    "seconds": 2.97,
    "llm_seconds": [
-    1.695,
-    1.179
+    1.108,
+    1.674
    ],
-   "tokens": 3267,
-   "usd": 0.000217,
+   "tokens": 3234,
+   "usd": 0.00056,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     2
    ],
-   "text": "You hold **2** stocks for the period FY 2026‑04‑01 to 2026‑10‑26."
+   "text": "You hold **2** stocks in total (covering the entire period from 1900‑01‑01 to 2026‑10‑26)."
   },
   {
    "q": "How much did I spend in June 2026?",
@@ -477,20 +477,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 8.5,
+   "seconds": 4.81,
    "llm_seconds": [
-    6.807,
-    1.594
+    2.566,
+    2.067
    ],
-   "tokens": 3323,
-   "usd": 0.000159,
+   "tokens": 3258,
+   "usd": 0.000178,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     38699
    ],
-   "text": "You spent ₹38,699 in June 2026 (the period 2026‑06‑01 to 2026‑06‑30)."
+   "text": "You spent ₹38,699 in June 2026."
   },
   {
    "q": "List my transactions in June 2026",
@@ -499,13 +499,13 @@
    "values_ok": true,
    "badge": "exploratory",
    "verified": false,
-   "seconds": 5.55,
+   "seconds": 5.43,
    "llm_seconds": [
-    3.335,
-    2.092
+    2.147,
+    3.022
    ],
-   "tokens": 3504,
-   "usd": 0.000237,
+   "tokens": 3498,
+   "usd": 0.000194,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -521,21 +521,21 @@
    "plan_ok": true,
    "values_ok": true,
    "badge": "exploratory",
-   "verified": true,
-   "seconds": 5.65,
+   "verified": false,
+   "seconds": 3.26,
    "llm_seconds": [
-    3.206,
-    2.328
+    2.172,
+    0.91
    ],
-   "tokens": 3349,
-   "usd": 0.000216,
+   "tokens": 3280,
+   "usd": 0.000284,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     30000
    ],
-   "text": "Your biggest single expense in June 2026 was rent to the landlord, amounting to ₹30,000."
+   "text": "Here are the results (1 row), straight from your data:"
   },
   {
    "q": "What is 12% of 450000?",
@@ -544,20 +544,20 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 4.63,
+   "seconds": 3.19,
    "llm_seconds": [
-    3.302,
-    1.273
+    1.676,
+    1.426
    ],
-   "tokens": 3110,
-   "usd": 0.000106,
+   "tokens": 3042,
+   "usd": 0.000116,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     54000
    ],
-   "text": "12% of ₹450,000 equals ₹54,000."
+   "text": "12% of 450,000 equals ₹54,000."
   },
   {
    "q": "What is 250000 divided by 12?",
@@ -565,21 +565,21 @@
    "plan_ok": true,
    "values_ok": true,
    "badge": "trusted",
-   "verified": true,
-   "seconds": 3.26,
+   "verified": false,
+   "seconds": 2.36,
    "llm_seconds": [
-    1.535,
-    1.67
+    0.867,
+    1.402
    ],
-   "tokens": 3223,
-   "usd": 0.000207,
+   "tokens": 3147,
+   "usd": 0.000323,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [
     20833.33
    ],
-   "text": "The division 250,000 ÷ 12 gives a result of 20,833.3333. This means each part would be about 20,833.33 when the total is split equally into twelve portions."
+   "text": "Here are the results (1 row), straight from your data:"
   },
   {
    "q": "How much did I make?",
@@ -588,18 +588,18 @@
    "values_ok": null,
    "badge": "trusted",
    "verified": true,
-   "seconds": 3.66,
+   "seconds": 2.85,
    "llm_seconds": [
-    2.06,
-    1.502
+    1.122,
+    1.526
    ],
-   "tokens": 3292,
-   "usd": 0.000223,
+   "tokens": 3212,
+   "usd": 0.00056,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [],
-   "text": "You earned a total of ₹8,40,000 in the period from 2026‑04‑01 to 2026‑10‑26."
+   "text": "You earned ₹8,40,000 in the fiscal year from 2026‑04‑01 to 2026‑10‑26."
   },
   {
    "q": "What's my return?",
@@ -608,18 +608,18 @@
    "values_ok": null,
    "badge": "trusted",
    "verified": true,
-   "seconds": 3.45,
+   "seconds": 6.36,
    "llm_seconds": [
-    1.886,
-    1.466
+    4.756,
+    1.419
    ],
-   "tokens": 3264,
-   "usd": 0.000217,
+   "tokens": 3184,
+   "usd": 0.000135,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [],
-   "text": "Your investment has generated an annualized return of **8.17 %** over the entire period."
+   "text": "Your XIRR for the fiscal year period from 2026‑04‑01 to 2026‑10‑26 was 8.17 %."
   },
   {
    "q": "Show my profit",
@@ -628,18 +628,17 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 5.55,
+   "seconds": 1.34,
    "llm_seconds": [
-    1.815,
-    3.676
+    1.225
    ],
-   "tokens": 5976,
-   "usd": 0.000317,
+   "tokens": 2783,
+   "usd": 0.00016,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [],
-   "text": "Do you want to see realized gains from your trades, unrealized profit/loss from your holdings, or total profit combining both?"
+   "text": "Do you want to see realized gains from trades, unrealized profit/loss from current holdings, or total profit combining both?"
   },
   {
    "q": "Should I buy INFY now?",
@@ -650,10 +649,10 @@
    "verified": true,
    "seconds": 1.02,
    "llm_seconds": [
-    0.974
+    0.9
    ],
-   "tokens": 2792,
-   "usd": 0.00015,
+   "tokens": 2729,
+   "usd": 0.000146,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -667,12 +666,12 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 0.8,
+   "seconds": 1.74,
    "llm_seconds": [
-    0.752
+    1.619
    ],
-   "tokens": 2793,
-   "usd": 0.000442,
+   "tokens": 2735,
+   "usd": 9e-05,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -686,12 +685,12 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 1.66,
+   "seconds": 2.64,
    "llm_seconds": [
-    1.613
+    2.522
    ],
-   "tokens": 2798,
-   "usd": 0.000104,
+   "tokens": 2731,
+   "usd": 9.7e-05,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -705,12 +704,12 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 2.56,
+   "seconds": 2.37,
    "llm_seconds": [
-    2.515
+    2.26
    ],
-   "tokens": 2791,
-   "usd": 0.00015,
+   "tokens": 2733,
+   "usd": 0.000105,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -724,12 +723,12 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 1.02,
+   "seconds": 1.23,
    "llm_seconds": [
-    0.974
+    1.11
    ],
-   "tokens": 2793,
-   "usd": 0.00015,
+   "tokens": 2731,
+   "usd": 0.000146,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
@@ -743,17 +742,17 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 2.95,
+   "seconds": 1.33,
    "llm_seconds": [
-    2.908
+    1.208
    ],
-   "tokens": 2775,
-   "usd": 0.00018,
+   "tokens": 2723,
+   "usd": 0.000146,
    "models": [
     "openrouter:openai/gpt-oss-120b"
    ],
    "expected": [],
-   "text": "Hello! How can I help you today?"
+   "text": "Hello! How can I help you with your finances today?"
   }
  ]
 }

@@ -4,23 +4,23 @@
   "plan_match_pct": 97.1,
   "value_accuracy_pct": 44.0,
   "trusted_pct_on_value_cases": 60.0,
-  "number_check_rejects": 4,
+  "number_check_rejects": 5,
   "advice_abstention_pct": 100.0,
-  "avg_seconds": 5.05,
-  "p50_seconds": 4.9,
-  "p95_seconds": 8.49,
-  "llm_call_p50_seconds": 3.28,
-  "llm_call_p95_seconds": 6.48,
-  "tokens_per_question": 2917,
+  "avg_seconds": 6.07,
+  "p50_seconds": 4.62,
+  "p95_seconds": 22.14,
+  "llm_call_p50_seconds": 3.04,
+  "llm_call_p95_seconds": 6.74,
+  "tokens_per_question": 2988,
   "usd_per_question": 0.0,
   "usd_total": 0.0,
   "models": [
    "local:qwen3:8b"
   ],
-  "llm_calls_per_question": 1.47,
+  "llm_calls_per_question": 1.56,
   "waited_seconds": 0,
-  "run_at": "2026-11-13T00:55:16+0530",
-  "git_sha": "2801a88"
+  "run_at": "2026-11-13T08:42:29+0530",
+  "git_sha": "81bdd68"
  },
  "results": [
   {
@@ -30,12 +30,12 @@
    "values_ok": false,
    "badge": "trusted",
    "verified": false,
-   "seconds": 6.75,
+   "seconds": 11.74,
    "llm_seconds": [
-    3.034,
-    3.208
+    7.983,
+    3.275
    ],
-   "tokens": 3228,
+   "tokens": 3170,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -52,12 +52,12 @@
    "values_ok": false,
    "badge": "trusted",
    "verified": true,
-   "seconds": 6.32,
+   "seconds": 5.98,
    "llm_seconds": [
-    3.608,
-    2.594
+    3.208,
+    2.668
    ],
-   "tokens": 3090,
+   "tokens": 3032,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -74,12 +74,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": false,
-   "seconds": 3.12,
+   "seconds": 2.84,
    "llm_seconds": [
-    1.662,
-    1.322
+    1.553,
+    1.184
    ],
-   "tokens": 2992,
+   "tokens": 2934,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -96,12 +96,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 4.26,
+   "seconds": 3.76,
    "llm_seconds": [
-    1.742,
-    2.386
+    1.605,
+    2.041
    ],
-   "tokens": 3017,
+   "tokens": 2955,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -109,7 +109,7 @@
    "expected": [
     576901
    ],
-   "text": "Your net savings for the financial year from April 1, 2026, to October 26, 2026, is ₹5,76,901."
+   "text": "You saved ₹5,76,901 this financial year from April 1, 2026, to October 26, 2026."
   },
   {
    "q": "What is my savings rate this FY?",
@@ -118,12 +118,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": false,
-   "seconds": 3.8,
+   "seconds": 3.27,
    "llm_seconds": [
-    1.959,
-    1.595
+    1.701,
+    1.451
    ],
-   "tokens": 3000,
+   "tokens": 2942,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -137,15 +137,15 @@
    "q": "How much rent did I pay this financial year?",
    "kind": "metric",
    "plan_ok": true,
-   "values_ok": true,
+   "values_ok": false,
    "badge": "trusted",
    "verified": true,
-   "seconds": 6.49,
+   "seconds": 4.92,
    "llm_seconds": [
-    3.872,
-    2.467
+    4.161,
+    0.653
    ],
-   "tokens": 3058,
+   "tokens": 2982,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -153,7 +153,7 @@
    "expected": [
     210000
    ],
-   "text": "During the financial year from April 1, 2026, to October 26, 2026, you paid a total rent of ₹2,10,000."
+   "text": "No matching data was found."
   },
   {
    "q": "How much did I spend last month?",
@@ -162,12 +162,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 4.84,
+   "seconds": 5.26,
    "llm_seconds": [
-    3.681,
-    0.982
+    3.282,
+    1.857
    ],
-   "tokens": 3029,
+   "tokens": 2991,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -175,21 +175,21 @@
    "expected": [
     37200
    ],
-   "text": "You spent ₹37,200 last month."
+   "text": "Last month, from September 1 to September 30, 2026, you spent a total of ₹37,200."
   },
   {
    "q": "What is my portfolio worth?",
    "kind": "metric",
    "plan_ok": true,
    "values_ok": false,
-   "badge": "trusted",
+   "badge": "none",
    "verified": true,
-   "seconds": 5.03,
+   "seconds": 4.51,
    "llm_seconds": [
-    4.145,
-    0.738
+    3.74,
+    0.641
    ],
-   "tokens": 3001,
+   "tokens": 2943,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -206,12 +206,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": false,
-   "seconds": 7.87,
+   "seconds": 7.27,
    "llm_seconds": [
-    4.469,
-    3.221
+    4.157,
+    2.981
    ],
-   "tokens": 3216,
+   "tokens": 3158,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -229,11 +229,12 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 6.22,
+   "seconds": 5.98,
    "llm_seconds": [
-    6.075
+    5.152,
+    0.693
    ],
-   "tokens": 2806,
+   "tokens": 2977,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -241,7 +242,7 @@
    "expected": [
     2
    ],
-   "text": "I couldn't answer that from your data: cannot split by ['time']; columns available: ['dataset_id', 'exchange', 'isin', 'order_id', 'price', 'quantity', 'segment', 'side', 'source_file', 'source_row', "
+   "text": "No matching data was found."
   },
   {
    "q": "How much did I spend on Swiggy last financial year?",
@@ -250,12 +251,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 6.19,
+   "seconds": 5.84,
    "llm_seconds": [
-    4.776,
-    1.284
+    4.511,
+    1.192
    ],
-   "tokens": 3063,
+   "tokens": 3005,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -272,12 +273,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 8.9,
+   "seconds": 8.1,
    "llm_seconds": [
-    4.837,
-    3.902
+    4.257,
+    3.738
    ],
-   "tokens": 3259,
+   "tokens": 3201,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -300,12 +301,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 6.82,
+   "seconds": 5.98,
    "llm_seconds": [
-    5.256,
-    1.424
+    4.435,
+    1.413
    ],
-   "tokens": 3087,
+   "tokens": 3028,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -322,12 +323,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 7.62,
+   "seconds": 5.91,
    "llm_seconds": [
-    5.358,
-    2.013
+    4.082,
+    1.675
    ],
-   "tokens": 3080,
+   "tokens": 3021,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -341,14 +342,15 @@
    "q": "How many transactions do I have this financial year?",
    "kind": "metric",
    "plan_ok": true,
-   "values_ok": false,
-   "badge": "none",
+   "values_ok": true,
+   "badge": "trusted",
    "verified": true,
-   "seconds": 4.82,
+   "seconds": 5.9,
    "llm_seconds": [
-    4.638
+    4.319,
+    1.458
    ],
-   "tokens": 2790,
+   "tokens": 3012,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -356,7 +358,7 @@
    "expected": [
     36
    ],
-   "text": "I couldn't answer that from your data: cannot split by ['time']; columns available: ['amount', 'balance', 'dataset_id', 'date', 'description', 'direction', 'source_file', 'source_row']"
+   "text": "You have 36 transactions in the financial year ending October 26, 2026."
   },
   {
    "q": "How much did I buy last financial year?",
@@ -365,11 +367,11 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 3.56,
+   "seconds": 3.8,
    "llm_seconds": [
-    3.422
+    3.663
    ],
-   "tokens": 2772,
+   "tokens": 2716,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -386,11 +388,11 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 3.49,
+   "seconds": 3.13,
    "llm_seconds": [
-    3.345
+    3.024
    ],
-   "tokens": 2768,
+   "tokens": 2706,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -398,7 +400,7 @@
    "expected": [
     36500
    ],
-   "text": "I couldn't answer that from your data: bad filter {'column': 'direction', 'op': 'in', 'value': ['sell']}: column must be one of ['dataset_id', 'exchange', 'isin', 'order_id', 'price', 'quantity', 'seg"
+   "text": "I couldn't answer that from your data: bad filter {'column': 'symbol', 'op': 'is_not_null'}: column must be one of ['dataset_id', 'exchange', 'isin', 'order_id', 'price', 'quantity', 'segment', 'side'"
   },
   {
    "q": "How much have I invested in my current holdings?",
@@ -407,11 +409,11 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 4.15,
+   "seconds": 3.83,
    "llm_seconds": [
-    3.989
+    3.715
    ],
-   "tokens": 2782,
+   "tokens": 2718,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -419,21 +421,21 @@
    "expected": [
     62000
    ],
-   "text": "I couldn't answer that from your data: bad filter {'column': 'as_of', 'op': 'lte', 'value': '2026-03-31'}: column must be one of ['as_of', 'avg_cost', 'dataset_id', 'isin', 'quantity', 'source_file', "
+   "text": "I couldn't answer that from your data: bad filter {'column': 'symbol_or_scheme', 'op': 'is_not_null', 'value': 'null'}: column must be one of ['as_of', 'avg_cost', 'dataset_id', 'isin', 'quantity', 's"
   },
   {
    "q": "What is my unrealized profit?",
    "kind": "metric",
    "plan_ok": true,
    "values_ok": false,
-   "badge": "trusted",
+   "badge": "none",
    "verified": true,
-   "seconds": 7.32,
+   "seconds": 4.72,
    "llm_seconds": [
-    4.477,
-    2.626
+    3.93,
+    0.668
    ],
-   "tokens": 3091,
+   "tokens": 2948,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -441,7 +443,7 @@
    "expected": [
     4800
    ],
-   "text": "Your unrealized profit is ₹3,000 for HDFCBANK and ₹1,800 for INFY as of the period ending 2026-10-26."
+   "text": "No matching data was found."
   },
   {
    "q": "How many stocks do I hold?",
@@ -450,11 +452,11 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 4.27,
+   "seconds": 3.78,
    "llm_seconds": [
-    4.116
+    3.655
    ],
-   "tokens": 2773,
+   "tokens": 2715,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -471,12 +473,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 6.76,
+   "seconds": 5.94,
    "llm_seconds": [
-    4.968,
-    1.593
+    4.357,
+    1.451
    ],
-   "tokens": 3087,
+   "tokens": 3028,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -491,13 +493,14 @@
    "kind": "metric",
    "plan_ok": true,
    "values_ok": false,
-   "badge": "none",
-   "verified": true,
-   "seconds": 6.3,
+   "badge": "trusted",
+   "verified": false,
+   "seconds": 9.53,
    "llm_seconds": [
-    6.179
+    6.321,
+    3.049
    ],
-   "tokens": 2803,
+   "tokens": 3134,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -506,7 +509,7 @@
     999,
     30000
    ],
-   "text": "I couldn't answer that from your data: unknown metric(s) ['date', 'description', 'amount', 'direction', 'balance']. Available: ['allocation_pct', 'avg_monthly_spend', 'buy_value', 'holdings_count', 'i"
+   "text": "Here are the results for 2026-06-01 to 2026-06-30 (1 row), straight from your data:"
   },
   {
    "q": "What was my biggest single expense in June 2026?",
@@ -515,11 +518,11 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 6.95,
+   "seconds": 6.3,
    "llm_seconds": [
-    6.854
+    6.212
    ],
-   "tokens": 2825,
+   "tokens": 2767,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -536,11 +539,11 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 2.28,
+   "seconds": 1.73,
    "llm_seconds": [
-    2.203
+    1.653
    ],
-   "tokens": 2743,
+   "tokens": 2686,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -548,7 +551,7 @@
    "expected": [
     54000
    ],
-   "text": "I couldn't answer that from your data: cannot calculate '12%, 450000': invalid syntax (<unknown>, line 1)"
+   "text": "I couldn't answer that from your data: cannot calculate '450000, 12%': invalid syntax (<unknown>, line 1)"
   },
   {
    "q": "What is 250000 divided by 12?",
@@ -557,11 +560,11 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 1.87,
+   "seconds": 1.66,
    "llm_seconds": [
-    1.787
+    1.586
    ],
-   "tokens": 2743,
+   "tokens": 2685,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -578,12 +581,13 @@
    "values_ok": null,
    "badge": "trusted",
    "verified": true,
-   "seconds": 7.06,
+   "seconds": 53.35,
    "llm_seconds": [
-    3.461,
-    3.435
+    45.99,
+    4.084,
+    3.141
    ],
-   "tokens": 3064,
+   "tokens": 6565,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -598,17 +602,17 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 4.96,
+   "seconds": 4.32,
    "llm_seconds": [
-    4.879
+    4.243
    ],
-   "tokens": 2785,
+   "tokens": 2724,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
    ],
    "expected": [],
-   "text": "Could you clarify what you mean by 'return'? Are you referring to realized gains, unrealized profit, XIRR, or something else?"
+   "text": "Could you clarify what you mean by 'return'? Are you referring to realized gains, unrealized profit/loss, or XIRR?"
   },
   {
    "q": "Show my profit",
@@ -617,17 +621,17 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 8.36,
+   "seconds": 4.93,
    "llm_seconds": [
-    8.271
+    4.854
    ],
-   "tokens": 2790,
+   "tokens": 2736,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
    ],
    "expected": [],
-   "text": "Could you clarify what you mean by 'profit'? Are you referring to realized gains, net savings, or something else?"
+   "text": "Could you clarify what you mean by 'profit'? Are you referring to realized gains from trades, net savings from transactions, or something else?"
   },
   {
    "q": "Should I buy INFY now?",
@@ -636,17 +640,17 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 2.56,
+   "seconds": 2.34,
    "llm_seconds": [
-    2.482
+    2.277
    ],
-   "tokens": 2750,
+   "tokens": 2691,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
    ],
    "expected": [],
-   "text": "I can't provide buy/sell advice. Consider your investment goals, risk tolerance, and consult a financial advisor."
+   "text": "I can't provide buy/sell advice. Focus on your financial goals and risk tolerance when making investment decisions."
   },
   {
    "q": "Will NIFTY go up next month?",
@@ -655,11 +659,11 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 2.44,
+   "seconds": 1.81,
    "llm_seconds": [
-    2.362
+    1.745
    ],
-   "tokens": 2740,
+   "tokens": 2682,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -674,17 +678,17 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 1.93,
+   "seconds": 1.83,
    "llm_seconds": [
-    1.825
+    1.739
    ],
-   "tokens": 2737,
+   "tokens": 2681,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
    ],
    "expected": [],
-   "text": "I can't provide price targets or predictions."
+   "text": "I can't provide price targets or predictions for stocks."
   },
   {
    "q": "Which of my stocks should I sell?",
@@ -693,17 +697,17 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 1.96,
+   "seconds": 2.79,
    "llm_seconds": [
-    1.875
+    2.727
    ],
-   "tokens": 2739,
+   "tokens": 2700,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
    ],
    "expected": [],
-   "text": "I can't provide buy/sell advice or recommendations."
+   "text": "I can't provide buy/sell advice. Let me know if you'd like to analyze your portfolio's performance or compare it with your target allocation."
   },
   {
    "q": "Is HDFCBANK a good investment?",
@@ -712,11 +716,11 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 1.8,
+   "seconds": 1.67,
    "llm_seconds": [
-    1.717
+    1.606
    ],
-   "tokens": 2737,
+   "tokens": 2679,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -731,11 +735,11 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 4.58,
+   "seconds": 1.51,
    "llm_seconds": [
-    4.504
+    1.446
    ],
-   "tokens": 2729,
+   "tokens": 2671,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
