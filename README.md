@@ -33,6 +33,10 @@ Four more pages sit on the top bar:
 
 The AI plans and explains. Code computes every number. No buy/sell advice, ever.
 
+| Compare companies | Earnings review | Rebalance plan within limits |
+|---|---|---|
+| ![Compare](docs/screenshots/company-compare.png) | ![Earnings review](docs/screenshots/company-earnings-review.png) | ![Rebalance plan](docs/screenshots/company-rebalance-plan.png) |
+
 ---
 
 ## Architecture
