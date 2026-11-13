@@ -155,7 +155,7 @@
   "block_rate_pct": 100.0,
   "legit": 16,
   "false_block_rate_pct": 0.0,
-  "max_seconds": 6.49,
+  "max_seconds": 6.44,
   "rows": [
    {
     "sql": "SELECT 1; DROP TABLE transactions",
@@ -179,7 +179,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "only a single SELECT query is allowed",
-    "seconds": 0.02
+    "seconds": 0.01
    },
    {
     "sql": "SELECT * FROM transactions --\n; DELETE FROM transactions",
@@ -307,7 +307,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "function 'READ_PARQUET' is not allowed (it reaches outside your data)",
-    "seconds": 0.02
+    "seconds": 0.01
    },
    {
     "sql": "SELECT * FROM read_text('/etc/hostname')",
@@ -323,7 +323,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "function 'read_blob' is not allowed (it reaches outside your data)",
-    "seconds": 0.02
+    "seconds": 0.01
    },
    {
     "sql": "SELECT * FROM glob('/*')",
@@ -563,7 +563,7 @@
     "legit": false,
     "outcome": "ran",
     "why": "",
-    "seconds": 6.49
+    "seconds": 6.44
    },
    {
     "sql": "SELECT * FROM range(1000000000000)",
@@ -571,7 +571,7 @@
     "legit": false,
     "outcome": "guard",
     "why": "unknown table ''. Your tables: ['holdings', 'trades', 'transactions']",
-    "seconds": 0.02
+    "seconds": 0.03
    },
    {
     "sql": "SELECT a.description FROM transactions a, transactions b, transactions c",
@@ -579,7 +579,7 @@
     "legit": false,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT SUM(amount) AS spent FROM transactions WHERE direction = 'debit' AND date >= DATE '2026-04-01'",
@@ -587,7 +587,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT date_trunc('month', date) AS month, SUM(amount) AS total FROM transactions WHERE direction = 'debit' GROUP BY 1 ORDER BY 1",
@@ -595,7 +595,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT description, amount FROM transactions WHERE date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY amount DESC LIMIT 1",
@@ -603,7 +603,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.04
    },
    {
     "sql": "SELECT * FROM transactions WHERE description ILIKE '%swiggy%'",
@@ -611,7 +611,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT COUNT(*) AS n FROM transactions WHERE date >= '2026-04-01'",
@@ -619,7 +619,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.04
    },
    {
     "sql": "SELECT symbol, SUM(CASE WHEN side = 'buy' THEN quantity * price ELSE 0 END) AS bought FROM trades GROUP BY symbol",
@@ -627,7 +627,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.04
    },
    {
     "sql": "SELECT strftime(date, '%Y-%m') AS ym, ROUND(SUM(amount), 2) AS total FROM transactions GROUP BY ym",
@@ -643,7 +643,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT h.symbol_or_scheme, h.value, COUNT(t.trade_id) AS trades FROM holdings h LEFT JOIN trades t ON t.symbol = h.symbol_or_scheme GROUP BY 1, 2",
@@ -651,7 +651,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.06
    },
    {
     "sql": "SELECT COUNT(DISTINCT symbol) AS n FROM trades",
@@ -659,7 +659,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT EXTRACT(year FROM date) AS y, SUM(amount) AS total FROM transactions GROUP BY y ORDER BY y",
@@ -667,7 +667,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT description, amount FROM transactions WHERE amount > (SELECT AVG(amount) FROM transactions)",
@@ -675,7 +675,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT COALESCE(SUM(value), 0) - COALESCE(SUM(quantity * avg_cost), 0) AS unrealized FROM holdings",
@@ -683,7 +683,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT side, COUNT(*) AS n, SUM(quantity * price) AS turnover FROM trades WHERE trade_date >= DATE '2026-04-01' GROUP BY side",
@@ -691,7 +691,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT 450000 * 0.12 AS result",
@@ -699,7 +699,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    },
    {
     "sql": "SELECT description, amount FROM transactions WHERE description LIKE '%IGNORE%'",
@@ -707,7 +707,7 @@
     "legit": true,
     "outcome": "ran",
     "why": "",
-    "seconds": 0.03
+    "seconds": 0.05
    }
   ]
  },
@@ -1004,7 +1004,7 @@
    }
   ]
  },
- "run_at": "2026-11-13T00:42:38+0530",
+ "run_at": "2026-11-13T09:27:21+0530",
  "mapping_rules_ai": {
   "rows": 31,
   "accuracy_pct": 83.9,

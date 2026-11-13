@@ -43,7 +43,7 @@ flowchart LR
 | Privacy | `backend/app/ai/pii_redaction.py` | Every prompt passes one redactor (PAN, Aadhaar, UPI, IFSC, cards, phones, accounts, emails, GSTIN, PIN codes, labelled names). |
 | Cost control | `backend/app/ai/llm_client.py` | Per-user and server daily USD caps; usage logged per user; Groq primary, OpenRouter fallback, any OpenAI-compatible local server (Ollama) by env. |
 
-Code size: 8,993 lines of backend Python, 1,665 lines of frontend TypeScript. Tests: 190 passed, 2 skipped, with no
+Code size: 8,993 lines of backend Python, 1,665 lines of frontend TypeScript. Tests: 192 passed, 2 skipped, with no
 API keys and no network (22 test modules). CI runs them on every push.
 
 ## 3. Does the assistant get the numbers right?
@@ -54,14 +54,14 @@ have numeric answers; 9 test clarifying, refusing advice and small talk.
 
 | | WealthOS, `gpt-oss-120b` | Plain text-to-SQL, same model | WealthOS on local qwen3:8b |
 |---|---|---|---|
-| Right numbers (25 value questions) | **100%** | 72.0% | 44.0% |
-| Right kind of answer (34) | 94.1% | 85.3% | 97.1% |
+| Right numbers (25 value questions) | **96%** | 72.0% | 44.0% |
+| Right kind of answer (34) | 100% | 85.3% | 100% |
 | Answers marked *trusted* | 92.0% | — | 60.0% |
 | Buy/sell advice refused (5) | 100% | 100% | 100% |
-| Seconds per question, p50 / p95 | 3.2 / 6.5 | 1.5 / 4.6 | 4.6 / 22.1 |
-| Tokens per question | 3,146 | 833 | 2,988 |
-| Cost per question | $0.00024 | $0.00006 | $0 |
-| Model calls per question | 1.79 | 1.00 | 1.56 |
+| Seconds per question, p50 / p95 | 2.9 / 4.8 | 1.5 / 4.6 | 3.7 / 13.8 |
+| Tokens per question | 2,867 | 833 | 2,648 |
+| Cost per question | $0.00022 | $0.00006 | $0 |
+| Model calls per question | 1.65 | 1.00 | 1.44 |
 | Source | `results_openrouter.json` | `results_baseline.json` | `results_local_qwen3_8b.json` |
 
 The two `gpt-oss-120b` columns are served by OpenRouter. The app's default provider is Groq with the same weights;
@@ -69,17 +69,19 @@ its free daily token cap (200,000) is smaller than two full runs, so the Groq ru
 
 **What this shows**
 
-- **The metrics layer and the number check are worth 28 points of accuracy.** Same model, same questions: letting
-  the model write SQL directly gets 72% of numbers right; routing through 18 predefined metrics and checking every
-  number gets 100%. The baseline is cheaper and faster (one call, 833 tokens) — the trade is about 4× the tokens for
-  no wrong numbers.
+- **The metrics layer and the number check are worth about 24-28 points of accuracy.** Same model, same questions:
+  letting the model write SQL directly gets 72% of numbers right; routing through 18 predefined metrics and checking
+  every number gets 96-100% across live runs (the latest run: 96%, one question answered for the wrong period). The
+  baseline is cheaper and faster (one call, 833 tokens) — the trade is about 3.5× the tokens.
 - **The check limits a weak model but does not fix it.** On the local 8B model, numbers drop to 44% and the trusted
   badge to 60%. Four of its 14 wrong answers still carry the badge: the model picked the wrong period or filter, so
   the number is computed correctly from a predefined metric but answers a different question. *Trusted* means "a
   defined metric over your data", not "the question was understood". The run also found a bug, now fixed: an
   answer with no data found was marked trusted.
-- **The recurring miss** is a vague question (*"What's my return?"*, *"How much did I make?"*): the planner answers
-  with a metric instead of asking which one is meant. Details per case in
+- **Vague questions are now asked back in code.** *"What's my return?"*, *"How much did I make?"* and *"Show my
+  profit"* used to be answered with a guessed metric now and then; a rule checked before the planner asks which one
+  is meant, so right-kind-of-answer is 100% on both models and those questions cost no model call. Telling the
+  explainer the currency cut the sentences the number check threw away from 6 to 2. Details per case in
   [docs/eval/ERROR_ANALYSIS.md](docs/eval/ERROR_ANALYSIS.md).
 - **The LangGraph port changed nothing measurable:** replaying all 34 cached runs through the graph gives identical
   answers case by case (`tests/test_evals_smoke.py`).
@@ -136,7 +138,7 @@ No AI step was added: one-offs and guidance in a review come from the existing, 
 
 | Area | State |
 |---|---|
-| Tests | 190 passed, 2 skipped (LibreOffice recalculation; the Groq golden run until recorded), keyless and offline; CI green on every push |
+| Tests | 192 passed, 2 skipped (LibreOffice recalculation; the Groq golden run until recorded), keyless and offline; CI green on every push |
 | Eval in CI | All 34 questions replayed for every recorded run; labelled-set thresholds fail the build on regression |
 | API | 59 routes in 6 routers under `backend/app/api/`; every user route checks the token (enforced by a test) |
 | Database | One asyncpg pool; numbered SQL migrations recorded in `schema_migrations`, tested on a real Postgres 16 |

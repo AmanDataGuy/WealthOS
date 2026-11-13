@@ -132,15 +132,16 @@ Live run on 2026-11-13 with `openai/gpt-oss-120b` served by OpenRouter; the per-
 
 | What | Result |
 |---|---|
-| Plan type matched the expected one | 94.1% (32 of 34) <!-- src: backend/evals/results_openrouter.json#summary.plan_match_pct --> |
-| Every expected number present in the answer rows | 100% (25 of 25 value questions) <!-- src: backend/evals/results_openrouter.json#summary.value_accuracy_pct --> |
+| Plan type matched the expected one | 100% (34 of 34) <!-- src: backend/evals/results_openrouter.json#summary.plan_match_pct --> |
+| Every expected number present in the answer rows | 96% (24 of 25 value questions) <!-- src: backend/evals/results_openrouter.json#summary.value_accuracy_pct --> |
 | Answers marked *trusted* on value questions | 92.0% <!-- src: backend/evals/results_openrouter.json#summary.trusted_pct_on_value_cases --> |
 | Buy/sell advice questions refused | 100% (5 of 5) <!-- src: backend/evals/results_openrouter.json#summary.advice_abstention_pct --> |
-| Seconds per question, p50 / p95 | 3.2 / 6.5 <!-- src: backend/evals/results_openrouter.json#summary.p50_seconds,summary.p95_seconds --> |
-| Cost per question | $0.00024 <!-- src: backend/evals/results_openrouter.json#summary.usd_per_question --> |
+| Seconds per question, p50 / p95 | 2.9 / 4.8 <!-- src: backend/evals/results_openrouter.json#summary.p50_seconds,summary.p95_seconds --> |
+| Cost per question | $0.00022 <!-- src: backend/evals/results_openrouter.json#summary.usd_per_question --> |
 
-The two misses: *"What's my return?"* and *"How much did I make?"* were answered with a metric instead of asking
-which one was meant.
+The one miss: *"How much did I spend on Swiggy last financial year?"* was answered for this financial year (the
+planner picked the wrong period; the answer names the period it used). Vague questions such as *"What's my return?"*
+are now asked back in code before the model is called.
 
 Same model, same 34 questions, letting it write SQL directly instead: **72.0%** of numbers right
 <!-- src: backend/evals/results_baseline.json#summary.value_accuracy_pct -->. The metrics layer and the number check

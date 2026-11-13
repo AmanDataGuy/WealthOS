@@ -1,7 +1,9 @@
 {
-"0152c6a690469de0e1818e41": "Your total income for FY 2025‑26 was ₹12,00,000.",
-"04b8e72650a5133739a1a5d2": "Your biggest single expense was rent to the landlord, amounting to $30,000.",
-"0d64c35cab6a5b56125ac2cb": "You spent ₹14,400 in the last financial year (2025‑04‑01 to 2026‑03‑31).",
+"04171a28f6c0eeec8841f6a8": "You spent ₹2,63,099 in the financial year from 2026‑04‑01 to 2026‑10‑26.",
+"09887935de202a78b45f31fd": "In June 2026 you spent ₹38,699.",
+"09b39da7c2b8957ef834bca1": "Your portfolio is worth ₹66,800 for the period FY 2026‑04‑01 to 2026‑10‑26.",
+"10f3ff21c0e6561ce133a20b": "You paid ₹2,10,000 in rent during the financial year from 1 April 2026 to 26 October 2026.",
+"11dfd622655745622b6eecc1": "You spent ₹4,50,600 in the last financial year (2025‑04‑01 to 2026‑03‑31).",
 "130846405ff9ef0171dd78df": {
 "clarify_options": [],
 "clarify_question": null,
@@ -52,7 +54,6 @@
 "tax_inputs": null,
 "ticker": null
 },
-"1d74db743569823caf575d2e": "You spent ₹38,300 in July 2026.",
 "1ea5affe506fb769d28ce4a3": {
 "clarify_options": [],
 "clarify_question": null,
@@ -78,7 +79,6 @@
 "tax_inputs": null,
 "ticker": null
 },
-"220d6dbf4c9e049e0bcdbefc": "You spent ₹4,50,600 in the last financial year (2025‑04‑01 to 2026‑03‑31).",
 "232380c0723b194ca1251b70": {
 "clarify_options": [],
 "clarify_question": null,
@@ -140,37 +140,9 @@
 "tax_inputs": null,
 "ticker": null
 },
-"30372524b2ec6142d96aa143": {
-"clarify_options": [],
-"clarify_question": null,
-"clarify_term": null,
-"expression": null,
-"kind": "metric",
-"memory": null,
-"metric": null,
-"metric_query": {
-"dimensions": [],
-"filters": [],
-"metrics": [
-"total_income"
-],
-"time": "fy"
-},
-"price_source": null,
-"reply": null,
-"sql": null,
-"steps": [],
-"strategy_idea": null,
-"symbols": [],
-"tax_inputs": null,
-"ticker": null
-},
-"3704683fdb5a020bf5878a3a": "You spent ₹38,699 in June 2026.",
-"3a08f825d2ddf90cc9797c19": "You earned ₹8,40,000 in the fiscal year from 2026‑04‑01 to 2026‑10‑26.",
-"3e6cafaf827a3bbb19902919": "No matching data was found.",
-"3f966353766a362905a28105": "In the financial year from 1 April 2026 to 26 October 2026, total income was ₹8,40,000.",
-"4bc38ed6e44d016339607a36": "Your XIRR for the fiscal year period from 2026‑04‑01 to 2026‑10‑26 was 8.17 %.",
-"508b489a2d4094fbcc4dc455": "You bought ₹66,000 in the last financial year (2025‑04‑01 to 2026‑03‑31).",
+"39ace05a071fcd5ac5197014": "In June 2026 you received a credit of ₹120,000 and spent a total of ₹38,699 across rent, groceries, electricity and a Swiggy order.",
+"39aee9982c6493f7ecede295": "You hold **2** stocks for the fiscal year period 2026‑04‑01 to 2026‑10‑26.",
+"4b109106ca33e6784bdfdb67": "Your biggest single expense in June 2026 was “Rent to landlord” of ₹30,000.",
 "522f3635bde1199d7050f2c2": {
 "clarify_options": [],
 "clarify_question": null,
@@ -196,8 +168,10 @@
 "tax_inputs": null,
 "ticker": null
 },
-"52fc0a8b86a04e0d93932577": "12% of 450,000 equals ₹54,000.",
-"5816e474da4f531b06908337": "Your realized gains this financial year (2026‑04‑01 to 2026‑10‑26) are ₹3,000 from INFY (long‑term) and ₹1,500 from TCS (short‑term). The total gain is ₹4,500. (Charges are not deducted.)",
+"54beb98b02ad8ed9c450afd3": "You have invested ₹62,000 in your current holdings for the FY period from 2026‑04‑01 to 2026‑10‑26.",
+"5693bb06fefdfb077733d1e0": "You made 2 trades in the financial year from 2026‑04‑01 to 2026‑10‑26.",
+"5920567278debaad140945d9": "In July 2026 you spent ₹38,300.",
+"59cb6ea0cdfa3e1f3459e849": "Your total income for FY 2025‑26 was ₹12,00,000.",
 "5b9f9ea9ee1f87887abbbf83": {
 "clarify_options": [],
 "clarify_question": null,
@@ -241,9 +215,8 @@
 "tax_inputs": null,
 "ticker": null
 },
-"6302bc32cb538392e23484e2": "In the financial year from 2026‑04‑01 to 2026‑10‑26 you sold $36,500.",
-"68fe920f583e52b149e6eee6": "You saved ₹5,76,901 in the financial year running from 1 April 2026 to 26 Oct 2026.",
-"69ffd7176cd9a21c788d2b26": "You hold **2** stocks in total (covering the entire period from 1900‑01‑01 to 2026‑10‑26).",
+"5bb4a836ebc17525b8b057cd": "You bought ₹66,000 in the last financial year (2025‑04‑01 to 2026‑03‑31).",
+"5e2cb0b02fbcfd0020a96cd9": "You spent ₹37,200 last month (2026‑09‑01 to 2026‑09‑30).",
 "6f9f96c379b1a4ac74ee6c5f": {
 "clarify_options": [],
 "clarify_question": null,
@@ -299,20 +272,20 @@
 "dimensions": [],
 "filters": [
 {
-"column": "description",
-"op": "contains",
-"value": "Swiggy"
-},
-{
 "column": "direction",
 "op": "=",
 "value": "debit"
+},
+{
+"column": "description",
+"op": "contains",
+"value": "Swiggy"
 }
 ],
 "metrics": [
 "total_spend"
 ],
-"time": "last_fy"
+"time": "fy"
 },
 "price_source": null,
 "reply": null,
@@ -341,6 +314,7 @@
 "tax_inputs": null,
 "ticker": null
 },
+"7e06adb11fd234aa6b3ad204": "Your unrealized profit for the period FY 2026‑04‑01 to 2026‑10‑26 is ₹4,800.",
 "8205bbb4afd18e13ea9b76ee": {
 "clarify_options": [],
 "clarify_question": null,
@@ -404,6 +378,7 @@
 "tax_inputs": null,
 "ticker": null
 },
+"8905153d19fd3389e97041de": "You saved ₹5,76,901 in the financial year running from 2026‑04‑01 to 2026‑10‑26.",
 "9575a5edf2f0a57ec552ac0c": {
 "clarify_options": [],
 "clarify_question": null,
@@ -414,7 +389,7 @@
 "metric": null,
 "metric_query": null,
 "price_source": null,
-"reply": "I’m sorry, but I can’t provide investment advice.",
+"reply": "I’m sorry, but I can’t provide advice on which stocks to sell.",
 "sql": null,
 "steps": [],
 "strategy_idea": null,
@@ -440,7 +415,7 @@
 "tax_inputs": null,
 "ticker": null
 },
-"985492ae3ff32d9966cf8f13": "You spent ₹2,63,099 in the financial year that ran from 1 April 2026 to 26 October 2026.",
+"99c1769a71a010f105c30d85": "You sold ₹36,500 in the financial year running from 1 April 2026 to 26 October 2026.",
 "9a014562640a22fda4654214": {
 "clarify_options": [],
 "clarify_question": null,
@@ -454,31 +429,6 @@
 "filters": [],
 "metrics": [
 "trade_count"
-],
-"time": "fy"
-},
-"price_source": null,
-"reply": null,
-"sql": null,
-"steps": [],
-"strategy_idea": null,
-"symbols": [],
-"tax_inputs": null,
-"ticker": null
-},
-"9a9cbda9d964f999d39dd242": {
-"clarify_options": [],
-"clarify_question": null,
-"clarify_term": null,
-"expression": null,
-"kind": "metric",
-"memory": null,
-"metric": null,
-"metric_query": {
-"dimensions": [],
-"filters": [],
-"metrics": [
-"xirr"
 ],
 "time": "fy"
 },
@@ -516,7 +466,9 @@
 "tax_inputs": null,
 "ticker": null
 },
-"ab1903defb0fdbf5ee5f8e34": "Your spending this financial year has been roughly ₹36,800 in April, rising to about ₹37,400 in May, peaking at ₹38,699 in June, then staying around ₹38,300‑₹37,800 through July‑October.",
+"9e0810290c4816d2089f363c": "The division 250000 / 12 gives a result of 20833.3333.",
+"9ee2830526dabbd0dad11bcb": "Your realized gains this financial year are ₹3,000 from INFY (long‑term) and ₹1,500 from TCS (short‑term).",
+"a992f2159613ec113a60041f": "You made 36 transactions in the financial year that started on 2026‑04‑01 and runs through 2026‑10‑26.",
 "ab9e820b83c5c07572d4ab31": {
 "clarify_options": [],
 "clarify_question": null,
@@ -542,9 +494,8 @@
 "tax_inputs": null,
 "ticker": null
 },
-"b21881f7e90002354430ecc8": "You made **2** trades in the financial year from 1 April 2026 to 26 October 2026.",
-"b24054b6b161e8892dbb5c15": "You paid ₹2,10,000 in rent for the financial year that started on 2026‑04‑01 and runs up to 2026‑10‑26.",
-"bf3291742051f3c951381e77": "Your current holdings show an invested amount of ₹62,000 for the period FY 2026‑04‑01 to 2026‑10‑26.",
+"ad99222fb7564f06285eeaf1": "From April to October 2026 you spent ₹36,800 in April, peaked at ₹38,699 in June, and were around ₹37,800 by October. Overall the monthly spend stayed between ₹36,800 and ₹38,699 during this financial year.",
+"add9a83eaa3da7dcebc44e35": "Your savings rate for the FY (2026‑04‑01 to 2026‑10‑26) is about **68 %**.",
 "c8a1e77896cea191d3d7ef38": {
 "clarify_options": [],
 "clarify_question": null,
@@ -595,7 +546,7 @@
 "metrics": [
 "holdings_count"
 ],
-"time": "all"
+"time": "fy"
 },
 "price_source": null,
 "reply": null,
@@ -616,13 +567,7 @@
 "metric": null,
 "metric_query": {
 "dimensions": [],
-"filters": [
-{
-"column": "direction",
-"op": "=",
-"value": "debit"
-}
-],
+"filters": [],
 "metrics": [
 "total_spend"
 ],
@@ -647,13 +592,7 @@
 "metric": null,
 "metric_query": {
 "dimensions": [],
-"filters": [
-{
-"column": "side",
-"op": "=",
-"value": "buy"
-}
-],
+"filters": [],
 "metrics": [
 "buy_value"
 ],
@@ -668,7 +607,6 @@
 "tax_inputs": null,
 "ticker": null
 },
-"ce0a28e7ff5125caac2e0da1": "The calculation 250 000 / 12 gives a result of 20 833.3333. This means each of the 12 parts would be about 20 833.33.",
 "cf770cc4f541884972029e2b": {
 "clarify_options": [],
 "clarify_question": null,
@@ -694,31 +632,7 @@
 "tax_inputs": null,
 "ticker": null
 },
-"d389b144b22dcb730e93fda5": "For the period FY 2026‑04‑01 to 2026‑10‑26, your unrealized profit is **$4,800**.",
-"d5da9ab0ca34d65be2b1b662": "Your portfolio is worth $66,800 for the period FY 2026‑04‑01 to 2026‑10‑26.",
-"d66e8747758f5183f57d0a70": "You made **36 transactions** in the current financial year (from 2026‑04‑01 to 2026‑10‑26).",
-"d82c726c90aecff83d3a3422": {
-"clarify_options": [
-"realized_gains",
-"unrealized_pnl",
-"total_profit"
-],
-"clarify_question": "Do you want to see realized gains from trades, unrealized profit/loss from current holdings, or total profit combining both?",
-"clarify_term": "profit",
-"expression": null,
-"kind": "clarify",
-"memory": null,
-"metric": null,
-"metric_query": null,
-"price_source": null,
-"reply": null,
-"sql": null,
-"steps": [],
-"strategy_idea": null,
-"symbols": [],
-"tax_inputs": null,
-"ticker": null
-},
+"d8eb00fbb8f26049f087ee53": "You spent ₹8,400 in the financial year that started on 2026‑04‑01 and ran through 2026‑10‑26.",
 "dc28d72576fd40eb438b3bfb": {
 "clarify_options": [],
 "clarify_question": null,
@@ -737,7 +651,7 @@
 "tax_inputs": null,
 "ticker": null
 },
-"de799e469afa1e18729ec77f": "In June 2026 you received a credit of ₹120,000 and spent a total of ₹37,700 on rent, groceries, electricity and a Swiggy order.",
+"dc8786a1bac4f269d9946409": "12% of 450,000 equals 54,000.",
 "dedf0508e64a3c9483f232ac": {
 "clarify_options": [],
 "clarify_question": null,
@@ -790,6 +704,7 @@
 "tax_inputs": null,
 "ticker": null
 },
+"e25c2974bbcedd250d2b2ddb": "In FY 2026‑27 (April 1 to Oct 26) the total income was ₹8,40,000.",
 "e5ed26fef8e9cc5c79e4551a": {
 "clarify_options": [],
 "clarify_question": null,
@@ -839,6 +754,5 @@
 "symbols": [],
 "tax_inputs": null,
 "ticker": null
-},
-"f9f79b745181f776bfd98108": "In the period September 2026 (last month), you spent ₹37,200."
+}
 }

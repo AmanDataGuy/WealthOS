@@ -1,5 +1,5 @@
 {
-"0ea14d67d4036d32a5642c75": "No matching data was found.",
+"049630e7557b385bc4772971": "In the last financial year from April 2025 to March 2026, you spent ₹3,37,200. Your total spending in 2026 was ₹1,13,400.",
 "130846405ff9ef0171dd78df": {
 "clarify_options": [],
 "clarify_question": null,
@@ -66,6 +66,7 @@
 "tax_inputs": null,
 "ticker": null
 },
+"1db6576824bf49ae668f8f9a": "In June 2026, you spent a total of ₹38,699.",
 "1ea5affe506fb769d28ce4a3": {
 "clarify_options": [],
 "clarify_question": null,
@@ -160,45 +161,7 @@
 "tax_inputs": null,
 "ticker": null
 },
-"30372524b2ec6142d96aa143": {
-"clarify_options": [],
-"clarify_question": null,
-"clarify_term": null,
-"expression": null,
-"kind": "metric",
-"memory": null,
-"metric": null,
-"metric_query": {
-"dimensions": [
-"description"
-],
-"filters": [
-{
-"column": "direction",
-"op": "in",
-"value": [
-"credit"
-]
-}
-],
-"metrics": [
-"total_income"
-],
-"time": "fy"
-},
-"price_source": null,
-"reply": null,
-"sql": null,
-"steps": [],
-"strategy_idea": null,
-"symbols": [],
-"tax_inputs": null,
-"ticker": null
-},
-"3437aa0cb68c0e8030d8241d": "You have 36 transactions in the financial year ending October 26, 2026.",
-"3e6cafaf827a3bbb19902919": "Your savings rate for the period ending October 26, 2026, is 68%.",
-"3f966353766a362905a28105": "In this financial year, ₹8,40,000 crore came in.",
-"45889b53c33b04aa527e31e2": "You spent ₹36,800 in April, ₹37,400 in May, and ₹38,699 in June of this financial year. The total spending for the period from April to October is ₹2,35,399.",
+"3a3660d7f645a78617c45341": "No matching data was found.",
 "522f3635bde1199d7050f2c2": {
 "clarify_options": [],
 "clarify_question": null,
@@ -232,8 +195,8 @@
 "tax_inputs": null,
 "ticker": null
 },
-"53f9de2bfa682f1bb48165f1": "Your total income for the period FY 2025-26 was ₹12,00,000.",
-"5816e474da4f531b06908337": "Your realized gains for the financial year 2026 are ₹30,000 from INFY (long-term) and ₹1,500 from TCS (short-term). The total realized gain is ₹31,500.",
+"5348755d5abc02134754fd2d": "No matching data was found.",
+"5a58bfe89a14682407d83425": "You spent ₹36,800 in April, ₹37,400 in May, ₹38,699 in June, ₹38,300 in July, ₹36,900 in August, ₹37,200 in September, and ₹37,800 in October this financial year. Your total spending for the period is ₹2,62,299.",
 "5b9f9ea9ee1f87887abbbf83": {
 "clarify_options": [],
 "clarify_question": null,
@@ -277,8 +240,6 @@
 "tax_inputs": null,
 "ticker": null
 },
-"675104e6c5dc3d416d973230": "No matching data was found.",
-"68fe920f583e52b149e6eee6": "You saved ₹5,76,901 this financial year from April 1, 2026, to October 26, 2026.",
 "6f9f96c379b1a4ac74ee6c5f": {
 "clarify_options": [],
 "clarify_question": null,
@@ -473,7 +434,9 @@
 "tax_inputs": null,
 "ticker": null
 },
-"8cd0da5f661675b5324eb74c": "In June 2026, your total spend was ₹38,699, total income was ₹1,20,000, and your net savings were ₹81,301. Your savings rate was 67%.",
+"8905153d19fd3389e97041de": "This financial year, your net savings amounted to ₹5,76,901.",
+"917627da7a51154b4591b0d7": "In June 2026, you spent ₹38,699, earned ₹1,20,000, and saved ₹81,301. Your savings rate was 67%.",
+"92cb651dc39db992a0650a05": "No matching data was found.",
 "9575a5edf2f0a57ec552ac0c": {
 "clarify_options": [],
 "clarify_question": null,
@@ -492,6 +455,7 @@
 "tax_inputs": null,
 "ticker": null
 },
+"965cb0d763840e1f95c6271d": "In July 2026, you spent a total of ₹38,300.",
 "979a59a60a071b50a02606e7": {
 "clarify_options": [],
 "clarify_question": null,
@@ -510,7 +474,6 @@
 "tax_inputs": null,
 "ticker": null
 },
-"99366eb69acb2688576cbc28": "No matching data was found.",
 "9a014562640a22fda4654214": {
 "clarify_options": [],
 "clarify_question": null,
@@ -549,29 +512,6 @@
 "tax_inputs": null,
 "ticker": null
 },
-"9a9cbda9d964f999d39dd242": {
-"clarify_options": [
-"Realized gains",
-"Unrealized profit/loss",
-"XIRR"
-],
-"clarify_question": "Could you clarify what you mean by 'return'? Are you referring to realized gains, unrealized profit/loss, or XIRR?",
-"clarify_term": "return",
-"expression": null,
-"kind": "clarify",
-"memory": null,
-"metric": null,
-"metric_query": null,
-"price_source": null,
-"reply": null,
-"sql": null,
-"steps": [],
-"strategy_idea": null,
-"symbols": [],
-"tax_inputs": null,
-"ticker": null
-},
-"9c723ad2f57caf5e84ec6a26": "In the last financial year from April 2025 to March 2026, you spent ₹3,37,200. Your spending decreased by ₹2,23,800 in the same period.",
 "9da035a438ee41e9c6e4ccc4": {
 "clarify_options": [],
 "clarify_question": null,
@@ -604,9 +544,7 @@
 "tax_inputs": null,
 "ticker": null
 },
-"a84685a1d5ad7b566eae181f": "You spent ₹14,400 on Swiggy last financial year.",
-"ab1903defb0fdbf5ee5f8e34": "In this financial year, your spending was ₹36,800 in April, increased to ₹37,400 in May, and reached ₹38,699 in June. It then slightly dropped to ₹38,300 in July before decreasing to ₹36,900 in August.",
-"ab7d8d012dd809b6d57b72de": "In July 2026, you spent a total of ₹38,300.",
+"9ee2830526dabbd0dad11bcb": "Your realized gains by stock for this financial year are:  \n- INFY: ₹3,000 long-term gain (₹17,000 sold vs ₹14,000 cost)  \n- TCS: ₹1,500 short-term gain (₹19,500 sold vs ₹18,000 cost)  \n\nNote: Brokerage, STT, and stamp duty are not deducted in these figures.",
 "ab9e820b83c5c07572d4ab31": {
 "clarify_options": [],
 "clarify_question": null,
@@ -640,6 +578,9 @@
 "tax_inputs": null,
 "ticker": null
 },
+"ad99222fb7564f06285eeaf1": "Here is your spending by month this financial year (April 2026 to October 26, 2026):  \n- April 2026: ₹36,800  \n- May 2026: ₹37,400 (an increase of ₹600 from April)  \n- June 2026: ₹38,699 (an increase of ₹1,299 from May)  \n- July 2026: ₹38,300 (a decrease of ₹399 from June)  \n- August 2026: ₹36,900 (a decrease of ₹1,400 from July)  \n- September 2026: ₹37,200 (an increase of ₹300 from August)  \n- October 2026: ₹37,800 (an increase of ₹600 from September)",
+"add9a83eaa3da7dcebc44e35": "Your savings rate for the period ending October 26, 2026, is 68%.",
+"b3747a5ca78f173f4d754c90": "No matching data was found.",
 "c8a1e77896cea191d3d7ef38": {
 "clarify_options": [],
 "clarify_question": null,
@@ -658,7 +599,6 @@
 "tax_inputs": null,
 "ticker": null
 },
-"c8c4acf3197b1e138916d4d2": "Last month, from September 1 to September 30, 2026, you spent a total of ₹37,200.",
 "c919b6ec5cf56196296cfc59": {
 "clarify_options": [],
 "clarify_question": null,
@@ -821,29 +761,6 @@
 "tax_inputs": null,
 "ticker": null
 },
-"d82c726c90aecff83d3a3422": {
-"clarify_options": [
-"Realized gains from trades",
-"Net savings from transactions",
-"Unrealized profit/loss from holdings",
-"Other (please specify)"
-],
-"clarify_question": "Could you clarify what you mean by 'profit'? Are you referring to realized gains from trades, net savings from transactions, or something else?",
-"clarify_term": "profit",
-"expression": null,
-"kind": "clarify",
-"memory": null,
-"metric": null,
-"metric_query": null,
-"price_source": null,
-"reply": null,
-"sql": null,
-"steps": [],
-"strategy_idea": null,
-"symbols": [],
-"tax_inputs": null,
-"ticker": null
-},
 "dc28d72576fd40eb438b3bfb": {
 "clarify_options": [],
 "clarify_question": null,
@@ -862,7 +779,6 @@
 "tax_inputs": null,
 "ticker": null
 },
-"de6a7ff6a9c726b4f0773709": "In June 2026, you spent a total of ₹38,699.",
 "dedf0508e64a3c9483f232ac": {
 "clarify_options": [],
 "clarify_question": null,
@@ -931,6 +847,7 @@
 "tax_inputs": null,
 "ticker": null
 },
+"e25c2974bbcedd250d2b2ddb": "This financial year, ₹8,40,000 crores of money came in.",
 "e5ed26fef8e9cc5c79e4551a": {
 "clarify_options": [],
 "clarify_question": null,
@@ -964,7 +881,7 @@
 "tax_inputs": null,
 "ticker": null
 },
-"e600133163c10f364f7cea07": "No matching data was found.",
+"e9376f2ae2a100771a11bb57": "You have 36 transactions in the financial year ending October 26, 2026.",
 "ed53fb66891fd7d9baaa931d": {
 "clarify_options": [],
 "clarify_question": null,
@@ -998,5 +915,7 @@
 "tax_inputs": null,
 "ticker": null
 },
-"f6bdb050f64fdcbb67be91d7": "During the period from April 1, 2026, to October 26, 2026, your total income from Salary ACME PVT LTD was ₹8,40,000. There are no other income sources mentioned in the results."
+"f889ce667931b8277e879e95": "Last financial year, you spent ₹14,400 on Swiggy.",
+"fae42f53d141e3e37b22bb60": "Last month, from September 1 to September 30, 2026, you spent a total of ₹37,200.",
+"ff06bf2028e31f1a6264eb29": "Your total income in FY 2025-26 was ₹12,00,000."
 }

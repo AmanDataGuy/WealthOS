@@ -1,26 +1,26 @@
 {
  "summary": {
   "cases": 34,
-  "plan_match_pct": 97.1,
+  "plan_match_pct": 100.0,
   "value_accuracy_pct": 44.0,
   "trusted_pct_on_value_cases": 60.0,
-  "number_check_rejects": 5,
+  "number_check_rejects": 3,
   "advice_abstention_pct": 100.0,
-  "avg_seconds": 6.07,
-  "p50_seconds": 4.62,
-  "p95_seconds": 22.14,
-  "llm_call_p50_seconds": 3.04,
-  "llm_call_p95_seconds": 6.74,
-  "tokens_per_question": 2988,
+  "avg_seconds": 4.47,
+  "p50_seconds": 3.74,
+  "p95_seconds": 13.78,
+  "llm_call_p50_seconds": 2.79,
+  "llm_call_p95_seconds": 7.26,
+  "tokens_per_question": 2648,
   "usd_per_question": 0.0,
   "usd_total": 0.0,
   "models": [
    "local:qwen3:8b"
   ],
-  "llm_calls_per_question": 1.56,
+  "llm_calls_per_question": 1.44,
   "waited_seconds": 0,
-  "run_at": "2026-11-13T08:42:29+0530",
-  "git_sha": "81bdd68"
+  "run_at": "2026-11-13T09:29:45+0530",
+  "git_sha": "8239d71"
  },
  "results": [
   {
@@ -29,13 +29,13 @@
    "plan_ok": true,
    "values_ok": false,
    "badge": "trusted",
-   "verified": false,
-   "seconds": 11.74,
+   "verified": true,
+   "seconds": 13.51,
    "llm_seconds": [
-    7.983,
-    3.275
+    8.174,
+    4.852
    ],
-   "tokens": 3170,
+   "tokens": 3220,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -43,7 +43,7 @@
    "expected": [
     263099
    ],
-   "text": "Here are the results for 2026-04-01 to 2026-10-26 (7 rows), straight from your data:"
+   "text": "You spent ₹36,800 in April, ₹37,400 in May, ₹38,699 in June, ₹38,300 in July, ₹36,900 in August, ₹37,200 in September, and ₹37,800 in October this financial year. Your total spending for the period is"
   },
   {
    "q": "What did I spend last financial year?",
@@ -52,12 +52,12 @@
    "values_ok": false,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.98,
+   "seconds": 6.05,
    "llm_seconds": [
-    3.208,
-    2.668
+    3.143,
+    2.785
    ],
-   "tokens": 3032,
+   "tokens": 3049,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -65,7 +65,7 @@
    "expected": [
     450600
    ],
-   "text": "In the last financial year from April 2025 to March 2026, you spent ₹3,37,200. Your spending decreased by ₹2,23,800 in the same period."
+   "text": "In the last financial year from April 2025 to March 2026, you spent ₹3,37,200. Your total spending in 2026 was ₹1,13,400."
   },
   {
    "q": "How much money came in this financial year?",
@@ -74,12 +74,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": false,
-   "seconds": 2.84,
+   "seconds": 2.95,
    "llm_seconds": [
-    1.553,
-    1.184
+    1.546,
+    1.296
    ],
-   "tokens": 2934,
+   "tokens": 2951,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -96,12 +96,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 3.76,
+   "seconds": 2.94,
    "llm_seconds": [
-    1.605,
-    2.041
+    1.579,
+    1.242
    ],
-   "tokens": 2955,
+   "tokens": 2952,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -109,7 +109,7 @@
    "expected": [
     576901
    ],
-   "text": "You saved ₹5,76,901 this financial year from April 1, 2026, to October 26, 2026."
+   "text": "This financial year, your net savings amounted to ₹5,76,901."
   },
   {
    "q": "What is my savings rate this FY?",
@@ -118,12 +118,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": false,
-   "seconds": 3.27,
+   "seconds": 3.17,
    "llm_seconds": [
-    1.701,
-    1.451
+    1.636,
+    1.426
    ],
-   "tokens": 2942,
+   "tokens": 2957,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -140,12 +140,12 @@
    "values_ok": false,
    "badge": "trusted",
    "verified": true,
-   "seconds": 4.92,
+   "seconds": 4.84,
    "llm_seconds": [
-    4.161,
-    0.653
+    4.045,
+    0.68
    ],
-   "tokens": 2982,
+   "tokens": 2997,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -162,12 +162,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.26,
+   "seconds": 5.16,
    "llm_seconds": [
-    3.282,
-    1.857
+    3.205,
+    1.854
    ],
-   "tokens": 2991,
+   "tokens": 3006,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -184,12 +184,12 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 4.51,
+   "seconds": 4.42,
    "llm_seconds": [
-    3.74,
-    0.641
+    3.636,
+    0.655
    ],
-   "tokens": 2943,
+   "tokens": 2958,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -205,13 +205,13 @@
    "plan_ok": true,
    "values_ok": true,
    "badge": "trusted",
-   "verified": false,
-   "seconds": 7.27,
+   "verified": true,
+   "seconds": 9.01,
    "llm_seconds": [
-    4.157,
-    2.981
+    3.978,
+    4.914
    ],
-   "tokens": 3158,
+   "tokens": 3215,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -220,7 +220,7 @@
     3000,
     1500
    ],
-   "text": "Here are the results for 2026-04-01 to 2026-10-26 (2 rows), straight from your data:"
+   "text": "Your realized gains by stock for this financial year are:  \n- INFY: ₹3,000 long-term gain (₹17,000 sold vs ₹14,000 cost)  \n- TCS: ₹1,500 short-term gain (₹19,500 sold vs ₹18,000 cost)  \n\nNote: Brokera"
   },
   {
    "q": "How many trades did I make this financial year?",
@@ -229,12 +229,12 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 5.98,
+   "seconds": 5.82,
    "llm_seconds": [
-    5.152,
-    0.693
+    5.028,
+    0.691
    ],
-   "tokens": 2977,
+   "tokens": 2992,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -251,12 +251,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.84,
+   "seconds": 5.8,
    "llm_seconds": [
-    4.511,
-    1.192
+    4.44,
+    1.241
    ],
-   "tokens": 3005,
+   "tokens": 3021,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -264,7 +264,7 @@
    "expected": [
     14400
    ],
-   "text": "You spent ₹14,400 on Swiggy last financial year."
+   "text": "Last financial year, you spent ₹14,400 on Swiggy."
   },
   {
    "q": "Show my spending by month this financial year",
@@ -273,12 +273,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 8.1,
+   "seconds": 14.57,
    "llm_seconds": [
-    4.257,
-    3.738
+    4.171,
+    10.266
    ],
-   "tokens": 3201,
+   "tokens": 3357,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -292,7 +292,7 @@
     37200,
     37800
    ],
-   "text": "In this financial year, your spending was ₹36,800 in April, increased to ₹37,400 in May, and reached ₹38,699 in June. It then slightly dropped to ₹38,300 in July before decreasing to ₹36,900 in August"
+   "text": "Here is your spending by month this financial year (April 2026 to October 26, 2026):  \n- April 2026: ₹36,800  \n- May 2026: ₹37,400 (an increase of ₹600 from April)  \n- June 2026: ₹38,699 (an increase "
   },
   {
    "q": "How much did I spend in July 2026?",
@@ -301,12 +301,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.98,
+   "seconds": 6.09,
    "llm_seconds": [
-    4.435,
-    1.413
+    4.402,
+    1.556
    ],
-   "tokens": 3028,
+   "tokens": 3043,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -323,12 +323,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.91,
+   "seconds": 5.76,
    "llm_seconds": [
-    4.082,
-    1.675
+    4.005,
+    1.623
    ],
-   "tokens": 3021,
+   "tokens": 3034,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -336,7 +336,7 @@
    "expected": [
     1200000
    ],
-   "text": "Your total income for the period FY 2025-26 was ₹12,00,000."
+   "text": "Your total income in FY 2025-26 was ₹12,00,000."
   },
   {
    "q": "How many transactions do I have this financial year?",
@@ -345,12 +345,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.9,
+   "seconds": 5.87,
    "llm_seconds": [
-    4.319,
-    1.458
+    4.247,
+    1.494
    ],
-   "tokens": 3012,
+   "tokens": 3027,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -367,9 +367,9 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 3.8,
+   "seconds": 3.68,
    "llm_seconds": [
-    3.663
+    3.55
    ],
    "tokens": 2716,
    "usd": 0.0,
@@ -388,9 +388,9 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 3.13,
+   "seconds": 3.01,
    "llm_seconds": [
-    3.024
+    2.875
    ],
    "tokens": 2706,
    "usd": 0.0,
@@ -409,9 +409,9 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 3.83,
+   "seconds": 3.62,
    "llm_seconds": [
-    3.715
+    3.462
    ],
    "tokens": 2718,
    "usd": 0.0,
@@ -430,12 +430,12 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 4.72,
+   "seconds": 5.47,
    "llm_seconds": [
-    3.93,
-    0.668
+    4.473,
+    0.83
    ],
-   "tokens": 2948,
+   "tokens": 2963,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -452,9 +452,9 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 3.78,
+   "seconds": 3.79,
    "llm_seconds": [
-    3.655
+    3.636
    ],
    "tokens": 2715,
    "usd": 0.0,
@@ -473,12 +473,12 @@
    "values_ok": true,
    "badge": "trusted",
    "verified": true,
-   "seconds": 5.94,
+   "seconds": 6.02,
    "llm_seconds": [
-    4.357,
-    1.451
+    4.355,
+    1.516
    ],
-   "tokens": 3028,
+   "tokens": 3043,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -495,12 +495,12 @@
    "values_ok": false,
    "badge": "trusted",
    "verified": false,
-   "seconds": 9.53,
+   "seconds": 9.39,
    "llm_seconds": [
-    6.321,
-    3.049
+    6.353,
+    2.835
    ],
-   "tokens": 3134,
+   "tokens": 3142,
    "usd": 0.0,
    "models": [
     "local:qwen3:8b"
@@ -518,9 +518,9 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 6.3,
+   "seconds": 6.19,
    "llm_seconds": [
-    6.212
+    6.097
    ],
    "tokens": 2767,
    "usd": 0.0,
@@ -539,9 +539,9 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 1.73,
+   "seconds": 1.65,
    "llm_seconds": [
-    1.653
+    1.588
    ],
    "tokens": 2686,
    "usd": 0.0,
@@ -560,9 +560,9 @@
    "values_ok": false,
    "badge": "none",
    "verified": true,
-   "seconds": 1.66,
+   "seconds": 1.59,
    "llm_seconds": [
-    1.586
+    1.513
    ],
    "tokens": 2685,
    "usd": 0.0,
@@ -576,24 +576,18 @@
   },
   {
    "q": "How much did I make?",
-   "kind": "metric",
-   "plan_ok": false,
+   "kind": "clarify",
+   "plan_ok": true,
    "values_ok": null,
-   "badge": "trusted",
+   "badge": "none",
    "verified": true,
-   "seconds": 53.35,
-   "llm_seconds": [
-    45.99,
-    4.084,
-    3.141
-   ],
-   "tokens": 6565,
-   "usd": 0.0,
-   "models": [
-    "local:qwen3:8b"
-   ],
+   "seconds": 0.0,
+   "llm_seconds": [],
+   "tokens": 0,
+   "usd": 0,
+   "models": [],
    "expected": [],
-   "text": "During the period from April 1, 2026, to October 26, 2026, your total income from Salary ACME PVT LTD was ₹8,40,000. There are no other income sources mentioned in the results."
+   "text": "Which \"make\" do you mean?"
   },
   {
    "q": "What's my return?",
@@ -602,17 +596,13 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 4.32,
-   "llm_seconds": [
-    4.243
-   ],
-   "tokens": 2724,
-   "usd": 0.0,
-   "models": [
-    "local:qwen3:8b"
-   ],
+   "seconds": 0.0,
+   "llm_seconds": [],
+   "tokens": 0,
+   "usd": 0,
+   "models": [],
    "expected": [],
-   "text": "Could you clarify what you mean by 'return'? Are you referring to realized gains, unrealized profit/loss, or XIRR?"
+   "text": "Which \"return\" do you mean?"
   },
   {
    "q": "Show my profit",
@@ -621,17 +611,13 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 4.93,
-   "llm_seconds": [
-    4.854
-   ],
-   "tokens": 2736,
-   "usd": 0.0,
-   "models": [
-    "local:qwen3:8b"
-   ],
+   "seconds": 0.0,
+   "llm_seconds": [],
+   "tokens": 0,
+   "usd": 0,
+   "models": [],
    "expected": [],
-   "text": "Could you clarify what you mean by 'profit'? Are you referring to realized gains from trades, net savings from transactions, or something else?"
+   "text": "Which \"profit\" do you mean?"
   },
   {
    "q": "Should I buy INFY now?",
@@ -640,9 +626,9 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 2.34,
+   "seconds": 2.28,
    "llm_seconds": [
-    2.277
+    2.213
    ],
    "tokens": 2691,
    "usd": 0.0,
@@ -659,9 +645,9 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 1.81,
+   "seconds": 1.74,
    "llm_seconds": [
-    1.745
+    1.666
    ],
    "tokens": 2682,
    "usd": 0.0,
@@ -678,9 +664,9 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 1.83,
+   "seconds": 1.73,
    "llm_seconds": [
-    1.739
+    1.653
    ],
    "tokens": 2681,
    "usd": 0.0,
@@ -697,9 +683,9 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 2.79,
+   "seconds": 2.71,
    "llm_seconds": [
-    2.727
+    2.633
    ],
    "tokens": 2700,
    "usd": 0.0,
@@ -716,9 +702,9 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 1.67,
+   "seconds": 1.63,
    "llm_seconds": [
-    1.606
+    1.557
    ],
    "tokens": 2679,
    "usd": 0.0,
@@ -735,9 +721,9 @@
    "values_ok": null,
    "badge": "none",
    "verified": true,
-   "seconds": 1.51,
+   "seconds": 1.59,
    "llm_seconds": [
-    1.446
+    1.495
    ],
    "tokens": 2671,
    "usd": 0.0,

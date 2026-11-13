@@ -22,20 +22,22 @@ labelled sets, failing if any rate is worse than `results_sets.json` (`tests/tes
 
 | | Assistant (`gpt-oss-120b`, OpenRouter) | Text-to-SQL baseline | Assistant, local `qwen3:8b` |
 |---|---|---|---|
-| Right numbers on the 25 value questions | 100.0% <!-- src: backend/evals/results_openrouter.json#summary.value_accuracy_pct --> | 72.0% <!-- src: backend/evals/results_baseline.json#summary.value_accuracy_pct --> | 44.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.value_accuracy_pct --> |
-| Right kind of answer (plan, clarify, refuse) on all 34 | 94.1% <!-- src: backend/evals/results_openrouter.json#summary.plan_match_pct --> | 85.3% <!-- src: backend/evals/results_baseline.json#summary.plan_match_pct --> | 97.1% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.plan_match_pct --> |
+| Right numbers on the 25 value questions | 96.0% <!-- src: backend/evals/results_openrouter.json#summary.value_accuracy_pct --> | 72.0% <!-- src: backend/evals/results_baseline.json#summary.value_accuracy_pct --> | 44.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.value_accuracy_pct --> |
+| Right kind of answer (plan, clarify, refuse) on all 34 | 100.0% <!-- src: backend/evals/results_openrouter.json#summary.plan_match_pct --> | 85.3% <!-- src: backend/evals/results_baseline.json#summary.plan_match_pct --> | 100.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.plan_match_pct --> |
 | Value answers with the trusted badge | 92.0% <!-- src: backend/evals/results_openrouter.json#summary.trusted_pct_on_value_cases --> | 0.0% <!-- src: backend/evals/results_baseline.json#summary.trusted_pct_on_value_cases --> | 60.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.trusted_pct_on_value_cases --> |
 | Advice questions refused | 100.0% <!-- src: backend/evals/results_openrouter.json#summary.advice_abstention_pct --> | 100.0% <!-- src: backend/evals/results_baseline.json#summary.advice_abstention_pct --> | 100.0% <!-- src: backend/evals/results_local_qwen3_8b.json#summary.advice_abstention_pct --> |
-| Sentences the number check threw away | 6 <!-- src: backend/evals/results_openrouter.json#summary.number_check_rejects --> | no check | 5 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.number_check_rejects --> |
-| Seconds per question, p50 / p95 | 3.18 / 6.49 <!-- src: backend/evals/results_openrouter.json#summary.p50_seconds, summary.p95_seconds --> | 1.5 / 4.58 <!-- src: backend/evals/results_baseline.json#summary.p50_seconds, summary.p95_seconds --> | 4.62 / 22.14 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.p50_seconds, summary.p95_seconds --> |
-| Model calls per question | 1.79 <!-- src: backend/evals/results_openrouter.json#summary.llm_calls_per_question --> | 1.0 <!-- src: backend/evals/results_baseline.json#summary.llm_calls_per_question --> | 1.56 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.llm_calls_per_question --> |
-| Tokens per question | 3146 <!-- src: backend/evals/results_openrouter.json#summary.tokens_per_question --> | 833 <!-- src: backend/evals/results_baseline.json#summary.tokens_per_question --> | 2988 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.tokens_per_question --> |
-| USD per question (as billed by OpenRouter) | $0.000241 <!-- src: backend/evals/results_openrouter.json#summary.usd_per_question --> | $6.4e-05 <!-- src: backend/evals/results_baseline.json#summary.usd_per_question --> | $0 (local) |
+| Sentences the number check threw away | 2 <!-- src: backend/evals/results_openrouter.json#summary.number_check_rejects --> | no check | 3 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.number_check_rejects --> |
+| Seconds per question, p50 / p95 | 2.92 / 4.79 <!-- src: backend/evals/results_openrouter.json#summary.p50_seconds, summary.p95_seconds --> | 1.5 / 4.58 <!-- src: backend/evals/results_baseline.json#summary.p50_seconds, summary.p95_seconds --> | 3.74 / 13.78 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.p50_seconds, summary.p95_seconds --> |
+| Model calls per question | 1.65 <!-- src: backend/evals/results_openrouter.json#summary.llm_calls_per_question --> | 1.0 <!-- src: backend/evals/results_baseline.json#summary.llm_calls_per_question --> | 1.44 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.llm_calls_per_question --> |
+| Tokens per question | 2867 <!-- src: backend/evals/results_openrouter.json#summary.tokens_per_question --> | 833 <!-- src: backend/evals/results_baseline.json#summary.tokens_per_question --> | 2648 <!-- src: backend/evals/results_local_qwen3_8b.json#summary.tokens_per_question --> |
+| USD per question (as billed by OpenRouter) | $0.000219 <!-- src: backend/evals/results_openrouter.json#summary.usd_per_question --> | $6.4e-05 <!-- src: backend/evals/results_baseline.json#summary.usd_per_question --> | $0 (local) |
 
 Notes:
 - Each column is one live run. Two live runs of the same arm can differ by a question or two (the model is not
   deterministic even at temperature 0); read differences of one or two questions as noise.
-- The two assistant columns were recorded on 2026-11-13 through the LangGraph graph. The app's default provider is
+- The two assistant columns were recorded on 2026-11-13 through the LangGraph graph, after vague questions started
+  being asked back in code and the explainer started being told the currency (the baseline predates both; neither
+  touches it: it has no clarify step and no explainer). The app's default provider is
   Groq with the same `gpt-oss-120b` weights; its free daily token cap (200,000) is smaller than two full runs, so the
   Groq run is recorded on its own day (`python evals/run.py` with `OPENROUTER_API_KEY=` so a rate limit waits instead
   of switching to the fallback model) and CI skips it until then.
