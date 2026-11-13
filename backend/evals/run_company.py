@@ -8,6 +8,12 @@ Live run (SEC + the AI step; needs network and GROQ_API_KEY):
 Writes `evals/company_tieouts.json`: per ticker, each check's years passed / tested and largest difference ($M),
 the release figures the AI read and how many were verified, run time and LLM cost; then pass rates over all tickers.
 Banks and insurers are left out on purpose (company mode refuses them).
+
+Quarter check (SEC only, no AI step, no key):
+    cd backend && python -m evals.run_company --quarters        # same five tickers
+
+Writes `evals/company_quarters.json`: per ticker and line (revenue, net income), the fiscal years where Q1 + Q2 + Q3,
+each from its own 3-month fact, was compared with the 9-month figure the Q3 10-Q reports, and how many agreed.
 """
 from __future__ import annotations
 
@@ -23,10 +29,11 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 from app.ai import llm_client  # noqa: E402  (after .env is loaded)
-from app.company import pipeline  # noqa: E402
+from app.company import pipeline, quarters, sec  # noqa: E402
 
 TICKERS = ["AAPL", "MSFT", "NVDA", "JNJ", "GEV"]
 OUT = Path(__file__).parent / "company_tieouts.json"
+OUT_QUARTERS = Path(__file__).parent / "company_quarters.json"
 
 
 # Adds up the cost of every LLM call from llm_client's "[llm] ... cost=$x" log lines.
@@ -87,6 +94,24 @@ def main(tickers: list[str]) -> dict:
     return result
 
 
+# The quarter check over every ticker: sums of reported quarters against the reported 9-month figures.
+def quarters_main(tickers: list[str]) -> dict:
+    runs = {}
+    for t in tickers:
+        facts = sec.company_facts(sec.resolve(t)["cik"])
+        last = quarters.series(facts, 1)[-1]
+        runs[t] = {"checks": quarters.ytd_check(facts), "latest_quarter": {k: last[k] for k in ("end", "form", "filed")}}
+    totals = {line: {k: sum(r["checks"][line][k] for r in runs.values()) for k in ("tested", "passed")}
+              for line in ("revenue", "net_income")}
+    result = {"run_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "tolerance": "0.5% or $1M",
+              "tickers": runs, "totals": totals}
+    OUT_QUARTERS.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return result
+
+
 if __name__ == "__main__":
+    if "--quarters" in sys.argv:
+        print(json.dumps(quarters_main([a for a in sys.argv[1:] if a != "--quarters"] or TICKERS)["totals"], indent=2))
+        sys.exit()
     out = main(sys.argv[1:] or TICKERS)
     print(json.dumps({k: out[k] for k in ("pass_rates", "release_figures", "llm_cost_usd")}, indent=2))

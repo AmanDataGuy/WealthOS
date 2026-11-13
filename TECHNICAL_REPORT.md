@@ -43,8 +43,8 @@ flowchart LR
 | Privacy | `backend/app/ai/pii_redaction.py` | Every prompt passes one redactor (PAN, Aadhaar, UPI, IFSC, cards, phones, accounts, emails, GSTIN, PIN codes, labelled names). |
 | Cost control | `backend/app/ai/llm_client.py` | Per-user and server daily USD caps; usage logged per user; Groq primary, OpenRouter fallback, any OpenAI-compatible local server (Ollama) by env. |
 
-Code size: 8,506 lines of backend Python, 1,437 lines of frontend TypeScript. Tests: 178 passed, 2 skipped, with no
-API keys and no network (21 test modules). CI runs them on every push.
+Code size: 8,993 lines of backend Python, 1,665 lines of frontend TypeScript. Tests: 190 passed, 2 skipped, with no
+API keys and no network (22 test modules). CI runs them on every push.
 
 ## 3. Does the assistant get the numbers right?
 
@@ -118,11 +118,25 @@ reported, not hidden. Unverified release figures (mostly table numbers the model
 workbook and used nowhere else. The release read ran on `openai/gpt-oss-20b` because the 120B model's free daily
 quota was spent. Details: [docs/company_mode.md](docs/company_mode.md).
 
+### The earnings loop
+
+Compare (2-6 companies), earnings review against forecasts the user locks before results (no-hindsight: a forecast
+locked on or after the 10-Q filing date is never used), and a rebalance plan checked against the user's own limits.
+Quarters come from 10-Q XBRL by period length, Q4 derived from the 10-K year.
+
+| Check | Result |
+|---|---|
+| Q1 + Q2 + Q3 equals the reported 9-month revenue (5 companies) | 68 / 68 fiscal years <!-- src: backend/evals/company_quarters.json#totals.revenue --> |
+| Same for net income | 72 / 72 <!-- src: backend/evals/company_quarters.json#totals.net_income --> |
+| Variance, kill-rule, accuracy and limit arithmetic | exact-value unit tests on a made-up company (`tests/test_company_review.py`) |
+
+No AI step was added: one-offs and guidance in a review come from the existing, verified release read.
+
 ## 6. Engineering
 
 | Area | State |
 |---|---|
-| Tests | 178 passed, 2 skipped (LibreOffice recalculation; the Groq golden run until recorded), keyless and offline; CI green on every push |
+| Tests | 190 passed, 2 skipped (LibreOffice recalculation; the Groq golden run until recorded), keyless and offline; CI green on every push |
 | Eval in CI | All 34 questions replayed for every recorded run; labelled-set thresholds fail the build on regression |
 | API | 59 routes in 6 routers under `backend/app/api/`; every user route checks the token (enforced by a test) |
 | Database | One asyncpg pool; numbered SQL migrations recorded in `schema_migrations`, tested on a real Postgres 16 |

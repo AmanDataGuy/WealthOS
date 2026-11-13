@@ -29,7 +29,7 @@ Four more pages sit on the top bar:
 | **Dashboards** | Build by hand (drag, resize, remove, rearrange tiles) or with AI ("make spending monthly"); start from a template; download as Excel; fill your own Excel template (formulas and all) with your data |
 | **Strategy lab** | Describe a rule in words, or upload a Python file defining `weights(close)`; backtest with Indian charges against buy-and-hold |
 | **Rebalancing** | Set a target mix; see each holding's drift and the rupee change back to target |
-| **Company** | Type a US-listed company or ticker; get a five-year workbook built from its SEC filings, where every reported figure carries its XBRL concept and filing, every total and ratio is a live Excel formula, and accounting tie-outs are checked ([docs](docs/company_mode.md)) |
+| **Company** | Type a US-listed company or ticker; get a five-year workbook built from its SEC filings, where every reported figure carries its XBRL concept and filing, every total and ratio is a live Excel formula, and accounting tie-outs are checked. Also: compare 2-6 companies, review each quarter against a forecast you locked before the results, and check a rebalance plan against your own limits ([docs](docs/company_mode.md)) |
 
 The AI plans and explains. Code computes every number. No buy/sell advice, ever.
 

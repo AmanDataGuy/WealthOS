@@ -1,0 +1,111 @@
+{
+  "run_at": "2026-11-13T03:37:21+00:00",
+  "tolerance": "0.5% or $1M",
+  "tickers": {
+    "AAPL": {
+      "checks": {
+        "revenue": {
+          "tested": 18,
+          "passed": 18,
+          "max_diff_musd": 0.0
+        },
+        "net_income": {
+          "tested": 18,
+          "passed": 18,
+          "max_diff_musd": 0.0
+        }
+      },
+      "latest_quarter": {
+        "end": "2026-09-26",
+        "form": "10-K",
+        "filed": "2026-11-03"
+      }
+    },
+    "MSFT": {
+      "checks": {
+        "revenue": {
+          "tested": 18,
+          "passed": 18,
+          "max_diff_musd": 0.0
+        },
+        "net_income": {
+          "tested": 18,
+          "passed": 18,
+          "max_diff_musd": 0.0
+        }
+      },
+      "latest_quarter": {
+        "end": "2026-09-30",
+        "form": "10-Q",
+        "filed": "2026-10-28"
+      }
+    },
+    "NVDA": {
+      "checks": {
+        "revenue": {
+          "tested": 16,
+          "passed": 16,
+          "max_diff_musd": 0.0
+        },
+        "net_income": {
+          "tested": 16,
+          "passed": 16,
+          "max_diff_musd": 1.0
+        }
+      },
+      "latest_quarter": {
+        "end": "2026-07-26",
+        "form": "10-Q",
+        "filed": "2026-08-26"
+      }
+    },
+    "JNJ": {
+      "checks": {
+        "revenue": {
+          "tested": 12,
+          "passed": 12,
+          "max_diff_musd": 0.0
+        },
+        "net_income": {
+          "tested": 16,
+          "passed": 16,
+          "max_diff_musd": 0.0
+        }
+      },
+      "latest_quarter": {
+        "end": "2026-09-27",
+        "form": "10-Q",
+        "filed": "2026-10-21"
+      }
+    },
+    "GEV": {
+      "checks": {
+        "revenue": {
+          "tested": 4,
+          "passed": 4,
+          "max_diff_musd": 1.0
+        },
+        "net_income": {
+          "tested": 4,
+          "passed": 4,
+          "max_diff_musd": 0.0
+        }
+      },
+      "latest_quarter": {
+        "end": "2026-09-30",
+        "form": "10-Q",
+        "filed": "2026-10-28"
+      }
+    }
+  },
+  "totals": {
+    "revenue": {
+      "tested": 68,
+      "passed": 68
+    },
+    "net_income": {
+      "tested": 72,
+      "passed": 72
+    }
+  }
+}

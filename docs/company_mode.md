@@ -111,12 +111,40 @@ reports year-end 2023 cash of $1,551M, but its cash-flow statements do not roll 
 cash-flow statement around the spin. GE Vernova also has only four fiscal years in XBRL and tags no long-term debt
 line, so its DCF is skipped.
 
+## The earnings loop: compare, review, plan
+
+Three more views on the Company page turn the one-off model into the loop a portfolio manager runs every quarter.
+All three are arithmetic on SEC figures and on what the user typed; none picks a stock, a weight or a trade.
+
+| View | Module | What it does |
+|---|---|---|
+| Compare | `company/compare.py` | 2-6 companies side by side: latest fiscal year revenue, growth, margins, ROE, leverage, cash conversion (the workbook's own ratio formulas), the latest quarter's revenue growth and operating margin, and P/E at a price the user types. A bank or an ambiguous name gets an error row; the rest still compare. |
+| Earnings review | `company/quarters.py`, `company/review.py` | The user **locks** a forecast for a quarter (revenue, margins, diluted EPS, optional consensus, kill rules); it is append-only and hashed. Once the 10-Q is filed, each driver's variance is shown, a quarter is *material* at 5% EPS variance or when the release carries guidance, kill rules are checked in code, and verified one-off and guidance quotes come from the release reader. A forecast locked on or after the 10-Q's filing date is listed but never used (no hindsight). The user records their own verdict (intact / weakened / broken); EPS forecast accuracy (mean absolute error, bias, share within 5%) builds up over reviewed quarters. |
+| Rebalance plan | `features/rebalance.plan_trades` | Positions, cash, the user's target weights and limits (max position, max sector, min cash, min trade) → the trades the targets imply, small trades skipped, weights and sector exposure after, and every limit breach. Breaches are reported, never fixed. The book stays in the browser. |
+
+**Quarters from XBRL.** SEC files a quarter's 3-month figure and the 6- or 9-month year-to-date figure under the same
+concept, so `quarters.py` picks quarters by period length (80-100 days), not by the `frame` tag. Q4 has no 10-Q: its
+amounts are the 10-K year minus Q1-Q3 (marked derived). Q4 diluted EPS is left blank, because EPS does not subtract.
+Actuals come from the 10-Q only: an earnings release is not XBRL-tagged, so until the 10-Q is filed the review says
+"awaiting results".
+
+**Quarter check (the eval).** Q1 + Q2 + Q3, each from its own 3-month fact, against the separately reported 9-month
+figure, within 0.5% or $1M, for AAPL, MSFT, NVDA, JNJ and GEV (`python -m evals.run_company --quarters`):
+revenue 68 of 68 fiscal years <!-- src: backend/evals/company_quarters.json#totals.revenue -->,
+net income 72 of 72 <!-- src: backend/evals/company_quarters.json#totals.net_income -->.
+Unit tests check the variance, rule, accuracy and limit arithmetic exactly on a made-up company
+(`tests/test_company_review.py`).
+
+**Not built, on purpose:** price and consensus feeds (licences; Stooq now sits behind a bot check), web search
+(everything needed is on EDGAR, with provenance), tracking error (needs a risk model), earnings-call transcripts
+(mostly paywalled), automatic re-forecasting (the analyst's judgment), Indian listed companies (a different source).
+
 ## Limits
 
 - A build gets 240 seconds. After that the API answers 408; the build finishes only the step it is in (one SEC
   fetch or the AI call), then stops without saving. There is no background job queue or progress report.
-- Five fiscal years only: no quarterly, year-to-date or last-twelve-months columns (the latest 10-Q is listed on
-  the Cover, not modelled).
+- The workbook has five fiscal years only; quarters appear in the earnings review and comparison, not in the
+  workbook.
 - No segments: company facts carry no dimensional (segment) data; that would need each filing's own XBRL.
 - Per-share figures and share counts of older years are as filed, so they are not restated for later stock splits
   (NVIDIA's oldest year shows pre-split shares).
