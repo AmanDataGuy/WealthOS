@@ -63,3 +63,50 @@ def drift(user_id: str, workspace_id: str | None = None, band: float = 5.0) -> d
         warnings.append(f"{len(missing)} holding(s) have no target: {', '.join(missing[:5])}")
     return {"total_value": round(total, 2), "band_pts": band, "rows": rows, "warnings": warnings,
             "provenance": r.provenance.model_dump(), "label": LABEL}
+
+
+# The trades your own targets imply, checked against your own limits. positions: [{ticker, shares, price, sector}];
+# targets: {ticker: pct}, the rest stays cash; limits: max_position_pct, max_sector_pct, min_cash_pct, min_trade
+# (trades smaller than this are skipped). Breaches are reported, never fixed: changing targets is the user's call.
+def plan_trades(positions: list[dict], cash: float, targets: dict[str, float], limits: dict) -> dict:
+    if any(v < 0 for v in targets.values()) or sum(targets.values()) > 100.0001:
+        raise ValueError(f"targets must be 0-100% each and add up to 100% or less; they add up to {sum(targets.values()):g}%")
+    book = {p["ticker"].upper(): p for p in positions}
+    if missing := [t for t in targets if t.upper() not in book]:
+        raise ValueError(f"add a price for {', '.join(missing)} before giving it a target")
+    value = {t: float(p["shares"]) * float(p["price"]) for t, p in book.items()}
+    total = sum(value.values()) + cash
+    if total <= 0:
+        raise ValueError("the book has no value")
+    goal = {t.upper(): v for t, v in targets.items()}
+    rows, after = [], {}
+    for t, p in book.items():
+        want = goal.get(t, 100 * value[t] / total)  # no target: leave it where it is
+        gap = want / 100 * total - value[t]
+        skipped = 0 < abs(gap) < limits.get("min_trade", 0)
+        trade = 0.0 if skipped else gap
+        after[t] = value[t] + trade
+        rows.append({"ticker": t, "sector": p.get("sector") or "Unknown", "value": round(value[t], 2),
+                     "weight_pct": round(100 * value[t] / total, 2), "target_pct": goal.get(t),
+                     "trade": round(trade, 2), "shares": round(trade / float(p["price"]), 4) if float(p["price"]) else None,
+                     "skipped_small": skipped, "weight_after_pct": round(100 * after[t] / total, 2)})
+    cash_after = total - sum(after.values())
+    sectors: dict[str, list[float]] = {}
+    for r in rows:
+        s = sectors.setdefault(r["sector"], [0.0, 0.0])
+        s[0] += r["weight_pct"]
+        s[1] += r["weight_after_pct"]
+    breaches = []
+    if (cap := limits.get("max_position_pct")) is not None:
+        breaches += [f"{r['ticker']} would be {r['weight_after_pct']}% (limit {cap:g}%)" for r in rows if r["weight_after_pct"] > cap]
+    if (cap := limits.get("max_sector_pct")) is not None:
+        breaches += [f"{s} would be {round(v[1], 2)}% (limit {cap:g}%)" for s, v in sectors.items() if v[1] > cap]
+    if cash_after < -0.005:
+        breaches.append(f"the trades need {round(-cash_after, 2)} more cash than the book holds")
+    elif (floor := limits.get("min_cash_pct")) is not None and 100 * cash_after / total < floor:
+        breaches.append(f"cash would be {round(100 * cash_after / total, 2)}% (minimum {floor:g}%)")
+    return {"total_value": round(total, 2), "rows": rows, "cash": round(cash, 2), "cash_after": round(cash_after, 2),
+            "cash_after_pct": round(100 * cash_after / total, 2),
+            "sectors": [{"sector": s, "before_pct": round(v[0], 2), "after_pct": round(v[1], 2)} for s, v in sorted(sectors.items())],
+            "sold_pct": round(100 * -sum(r["trade"] for r in rows if r["trade"] < 0) / total, 2),
+            "breaches": breaches, "label": "Arithmetic on the targets and limits you set, not investment advice."}
