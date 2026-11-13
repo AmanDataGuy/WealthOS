@@ -6,7 +6,7 @@ One fixed pipeline (no "multi-agent debates"); the AI never produces a number:
 1. **Plan** (one AI call, checked against a strict format): what kind of question is this, and exactly what to run
    - `metric`: a named calculation from `metrics.yaml` for a period ("spending this FY") -> **Trusted** answer
    - `sql`: a read-only query when no metric fits -> checked by `verify.guard_sql` -> **Exploratory** answer
-   - `company` / `news`: SEC figures or recent news for a company (`tools.py`)
+   - `company`: SEC figures for a US-listed company (`tools.py`)
    - `filing`: what an uploaded filing / annual report *says* (risks, strategy, lawsuits ...): `research.py` finds the
      pages and answers with page citations, each number checked against those pages
    - `calc`: arithmetic on numbers the user gave ("12% of 4,50,000")
@@ -55,12 +55,11 @@ DISCLAIMER = "Analytics on your own data, not investment advice (WealthOS is not
 
 # What the planner decided to do. Exactly one of the detail fields is used, depending on `kind`.
 class Plan(BaseModel):
-    kind: Literal["metric", "sql", "company", "filing", "news", "calc", "tax", "rebalance", "prices", "backtest",
+    kind: Literal["metric", "sql", "company", "filing", "calc", "tax", "rebalance", "prices", "backtest",
                   "multi", "remember", "save_metric", "clarify", "out_of_scope", "smalltalk"]
     metric_query: MetricQuery | None = None
     sql: str | None = None
     ticker: str | None = None
-    news_query: str | None = None
     expression: str | None = None
     clarify_question: str | None = None
     clarify_term: str | None = None
@@ -194,7 +193,7 @@ def _context(user_id: str, workspace_id: str | None) -> str:
 
 
 PLANNER = """You plan how to answer a user's question (Indian user, amounts in INR, financial year April-March).
-Questions are about their own money data, OR about a listed company's reported financials, OR recent news.
+Questions are about their own money data, OR about a listed company's reported financials.
 You never calculate or invent numbers; you choose what to run.
 Rules:
 - Prefer kind "metric" with a metric_query {metrics, dimensions, time, filters} using ONLY metric names, table
@@ -219,7 +218,6 @@ Rules:
   reported revenue, profit, assets, debt, cash flow (from SEC filings). This IS answerable: do not mark it out of scope.
 - kind "filing" for what one of the listed "documents" (a filing / annual report the user uploaded) SAYS: risks,
   strategy, segments, lawsuits, management commentary. Needs at least one listed document.
-- kind "news" (news_query) for recent news about a company or topic.
 - kind "calc" (expression) for arithmetic on numbers the user typed. Separate function arguments with ", ".
 - kind "tax" for income tax / capital gains tax / old vs new regime questions. tax_inputs: "fy" as "YYYY-YY" only if
   the user names a year; salary, other_income, deductions_80c, deductions_80d only if the user typed them.
@@ -278,10 +276,6 @@ async def _run(user_id: str, plan: Plan, workspace_id: str | None = None):
         rows = [{"metric": name, **row} for name, series in facts.get("facts", {}).items() for row in series[:3]]
         return rows, {"tool": "sec_edgar_xbrl", "company": facts.get("company_name"), "cik": facts.get("cik")}, \
             ["values in USD millions, from SEC XBRL filings"], "external"
-    if plan.kind == "news" and plan.news_query:
-        res = await asyncio.to_thread(tools.news, plan.news_query)
-        rows = [{k: a.get(k) for k in ("title", "source", "published", "url")} for a in (res.get("articles") or [])]
-        return rows, {"tool": "news", "query": plan.news_query}, ["news text is quoted as-is; it may be wrong"], "external"
     if plan.kind == "tax":
         from app.features import tax
         t = {k: v for k, v in (plan.tax_inputs or {}).items()

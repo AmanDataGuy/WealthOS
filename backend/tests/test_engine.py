@@ -319,7 +319,7 @@ def test_pin_answer(tmp_path):
     assert kinds == [(0, "kpi"), (4, "line"), (8, "table")]
     assert all("rows" in r for r in dashboards.refresh("u", d.id)["tiles"].values())
     with pytest.raises(ValueError):
-        dashboards.pin_answer("u", d.id, {"kind": "news", "news_query": "INFY"})
+        dashboards.pin_answer("u", d.id, {"kind": "company", "ticker": "AAPL"})
 
 
 # The Excel export has a sheet per data tile with the refreshed rows, a Provenance sheet, and text from

@@ -7,10 +7,9 @@ Your own data is answered by `engine.py` (metrics and checked SQL). These tools 
 |---|---|---|
 | `calc` | Arithmetic on numbers already found ("what is 12% of 4,50,000?") | Python, from a small allow-list of operations |
 | `company_facts` | A US company's reported figures (revenue, net income, cash ...) | SEC EDGAR XBRL figures, with filing ids |
-| `news` | Recent news headlines about a company or topic | Google News RSS (no key needed) |
 
-They are plain Python functions (no extra server processes). Text from news or filings is treated as data to
-quote, never as instructions to follow.
+They are plain Python functions (no extra server processes). Text from filings is treated as data to quote,
+never as instructions to follow.
 """
 from __future__ import annotations
 
@@ -20,10 +19,8 @@ import os
 import re
 import threading
 import time
-from datetime import date, datetime, timedelta, timezone
-from email.utils import parsedate_to_datetime
+from datetime import date
 from functools import lru_cache
-from xml.etree import ElementTree
 
 import httpx
 
@@ -148,28 +145,3 @@ def _company_facts(ticker: str) -> dict:
                            "filed": v["filed"], "concept": v["tag"], "accn": v["accn"]} for v in values]
     return {"ticker": ticker, "cik": cik, "company_name": facts.get("entityName") or title,
             "unit": "millions_usd", "facts": rows}
-
-
-# Recent news about a query from Google News RSS (no key needed): [{title, source, published, url}].
-# Article text is data to quote, never instructions.
-def news(query: str, days: int = 7, count: int = 5) -> dict:
-    try:
-        resp = httpx.get("https://news.google.com/rss/search", params={"q": query, "hl": "en-IN", "gl": "IN", "ceid": "IN:en"},
-                         timeout=15, follow_redirects=True)
-        resp.raise_for_status()
-        items = ElementTree.fromstring(resp.text).findall(".//item")
-    except (httpx.HTTPError, ElementTree.ParseError) as e:
-        return {"query": query, "articles": [], "error": f"news unavailable: {type(e).__name__}"}
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    articles = []
-    for item in items:
-        try:
-            when = parsedate_to_datetime(item.findtext("pubDate") or "")
-        except (TypeError, ValueError):
-            continue
-        if when.tzinfo is None:
-            when = when.replace(tzinfo=timezone.utc)
-        if when >= cutoff:
-            articles.append({"title": (item.findtext("title") or "").strip(), "source": item.findtext("source") or "Google News",
-                             "published": when.date().isoformat(), "url": (item.findtext("link") or "").strip()})
-    return {"query": query, "articles": articles[:count]}
