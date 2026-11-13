@@ -148,6 +148,8 @@ async def verify_node(s: State) -> dict:
                                "so it was replaced by the table"]
     badge = next(b for b in ("exploratory", "external", "trusted") if b in set(s["badges"]) | {"trusted"}) \
         if plan.kind == "multi" else s["badges"][0]
+    if not any(v is not None for r in rows for v in r.values()):  # nothing found answers nothing: no badge
+        badge = "none"
     return {"answer": agent.Answer(text=f"{text}\n\n_{agent.DISCLAIMER}_", badge=badge, rows=rows, provenance=s["provenance"],
                                    warnings=warnings, plan=plan, verified=verified).model_dump()}
 

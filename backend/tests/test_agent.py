@@ -57,6 +57,14 @@ def test_invented_number_replaced(monkeypatch):
     assert not a.verified and "35,000" not in a.text and a.rows == [{"total_spend": 29000.0}]
 
 
+# A plan that finds no rows (wrong period, missing data) answers nothing, so it must not carry the trusted badge.
+def test_empty_result_not_trusted(monkeypatch):
+    _fake_llm(monkeypatch, {"kind": "metric", "metric_query": {"metrics": ["total_spend"], "time": "2020-04-01..2020-06-30"}},
+              "No matching data was found.")
+    a = _ask("How much did I spend?")
+    assert a.badge == "none", a.rows
+
+
 # Advice questions get the planner's polite refusal, with no data and no numbers.
 def test_advice_refused(monkeypatch):
     _fake_llm(monkeypatch, {"kind": "out_of_scope", "reply": "I can't give buy or sell advice."})
