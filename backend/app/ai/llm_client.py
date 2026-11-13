@@ -11,7 +11,7 @@
 - **Redaction**: every prompt goes through `redact_pii` here, so no call site can send raw PAN/phone/account numbers.
 - **Daily cost caps** over the last 24h: per user (`WEALTHOS_MAX_DAILY_COST_USD_USER`, default $0.50) and for the
   whole server (`WEALTHOS_MAX_DAILY_COST_USD`, default $5). In production a budget that can't be checked refuses.
-- **Usage log**: every call's tokens and cost go to the `llm_usage` table, with the user it was for.
+- **Usage log**: every call's tokens, cost and duration go to the `llm_usage` table, with the user it was for.
 - `call_json(...)`: ask for JSON matching a Pydantic model; the answer is checked, and wrong answers get one retry
   with the error shown to the model. Nothing unchecked comes out of it.
 
@@ -130,11 +130,14 @@ async def _track_usage(usage: dict, model: str, provider: str, user_id: str | No
         return
     try:
         import asyncpg
+        # shortcut: one connection per call, not main's pool: the company release reader calls the model through
+        # asyncio.run in a worker thread (another event loop), where a pool from the main loop cannot be used
         conn = await asyncpg.connect(_db_url(), timeout=5)
         try:
             await conn.execute(
-                "INSERT INTO llm_usage (provider, model, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, user_id) "
-                "VALUES ($1, $2, $3, $4, $5, $6, $7)", provider, model, prompt, completion, prompt + completion, cost, user_id)
+                "INSERT INTO llm_usage (provider, model, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, "
+                "user_id, duration_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                provider, model, prompt, completion, prompt + completion, cost, user_id, round(seconds * 1000))
         finally:
             await conn.close()
     except Exception as e:

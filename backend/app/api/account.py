@@ -91,11 +91,11 @@ async def account_export(user_id: str):
     usage = []
     if main.DB_URL:
         usage = await (await main._pool()).fetch("SELECT created_at, provider, model, prompt_tokens, completion_tokens, "
-                                            "estimated_cost_usd FROM llm_usage WHERE user_id = $1 ORDER BY created_at",
+                                            "estimated_cost_usd, duration_ms FROM llm_usage WHERE user_id = $1 ORDER BY created_at",
                                             user_id)
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow(["created_at", "provider", "model", "prompt_tokens", "completion_tokens", "estimated_cost_usd"])
+    writer.writerow(["created_at", "provider", "model", "prompt_tokens", "completion_tokens", "estimated_cost_usd", "duration_ms"])
     writer.writerows([list(r.values()) for r in usage])
     data = await asyncio.to_thread(account.export_zip, user_id, {"ai_usage.csv": out.getvalue()})
     return Response(data, media_type="application/zip",

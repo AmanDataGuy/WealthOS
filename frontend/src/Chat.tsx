@@ -10,7 +10,7 @@ import { del, formatNumber, get, post, safeHref } from "./api";
 import Upload from "./Upload";
 
 type Answer = { text: string; badge: string; rows: Record<string, any>[]; provenance: any; warnings: string[];
-  plan: any; verified: boolean; clarify: { term: string; options: string[] } | null };
+  plan: any; verified: boolean; clarify: { term: string; options: string[] } | null; timings?: Record<string, number> };
 type Turn = { question: string; answer?: Answer; error?: string };
 type ChatItem = { id: string; title: string; updated_at: string; turns: number };
 type Props = { u: string; boards: { id: string; title: string }[]; onPinned: (id: string) => void;
@@ -139,6 +139,8 @@ function AnswerView({ a, question, u, boards, onPinned, onChoose }: {
       <div className="answer-head">
         {BADGES[a.badge] && <span className="tag">{BADGES[a.badge]}</span>}
         {a.badge !== "none" && <span className="muted">{a.verified ? "every number checked against the results" : "explanation replaced by the table"}</span>}
+        {a.timings && Object.keys(a.timings).length > 0 && <span className="muted" title={Object.entries(a.timings).map(([k, v]) => `${k} ${v.toFixed(2)} s`).join(" · ")}>
+          {Object.values(a.timings).reduce((x, y) => x + y, 0).toFixed(1)} s</span>}
       </div>
       <div className="answer-text">{a.text.replace(/\n\n_(.*)_$/s, "")}</div>
       {a.clarify && (
