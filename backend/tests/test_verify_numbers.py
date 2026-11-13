@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-from app.ai.verify import _derived, check_numbers
+from app.ai.verify import _derived, check_numbers, numbers_in
 
 SPEND = [38699.0, 30000.0]
 
@@ -61,3 +61,11 @@ def test_property_exact_pass_perturbed_fail():
             assert check_numbers(f"₹{off:,.2f}", vals, "INR") != [], (off, vals)
             checked += 1
     assert checked > 200
+
+
+# Thousands grouped with a space are one number (a correct answer is not thrown away); a date is not joined.
+def test_space_grouped_thousands():
+    assert numbers_in("250 000 / 12 gives 20 833.33") == [250000.0, 12.0, 20833.33]
+    assert numbers_in("30 June 2026") == [30.0, 2026.0]
+    assert check_numbers("250 000 / 12 gives 20 833.33", [250000, 12], "mixed", rows=[{"result": 20833.3333}]) == []
+    assert check_numbers("It comes to 25 000.", [], "mixed", rows=[{"result": 20833.3333}]) == ["25 000"]

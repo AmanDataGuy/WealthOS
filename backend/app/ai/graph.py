@@ -71,6 +71,8 @@ async def plan_node(s: State) -> dict:
         planned = f'{planned} (here "{define["term"]}" means: {define["value"]})'  # said outright, so it isn't asked again
     if previous_plan and previous_plan.get("kind") == "clarify":
         previous_plan = None  # the last answer was the question itself, not a plan to build on
+    if not define and (asked := agent.vague_question(s["user_id"], s["question"])):  # settled in code, no model call
+        return {"plan": asked.model_dump()}
     prompt = (f"Context: {agent._context(s['user_id'], s['workspace_id'])}\n"
               f"Previous plan: {json.dumps(previous_plan) if previous_plan else 'none'}\nQuestion: {planned}")
     plan = await llm.call_json(agent.PLANNER, prompt, agent.Plan, user_id=s["user_id"])
@@ -127,7 +129,12 @@ async def explain_node(s: State) -> dict:
     rows, warnings = s["rows"], s["warnings"]
     shown = rows[:agent.MAX_ROWS_TO_EXPLAIN]
     period = (s["provenance"] or {}).get("period")
-    raw = await llm.call_llm(agent.EXPLAINER, f"Question: {s['question']}\nPeriod: {period}\nResults: {json.dumps(shown, default=str)}"
+    plan_kind = (s["plan"] or {}).get("kind")
+    currency = "US dollars, millions: write $ (never ₹)" if plan_kind == "company" else \
+        "plain numbers (no currency)" if plan_kind == "calc" else \
+        "₹ for the user's own data, $ millions for company figures" if plan_kind == "multi" else "Indian rupees: write ₹ (never $)"
+    raw = await llm.call_llm(agent.EXPLAINER, f"Question: {s['question']}\nPeriod: {period}\nAmounts are in: {currency}\n"
+                                              f"Results: {json.dumps(shown, default=str)}"
                                               f"\nWarnings: {warnings}", max_tokens=300, temperature=0, user_id=s["user_id"])
     return {"text": raw}
 

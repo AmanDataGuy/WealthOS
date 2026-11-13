@@ -165,3 +165,23 @@ def test_state_checkpointed_per_chat(monkeypatch):
     agent.delete_chat("u", "c1")  # deleting the chat deletes its checkpoints
     with SqliteSaver.from_conn_string(str(engine.user_dir("u") / "agent_state.sqlite")) as saver:
         assert saver.get_tuple({"configurable": {"thread_id": "c1"}}) is None
+
+
+# A vague money word about the user's own data is asked about in code, before any model call; a qualified question,
+# a company question and a remembered meaning are left to the planner.
+def test_vague_questions_are_clarified_in_code(monkeypatch):
+    for q in ("How much did I make?", "What's my return?", "Show my profit"):
+        plan = agent.vague_question("u", q)
+        assert plan and plan.kind == "clarify" and plan.clarify_options == agent.VAGUE_OPTIONS, q
+    for q in ("How many trades did I make this year?", "What is my unrealized profit?", "What was Apple's profit?",
+              "What are my realized gains?"):
+        assert agent.vague_question("u", q) is None, q
+    agent.save_definition("u", "return", "XIRR")
+    assert agent.vague_question("u", "What's my return?") is None
+
+    async def no_model(*a, **kw):
+        raise AssertionError("the model must not be called")
+    from app.ai import llm_client as llm
+    monkeypatch.setattr(llm, "call_json", no_model)
+    a = _ask("How much did I make?")
+    assert a.badge == "none" and a.clarify and a.clarify["options"] == agent.VAGUE_OPTIONS

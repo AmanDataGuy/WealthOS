@@ -90,6 +90,28 @@ class Answer(BaseModel):
 # ── Definitions memory ──────────────────────────────────────────────────────────────────
 
 # The user's confirmed definitions, newest last: [{term, value, created_at}].
+# "How much did I make?", "What's my return?", "Show my profit": a word that could be income, realized gains,
+# unrealized P&L or XIRR, about the user's own money, with nothing in the question that settles which. The planner
+# prompt asks for "clarify" here too, but models skip it now and then; this rule is checked first, in code.
+_VAGUE = re.compile(r"\b(make|made|earn|earned|earning|return|returns|profit|profits|gain|gains)\b", re.I)
+_SETTLED = re.compile(r"\b(realized|realised|unrealized|unrealised|salary|income|xirr|dividends?|interest|trades?|"
+                      r"spend|spent|tax|stcg|ltcg|capital|backtest|strategy)\b", re.I)
+_MINE = re.compile(r"\b(i|my|me)\b", re.I)
+VAGUE_OPTIONS = ["income this financial year", "realized gains", "unrealized profit / loss", "XIRR (annual return)"]
+
+
+# The clarify plan for a vague question about the user's own money, or None. A remembered meaning of the word wins.
+def vague_question(user_id: str, question: str) -> "Plan | None":
+    word = _VAGUE.search(question or "")
+    if not word or _SETTLED.search(question) or not _MINE.search(question):
+        return None
+    term = word.group(1).lower()
+    if any(d["term"].lower() == term for d in definitions(user_id)):
+        return None
+    return Plan(kind="clarify", clarify_term=term, clarify_options=VAGUE_OPTIONS,
+                clarify_question=f'Which "{term}" do you mean?')
+
+
 def definitions(user_id: str) -> list[dict]:
     path = engine.user_dir(user_id) / "definitions.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else []

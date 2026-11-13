@@ -73,7 +73,10 @@ def guard_sql(sql: str, schema: dict[str, dict[str, str]], limit: int = MAX_ROWS
 
 # A number in text: digits with Western or Indian commas and decimals, optionally followed by a size word. The
 # digits may sit right after a currency word ("Rs2000", "INR 5,000") but not after other letters ("FY26", "Q1").
-_NUMBER_IN_TEXT = re.compile(r"(?:(?<![\w.])|(?<=rs)|(?<=rs\.)|(?<=inr)|(?<=usd))(\d{1,3}(?:,\d{2,3})+|\d+)(\.\d+)?"
+# Thousands may also be grouped with a space ("20 833.33", as models sometimes write); a false join only makes a
+# sentence fail the check, never pass it.
+_NUMBER_IN_TEXT = re.compile(r"(?:(?<![\w.])|(?<=rs)|(?<=rs\.)|(?<=inr)|(?<=usd))"
+                             r"(\d{1,3}(?:,\d{2,3})+|\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?!\d)|\d+)(\.\d+)?"
                              r"\s*(%|lakhs?|lacs?|crores?|cr|k|thousand|million|mn|billion|bn)?\b", re.I)
 _SIZE = {"lakh": 1e5, "lakhs": 1e5, "lac": 1e5, "lacs": 1e5, "crore": 1e7, "crores": 1e7, "cr": 1e7, "k": 1e3,
          "thousand": 1e3, "million": 1e6, "mn": 1e6, "billion": 1e9, "bn": 1e9}
@@ -106,7 +109,7 @@ MAX_DERIVE = 20  # pairwise sums / differences / % changes are taken over at mos
 def numbers_in(text: str) -> list[float]:
     out = []
     for m in _NUMBER_IN_TEXT.finditer(text or ""):
-        n = float(m.group(1).replace(",", "") + (m.group(2) or ""))
+        n = float(re.sub(r"[, \u00a0\u202f]", "", m.group(1)) + (m.group(2) or ""))
         out.append(n * _SIZE.get((m.group(3) or "").lower(), 1.0))
     return out
 
@@ -175,10 +178,10 @@ def check_numbers(text: str, values: list[float], unit: str = "mixed",
         if (unit == "INR" and usd) or (unit == "USD" and inr):
             bad.append(NumberIssue(m.group(0).strip(), "currency_mismatch"))
             continue
-        if not (inr or usd or size or decimals or "," in whole) and _is_count_or_year(text, m):
+        if not (inr or usd or size or decimals or re.search(r"[, \u00a0\u202f]", whole)) and _is_count_or_year(text, m):
             continue
         scale = _SIZE.get(size, 1.0)
-        n = float(whole.replace(",", "") + decimals) * scale
+        n = float(re.sub(r"[, \u00a0\u202f]", "", whole) + decimals) * scale
         half_step = 0.5 * 10 ** -len(decimals[1:]) * scale if decimals else 0.5 * scale  # rounding shown in the text
         if not any(abs(n - v) <= max(0.005 * abs(v), half_step) or abs(n - abs(v)) <= max(0.005 * abs(v), half_step)
                    for v in allowed):
