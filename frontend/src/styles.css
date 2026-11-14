@@ -81,6 +81,8 @@ header > b::after { content: "."; color: var(--warm); }
 .toolbar > .muted { margin-left: auto; }
 .ai input { flex: 1; min-width: 280px; height: 40px; padding: 0 16px; }
 .preview { display: flex; gap: 8px; align-items: center; width: 100%; padding-top: 4px; }
+.banner.guest { cursor: default; }
+.banner.guest button { margin-left: 8px; }
 .banner { border-bottom: 1px solid var(--line); border-left: 2px solid var(--warm); padding: 8px 32px; font-size: 13px; cursor: pointer; }
 
 /* Top-bar tabs: mono labels, the active one underlined in orange. */
