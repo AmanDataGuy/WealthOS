@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 import app.main as main
 from app.data import engine
 
-OPEN_ROUTES = {"/health", "/metrics", "/templates", "/auth/signup", "/auth/login"}
+OPEN_ROUTES = {"/health", "/metrics", "/templates", "/auth/signup", "/auth/login", "/auth/guest"}
 
 
 @pytest.fixture()

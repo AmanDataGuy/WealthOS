@@ -131,3 +131,22 @@ def test_lockout_after_ten_failures(monkeypatch):
     assert (r.status_code, r.json()["detail"]) == (401, "wrong username or password")
     rows["real"]["locked_until"] = main.datetime.now(main.timezone.utc) - main.timedelta(seconds=1)  # lock expired
     assert login("right-pw").status_code == 200
+
+
+# A guest gets a signed-in account with the sample data already loaded, and nobody can sign in to it with a password.
+def test_guest_account_has_sample_data_and_no_password(monkeypatch, tmp_path):
+    from app.data import engine
+    rows = {}
+    async def fake(query, name, *args):
+        if query.startswith("INSERT"):
+            rows[name] = rows["7"] = _row("7", name, "!")  # the token check looks the user up by id
+        return rows.get(name)
+    monkeypatch.setattr(main, "_users", fake)
+    monkeypatch.setattr(main, "JWT_SECRET", STRONG)
+    monkeypatch.setattr(engine, "DATA_ROOT", tmp_path / "users")
+    client = TestClient(main.app)
+    r = client.post("/auth/guest").json()
+    assert r["username"].startswith("guest-") and r["user_id"] == "7"
+    datasets = client.get("/sources/7/datasets", headers={"Authorization": f"Bearer {r['token']}"}).json()
+    assert {d["shape"] for d in datasets} == {"transactions", "trades", "holdings"}
+    assert client.post("/auth/login", json={"username": r["username"], "password": "!"}).status_code == 401
