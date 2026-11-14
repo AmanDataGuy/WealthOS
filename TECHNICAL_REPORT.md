@@ -43,7 +43,7 @@ flowchart LR
 | Privacy | `backend/app/ai/pii_redaction.py` | Every prompt passes one redactor (PAN, Aadhaar, UPI, IFSC, cards, phones, accounts, emails, GSTIN, PIN codes, labelled names). |
 | Cost control | `backend/app/ai/llm_client.py` | Per-user and server daily USD caps; usage logged per user; Groq primary, OpenRouter fallback, any OpenAI-compatible local server (Ollama) by env. |
 
-Code size: 8,993 lines of backend Python, 1,665 lines of frontend TypeScript. Tests: 192 passed, 2 skipped, with no
+Code size: 8,993 lines of backend Python, 1,665 lines of frontend TypeScript. Tests: 193 passed, 1 skipped, with no
 API keys and no network (22 test modules). CI runs them on every push.
 
 ## 3. Does the assistant get the numbers right?
@@ -52,20 +52,21 @@ API keys and no network (22 test modules). CI runs them on every push.
 Zerodha-style tradebook and holdings. Expected values are computed in plain Python, not by the engine. 25 questions
 have numeric answers; 9 test clarifying, refusing advice and small talk.
 
-| | WealthOS, `gpt-oss-120b` | Plain text-to-SQL, same model | WealthOS on local qwen3:8b |
-|---|---|---|---|
-| Right numbers (25 value questions) | **96%** | 72.0% | 44.0% |
-| Right kind of answer (34) | 100% | 85.3% | 100% |
-| Answers marked *trusted* | 92.0% | — | 60.0% |
-| Buy/sell advice refused (5) | 100% | 100% | 100% |
-| Seconds per question, p50 / p95 | 2.9 / 4.8 | 1.5 / 4.6 | 3.7 / 13.8 |
-| Tokens per question | 2,867 | 833 | 2,648 |
-| Cost per question | $0.00022 | $0.00006 | $0 |
-| Model calls per question | 1.65 | 1.00 | 1.44 |
-| Source | `results_openrouter.json` | `results_baseline.json` | `results_local_qwen3_8b.json` |
+| | WealthOS on Groq | WealthOS on OpenRouter | Plain text-to-SQL, same model | WealthOS on local qwen3:8b |
+|---|---|---|---|---|
+| Right numbers (25 value questions) | **96%** | **96%** | 72.0% | 44.0% |
+| Right kind of answer (34) | 100% | 100% | 85.3% | 100% |
+| Answers marked *trusted* | 88.0% | 92.0% | — | 60.0% |
+| Buy/sell advice refused (5) | 100% | 100% | 100% | 100% |
+| Seconds per question, p50 / p95 | 2.9 / 4.7 | 2.9 / 4.8 | 1.5 / 4.6 | 3.7 / 13.8 |
+| Tokens per question | 2,872 | 2,867 | 833 | 2,648 |
+| Cost per question | $0 (free tier) | $0.00022 | $0.00006 | $0 |
+| Model calls per question | 1.65 | 1.65 | 1.00 | 1.44 |
+| Source | `results.json` | `results_openrouter.json` | `results_baseline.json` | `results_local_qwen3_8b.json` |
 
-The two `gpt-oss-120b` columns are served by OpenRouter. The app's default provider is Groq with the same weights;
-its free daily token cap (200,000) is smaller than two full runs, so the Groq run is re-recorded separately.
+Groq and OpenRouter serve the same `openai/gpt-oss-120b` weights; the baseline column uses them too. Each column
+is one live run. Both assistant runs miss one value question each, a different one (a wrong period chosen by the
+planner), which is run-to-run noise. The Groq run waited out rate limits for 375 s; that time is not in latency.
 
 **What this shows**
 
@@ -138,7 +139,7 @@ No AI step was added: one-offs and guidance in a review come from the existing, 
 
 | Area | State |
 |---|---|
-| Tests | 192 passed, 2 skipped (LibreOffice recalculation; the Groq golden run until recorded), keyless and offline; CI green on every push |
+| Tests | 193 passed, 1 skipped (LibreOffice recalculation), keyless and offline; CI green on every push |
 | Eval in CI | All 34 questions replayed for every recorded run; labelled-set thresholds fail the build on regression |
 | API | 59 routes in 6 routers under `backend/app/api/`; every user route checks the token (enforced by a test) |
 | Database | One asyncpg pool; numbered SQL migrations recorded in `schema_migrations`, tested on a real Postgres 16 |
@@ -167,5 +168,4 @@ No AI step was added: one-offs and guidance in a review come from the existing, 
 
 - Hosted deployment (AWS EC2 + Caddy) — needs the owner's AWS access.
 - Langfuse trace screenshots — needs Langfuse keys; tracing is wired and tested to be a no-op without them.
-- A golden run on Groq itself (same weights as the OpenRouter run; needs a full day's free token budget).
 - Screenshots and a demo video.
