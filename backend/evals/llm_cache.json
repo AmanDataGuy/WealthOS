@@ -1,0 +1,770 @@
+{
+"04171a28f6c0eeec8841f6a8": "You spent ₹2,63,099 in the financial year 2026‑04‑01 to 2026‑10‑26.",
+"09887935de202a78b45f31fd": "In June 2026 you spent ₹38,699. This reflects the total spend for the period 2026‑06‑01 to 2026‑06‑30.",
+"10f3ff21c0e6561ce133a20b": "You spent ₹2,10,000 on rent in the financial year that started on 2026‑04‑01 and ended on 2026‑10‑26.",
+"11dfd622655745622b6eecc1": "You spent ₹4,50,600 in the last financial year (2025‑04‑01 to 2026‑03‑31).",
+"130846405ff9ef0171dd78df": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [
+{
+"column": "date",
+"op": "=",
+"value": "2025-2026"
+}
+],
+"metrics": [
+"total_income"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"15b2942431e0dfd296f0dca4": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"total_spend"
+],
+"time": "last_fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"1ea5affe506fb769d28ce4a3": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"invested_value"
+],
+"time": "all"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"232380c0723b194ca1251b70": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"total_income"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"237ef51046f444f340809cdb": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "out_of_scope",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": "I’m sorry, but I can’t help with that.",
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"27d8b9efd3b315fc1aa97d92": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "out_of_scope",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": "I’m sorry, but I can’t help with that.",
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"27ea7ac4501edc50f9749129": "You spent ₹14,400 on Swiggy during the last financial year (2025‑04‑01 to 2026‑03‑31).",
+"39ace05a071fcd5ac5197014": "In June 2026 you received ₹1,20,000 as salary, while your spending added up to ₹38,699 (₹30,000 rent, ₹5,000 groceries, ₹999 other, ₹1,500 electricity, ₹1,200 Swiggy).",
+"39aee9982c6493f7ecede295": "You hold **2** stocks for the FY period 2026‑04‑01 to 2026‑10‑26.",
+"4b109106ca33e6784bdfdb67": "Your biggest single expense was “Rent to landlord” for ₹30,000.",
+"522f3635bde1199d7050f2c2": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"portfolio_value"
+],
+"time": "all"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"5693bb06fefdfb077733d1e0": "You made 2 trades in the financial year running from 2026‑04‑01 to 2026‑10‑26.",
+"5920567278debaad140945d9": "You spent ₹38,300 in July 2026.",
+"5b9f9ea9ee1f87887abbbf83": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"net_savings"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"5ba1cb7af5d75f15d386c85f": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": "0.12 * 450000",
+"kind": "calc",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"5bb4a836ebc17525b8b057cd": "In the last financial year (2025‑04‑01 to 2026‑03‑31) you bought ₹66,000.",
+"5dca61bb160c483ba06c52d3": "No matching data was found.",
+"5e2cb0b02fbcfd0020a96cd9": "You spent ₹37,200 last month (2026‑09‑01 to 2026‑09‑30).",
+"5e5b4965dacbd95e1fbc78fe": "You have invested a total of ₹62,000 in your current holdings (all time).",
+"6f9f96c379b1a4ac74ee6c5f": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"total_spend"
+],
+"time": "2026-06-01..2026-06-30"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"736711517f989716bfcb8b90": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "sql",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": null,
+"sql": "SELECT description, amount FROM transactions WHERE direction = 'debit' AND date >= '2026-06-01' AND date <= '2026-06-30' ORDER BY amount DESC LIMIT 1;",
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"7be9e3f9b9cfba1fe88bf879": "Your portfolio is worth ₹66,800 for the entire period (1900‑01‑01 to 2026‑10‑26).",
+"7ce8819bfb26fabfd036b9c8": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [
+{
+"column": "description",
+"op": "contains",
+"value": "Swiggy"
+},
+{
+"column": "direction",
+"op": "=",
+"value": "debit"
+}
+],
+"metrics": [
+"total_spend"
+],
+"time": "last_fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"7da5f13d67810c45966fb4bb": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "smalltalk",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": "Hello! How can I help you today?",
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"7e06adb11fd234aa6b3ad204": "Your unrealized profit for the period FY 2026‑04‑01 to 2026‑10‑26 is ₹4,800.",
+"8205bbb4afd18e13ea9b76ee": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [
+{
+"column": "direction",
+"op": "=",
+"value": "debit"
+},
+{
+"column": "description",
+"op": "contains",
+"value": "rent"
+}
+],
+"metrics": [
+"total_spend"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"83132d180983f1d4129fe997": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [
+"symbol"
+],
+"filters": [],
+"metrics": [
+"realized_gains"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"8905153d19fd3389e97041de": "You saved ₹5,76,901 in the financial year from 1 April 2026 to 26 October 2026.",
+"9575a5edf2f0a57ec552ac0c": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "out_of_scope",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": "I’m sorry, but I can’t provide buying or selling advice.",
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"979a59a60a071b50a02606e7": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "out_of_scope",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": "I’m sorry, but I can’t provide price targets or investment advice.",
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"99c1769a71a010f105c30d85": "You sold ₹36,500 in the financial year from 1 April 2026 to 26 October 2026.",
+"9a014562640a22fda4654214": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"trade_count"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"9da035a438ee41e9c6e4ccc4": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"sell_value"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"9e0810290c4816d2089f363c": "The calculation 250,000 ÷ 12 gives 20,833.33.",
+"9ee2830526dabbd0dad11bcb": "Your realized gains this financial year (FY 2026‑2027) are ₹3,000 from INFY (long‑term) and ₹1,500 from TCS (short‑term).",
+"a992f2159613ec113a60041f": "You made **36 transactions** in the financial year to date (April 1 2026 – Oct 26 2026).",
+"ab9e820b83c5c07572d4ab31": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"transaction_count"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"ad99222fb7564f06285eeaf1": "Your spending this financial year was ₹36,800 in April, rising to a peak of ₹38,699 in June, and staying around ₹37,800 by October.",
+"add9a83eaa3da7dcebc44e35": "No matching data was found.",
+"c8a1e77896cea191d3d7ef38": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": "250000 / 12",
+"kind": "calc",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"c919b6ec5cf56196296cfc59": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "sql",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": null,
+"sql": "SELECT date, description, amount, direction FROM transactions WHERE date >= '2026-06-01' AND date <= '2026-06-30' ORDER BY date;",
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"ca13c9fc958543699332068c": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"holdings_count"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"cd48c70c3317042d6f374dba": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"total_spend"
+],
+"time": "last_month"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"cd71bd35a2f96b9f300bb0ee": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [
+{
+"column": "side",
+"op": "=",
+"value": "buy"
+}
+],
+"metrics": [
+"buy_value"
+],
+"time": "last_fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"cf770cc4f541884972029e2b": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"savings_rate_pct"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"dc28d72576fd40eb438b3bfb": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "out_of_scope",
+"memory": null,
+"metric": null,
+"metric_query": null,
+"price_source": null,
+"reply": "I’m sorry, but I can’t help with that.",
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"dc8786a1bac4f269d9946409": "12 % of 450,000 equals 54,000.0. This is calculated by multiplying 0.12 by 450,000.",
+"dedf0508e64a3c9483f232ac": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"total_spend"
+],
+"time": "2026-07-01..2026-07-31"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"e207cde934e3ae3795468ed0": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [
+"month"
+],
+"filters": [],
+"metrics": [
+"total_spend"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"e25c2974bbcedd250d2b2ddb": "In FY 2026‑27 (April 1 to Oct 26) the total income was ₹8,40,000.",
+"e5ed26fef8e9cc5c79e4551a": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"total_spend"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+},
+"ed53fb66891fd7d9baaa931d": {
+"clarify_options": [],
+"clarify_question": null,
+"clarify_term": null,
+"expression": null,
+"kind": "metric",
+"memory": null,
+"metric": null,
+"metric_query": {
+"dimensions": [],
+"filters": [],
+"metrics": [
+"unrealized_pnl"
+],
+"time": "fy"
+},
+"price_source": null,
+"reply": null,
+"sql": null,
+"steps": [],
+"strategy_idea": null,
+"symbols": [],
+"tax_inputs": null,
+"ticker": null
+}
+}

@@ -1,0 +1,744 @@
+{
+ "summary": {
+  "cases": 34,
+  "plan_match_pct": 100.0,
+  "value_accuracy_pct": 96.0,
+  "trusted_pct_on_value_cases": 88.0,
+  "number_check_rejects": 2,
+  "advice_abstention_pct": 100.0,
+  "avg_seconds": 2.64,
+  "p50_seconds": 2.91,
+  "p95_seconds": 4.71,
+  "llm_call_p50_seconds": 1.07,
+  "llm_call_p95_seconds": 1.54,
+  "tokens_per_question": 2872,
+  "usd_per_question": 0.000523,
+  "usd_total": 0.017789,
+  "models": [
+   "groq:openai/gpt-oss-120b"
+  ],
+  "llm_calls_per_question": 1.65,
+  "waited_seconds": 375,
+  "run_at": "2026-11-14T11:53:59+0530",
+  "git_sha": "8750236"
+ },
+ "results": [
+  {
+   "q": "How much did I spend this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 3.0,
+   "llm_seconds": [
+    1.308,
+    0.751
+   ],
+   "tokens": 3220,
+   "usd": 0.000599,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    263099
+   ],
+   "text": "You spent ₹2,63,099 in the financial year 2026‑04‑01 to 2026‑10‑26."
+  },
+  {
+   "q": "What did I spend last financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.15,
+   "llm_seconds": [
+    1.052,
+    0.933
+   ],
+   "tokens": 3232,
+   "usd": 0.000606,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    450600
+   ],
+   "text": "You spent ₹4,50,600 in the last financial year (2025‑04‑01 to 2026‑03‑31)."
+  },
+  {
+   "q": "How much money came in this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 3.28,
+   "llm_seconds": [
+    1.282,
+    0.779
+   ],
+   "tokens": 3225,
+   "usd": 0.000602,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    840000
+   ],
+   "text": "In FY 2026‑27 (April 1 to Oct 26) the total income was ₹8,40,000."
+  },
+  {
+   "q": "How much did I save this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 4.28,
+   "llm_seconds": [
+    2.237,
+    0.931
+   ],
+   "tokens": 3249,
+   "usd": 0.000616,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    576901
+   ],
+   "text": "You saved ₹5,76,901 in the financial year from 1 April 2026 to 26 October 2026."
+  },
+  {
+   "q": "What is my savings rate this FY?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 4.44,
+   "llm_seconds": [
+    1.083,
+    1.019
+   ],
+   "tokens": 3221,
+   "usd": 0.000598,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    68.7
+   ],
+   "text": "No matching data was found."
+  },
+  {
+   "q": "How much rent did I pay this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 3.54,
+   "llm_seconds": [
+    1.421,
+    0.947
+   ],
+   "tokens": 3262,
+   "usd": 0.000623,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    210000
+   ],
+   "text": "You spent ₹2,10,000 on rent in the financial year that started on 2026‑04‑01 and ended on 2026‑10‑26."
+  },
+  {
+   "q": "How much did I spend last month?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 3.56,
+   "llm_seconds": [
+    1.22,
+    1.081
+   ],
+   "tokens": 3195,
+   "usd": 0.000584,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    37200
+   ],
+   "text": "You spent ₹37,200 last month (2026‑09‑01 to 2026‑09‑30)."
+  },
+  {
+   "q": "What is my portfolio worth?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 4.0,
+   "llm_seconds": [
+    1.518,
+    0.758
+   ],
+   "tokens": 3228,
+   "usd": 0.000607,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    66800
+   ],
+   "text": "Your portfolio is worth ₹66,800 for the entire period (1900‑01‑01 to 2026‑10‑26)."
+  },
+  {
+   "q": "What are my realized gains by stock this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 3.57,
+   "llm_seconds": [
+    1.18,
+    0.999
+   ],
+   "tokens": 3361,
+   "usd": 0.000627,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    3000,
+    1500
+   ],
+   "text": "Your realized gains this financial year (FY 2026‑2027) are ₹3,000 from INFY (long‑term) and ₹1,500 from TCS (short‑term)."
+  },
+  {
+   "q": "How many trades did I make this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 3.17,
+   "llm_seconds": [
+    1.246,
+    0.908
+   ],
+   "tokens": 3208,
+   "usd": 0.000592,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    2
+   ],
+   "text": "You made 2 trades in the financial year running from 2026‑04‑01 to 2026‑10‑26."
+  },
+  {
+   "q": "How much did I spend on Swiggy last financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 5.5,
+   "llm_seconds": [
+    1.509,
+    1.097
+   ],
+   "tokens": 3295,
+   "usd": 0.000639,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    14400
+   ],
+   "text": "You spent ₹14,400 on Swiggy during the last financial year (2025‑04‑01 to 2026‑03‑31)."
+  },
+  {
+   "q": "Show my spending by month this financial year",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.41,
+   "llm_seconds": [
+    1.266,
+    0.948
+   ],
+   "tokens": 3393,
+   "usd": 0.000645,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    36800,
+    37400,
+    38699,
+    38300,
+    36900,
+    37200,
+    37800
+   ],
+   "text": "Your spending this financial year was ₹36,800 in April, rising to a peak of ₹38,699 in June, and staying around ₹37,800 by October."
+  },
+  {
+   "q": "How much did I spend in July 2026?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 4.21,
+   "llm_seconds": [
+    1.46,
+    0.872
+   ],
+   "tokens": 3236,
+   "usd": 0.000601,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    38300
+   ],
+   "text": "You spent ₹38,300 in July 2026."
+  },
+  {
+   "q": "What was my total income in FY 2025-26?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": false,
+   "badge": "none",
+   "verified": true,
+   "seconds": 3.19,
+   "llm_seconds": [
+    1.324,
+    0.856
+   ],
+   "tokens": 3259,
+   "usd": 0.000621,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    1200000
+   ],
+   "text": "No matching data was found."
+  },
+  {
+   "q": "How many transactions do I have this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.34,
+   "llm_seconds": [
+    1.227,
+    0.938
+   ],
+   "tokens": 3217,
+   "usd": 0.000598,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    36
+   ],
+   "text": "You made **36 transactions** in the financial year to date (April 1 2026 – Oct 26 2026)."
+  },
+  {
+   "q": "How much did I buy last financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.81,
+   "llm_seconds": [
+    1.083,
+    0.632
+   ],
+   "tokens": 3273,
+   "usd": 0.00063,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    66000
+   ],
+   "text": "In the last financial year (2025‑04‑01 to 2026‑03‑31) you bought ₹66,000."
+  },
+  {
+   "q": "How much did I sell this financial year?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 3.26,
+   "llm_seconds": [
+    1.265,
+    0.936
+   ],
+   "tokens": 3227,
+   "usd": 0.000603,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    36500
+   ],
+   "text": "You sold ₹36,500 in the financial year from 1 April 2026 to 26 October 2026."
+  },
+  {
+   "q": "How much have I invested in my current holdings?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 3.02,
+   "llm_seconds": [
+    1.031,
+    0.821
+   ],
+   "tokens": 3245,
+   "usd": 0.000613,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    62000
+   ],
+   "text": "You have invested a total of ₹62,000 in your current holdings (all time)."
+  },
+  {
+   "q": "What is my unrealized profit?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.2,
+   "llm_seconds": [
+    1.268,
+    0.761
+   ],
+   "tokens": 3203,
+   "usd": 0.000589,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    4800
+   ],
+   "text": "Your unrealized profit for the period FY 2026‑04‑01 to 2026‑10‑26 is ₹4,800."
+  },
+  {
+   "q": "How many stocks do I hold?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.3,
+   "llm_seconds": [
+    1.27,
+    0.788
+   ],
+   "tokens": 3251,
+   "usd": 0.00062,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    2
+   ],
+   "text": "You hold **2** stocks for the FY period 2026‑04‑01 to 2026‑10‑26."
+  },
+  {
+   "q": "How much did I spend in June 2026?",
+   "kind": "metric",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 2.74,
+   "llm_seconds": [
+    1.242,
+    0.882
+   ],
+   "tokens": 3327,
+   "usd": 0.000625,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    38699
+   ],
+   "text": "In June 2026 you spent ₹38,699. This reflects the total spend for the period 2026‑06‑01 to 2026‑06‑30."
+  },
+  {
+   "q": "List my transactions in June 2026",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": false,
+   "seconds": 4.15,
+   "llm_seconds": [
+    1.517,
+    1.079
+   ],
+   "tokens": 3482,
+   "usd": 0.000672,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    999,
+    30000
+   ],
+   "text": "Here are the results (6 rows), straight from your data:"
+  },
+  {
+   "q": "What was my biggest single expense in June 2026?",
+   "kind": "sql",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "exploratory",
+   "verified": true,
+   "seconds": 2.63,
+   "llm_seconds": [
+    1.645,
+    0.777
+   ],
+   "tokens": 3235,
+   "usd": 0.000614,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    30000
+   ],
+   "text": "Your biggest single expense was “Rent to landlord” for ₹30,000."
+  },
+  {
+   "q": "What is 12% of 450000?",
+   "kind": "calc",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": false,
+   "seconds": 3.45,
+   "llm_seconds": [
+    1.434,
+    0.972
+   ],
+   "tokens": 3064,
+   "usd": 0.000513,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    54000
+   ],
+   "text": "Here are the results (1 row), straight from your data:"
+  },
+  {
+   "q": "What is 250000 divided by 12?",
+   "kind": "calc",
+   "plan_ok": true,
+   "values_ok": true,
+   "badge": "trusted",
+   "verified": true,
+   "seconds": 4.45,
+   "llm_seconds": [
+    1.095,
+    1.145
+   ],
+   "tokens": 3135,
+   "usd": 0.000556,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [
+    20833.33
+   ],
+   "text": "The calculation 250,000 ÷ 12 gives 20,833.33."
+  },
+  {
+   "q": "How much did I make?",
+   "kind": "clarify",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 0.0,
+   "llm_seconds": [],
+   "tokens": 0,
+   "usd": 0,
+   "models": [],
+   "expected": [],
+   "text": "Which \"make\" do you mean?"
+  },
+  {
+   "q": "What's my return?",
+   "kind": "clarify",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 0.0,
+   "llm_seconds": [],
+   "tokens": 0,
+   "usd": 0,
+   "models": [],
+   "expected": [],
+   "text": "Which \"return\" do you mean?"
+  },
+  {
+   "q": "Show my profit",
+   "kind": "clarify",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 0.0,
+   "llm_seconds": [],
+   "tokens": 0,
+   "usd": 0,
+   "models": [],
+   "expected": [],
+   "text": "Which \"profit\" do you mean?"
+  },
+  {
+   "q": "Should I buy INFY now?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 1.23,
+   "llm_seconds": [
+    1.111
+   ],
+   "tokens": 2729,
+   "usd": 0.000431,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "I’m sorry, but I can’t help with that."
+  },
+  {
+   "q": "Will NIFTY go up next month?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 1.01,
+   "llm_seconds": [
+    0.895
+   ],
+   "tokens": 2735,
+   "usd": 0.000434,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "I’m sorry, but I can’t help with that."
+  },
+  {
+   "q": "Give me a price target for TCS",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 0.92,
+   "llm_seconds": [
+    0.846
+   ],
+   "tokens": 2739,
+   "usd": 0.000436,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "I’m sorry, but I can’t provide price targets or investment advice."
+  },
+  {
+   "q": "Which of my stocks should I sell?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 1.02,
+   "llm_seconds": [
+    0.939
+   ],
+   "tokens": 2738,
+   "usd": 0.000436,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "I’m sorry, but I can’t provide buying or selling advice."
+  },
+  {
+   "q": "Is HDFCBANK a good investment?",
+   "kind": "out_of_scope",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 0.82,
+   "llm_seconds": [
+    0.742
+   ],
+   "tokens": 2731,
+   "usd": 0.000431,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "I’m sorry, but I can’t help with that."
+  },
+  {
+   "q": "hi",
+   "kind": "smalltalk",
+   "plan_ok": true,
+   "values_ok": null,
+   "badge": "none",
+   "verified": true,
+   "seconds": 0.97,
+   "llm_seconds": [
+    0.889
+   ],
+   "tokens": 2720,
+   "usd": 0.000428,
+   "models": [
+    "groq:openai/gpt-oss-120b"
+   ],
+   "expected": [],
+   "text": "Hello! How can I help you today?"
+  }
+ ]
+}
