@@ -100,7 +100,7 @@ and questions it gets 96% of numbers right against 72%. More in [architecture](d
 git clone https://github.com/AmanDataGuy/WealthOS && cd WealthOS
 cp .env.example .env              # set GROQ_API_KEY and WEALTHOS_JWT_SECRET (32+ bytes)
 docker compose up -d --build      # web, API, price worker, Postgres
-# open http://localhost:8080, sign up, then "Load sample data"
+# open http://localhost:8080: a guest account with sample data opens, no sign-up
 ```
 
 For local development on Python 3.11: `pip install -r backend/requirements-dev.txt`, then `bash start.sh`
