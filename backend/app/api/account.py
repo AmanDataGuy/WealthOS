@@ -1,7 +1,7 @@
 """
 # account.py - sign-up, sign-in, the health check, and taking out or deleting an account
 
-- Routes: `/auth/signup`, `/auth/login`, `/health`, `/account/{user_id}/export`, `DELETE /account/{user_id}`.
+- Routes: `/auth/signup`, `/auth/login`, `/auth/guest`, `/health`, `/account/{user_id}/export`, `DELETE /account/{user_id}`.
 - The sign-in machinery (tokens, the users-table query, the pool) lives in `main.py`; it is reached through the
   `main` module so tests can swap `main._users` for a fake table.
 """
@@ -9,6 +9,7 @@ import asyncio
 import csv
 import io
 import logging
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import asyncpg
@@ -44,6 +45,19 @@ async def signup(body: Credentials):
                            name, main._hash(body.password))
     except asyncpg.UniqueViolationError:
         raise HTTPException(409, "username already taken")
+    return {"user_id": row["id"], "username": row["username"], "token": main._issue_token(row["id"], row["username"])}
+
+
+# A throwaway account with the sample data loaded, so a visitor can try the app without signing up.
+# shortcut: guest accounts and their files are never removed; add a nightly cleanup of guest-* users older than a day
+# once the hosted demo gets real traffic.
+@router.post("/auth/guest")
+async def guest():
+    """Create a guest account (no password, so nobody can sign in to it again), load the sample data, and sign in."""
+    from app.api.sources import load_sample
+    row = await main._users("INSERT INTO users (username, password_hash) VALUES ($1, '!') RETURNING id::text, username",
+                            f"guest-{secrets.token_hex(4)}")
+    await asyncio.to_thread(load_sample, row["id"])
     return {"user_id": row["id"], "username": row["username"], "token": main._issue_token(row["id"], row["username"])}
 
 
