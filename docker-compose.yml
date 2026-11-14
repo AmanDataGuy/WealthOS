@@ -8,7 +8,7 @@ services:
     image: wealthos-api:latest
     container_name: wealthos-api
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${API_PORT:-8000}:8000"   # loopback only; the web container reaches the API inside the network
     env_file:
       - .env
     environment:
