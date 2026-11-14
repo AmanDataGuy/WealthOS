@@ -29,7 +29,7 @@
 
 | Result                                          |       WealthOS |        Baseline |
 | :---------------------------------------------- | -------------: | --------------: |
-| Right numbers, 34-question golden set           |        **96%** | 72%<sup>1</sup> |
+| Right numbers, 25 number questions of 34        |        **96%** | 72%<sup>1</sup> |
 | Right kind of answer (answer, ask back, refuse) |       **100%** |             85% |
 | SQL attacks blocked                             |   **53 of 53** |               – |
 | Normal queries wrongly blocked                  |        0 of 16 |               – |
@@ -104,7 +104,7 @@ docker compose up -d --build      # web, API, price worker, Postgres
 ```
 
 For local development on Python 3.11: `pip install -r backend/requirements-dev.txt`, then `bash start.sh`
-(web on :5173). Tests need no keys: `cd backend && pytest -q`.
+(web on :5173). Tests need no keys: `cd backend && WEALTHOS_ENV=test pytest -q`.
 
 ## Evaluation
 
