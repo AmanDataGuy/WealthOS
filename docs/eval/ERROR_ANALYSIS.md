@@ -34,14 +34,14 @@ June spend question returned the right total in both runs.
 
 Source: `backend/evals/results_baseline.json` (same model, same questions, same `guard_sql` and engine).
 Value accuracy 72.0% <!-- src: backend/evals/results_baseline.json#summary.value_accuracy_pct --> against the
-assistant's 100.0% on the same model <!-- src: backend/evals/results_openrouter.json#summary.value_accuracy_pct -->.
+assistant's 96.0% on the same model <!-- src: backend/evals/results_openrouter.json#summary.value_accuracy_pct -->.
 
 | Category | Count | Cases | What the baseline did | What the assistant's design fixes |
 |---|---|---|---|---|
 | Wrong financial-year window | 5 | spend, rent, spending by month, savings rate, realized gains (all "this FY") | `DATE_TRUNC('year', DATE '2026-04-01')` (calendar year), or the previous FY's dates (2025-04-01..2026-03-31) for "this FY" | The planner only names a time expression (`fy`); `timeexpr` turns it into dates in code. |
 | ... and a wrong formula on top | 2 of the 5 | savings rate, realized gains by stock | Savings rate as a fraction, not a %; realized gains as (sell price − holdings' average cost) instead of matching each sell to earlier buys (FIFO), which also returned no rows | These are metric definitions with code behind them (`_realized_gains` does FIFO), so the model never writes the formula. |
 | Declined arithmetic | 2 | "What is 12% of 450000?", "250000 divided by 12" | Answered NONE (the prompt says to decline what SQL over the tables cannot answer) | The `calc` plan kind evaluates the expression in code. |
-| Ran SQL on an ambiguous question | 3 | "How much did I make?", "What's my return?", "Show my profit" | Picked a reading and ran it | The `clarify` plan kind asks first (missed twice by the assistant too, see section 1). |
+| Ran SQL on an ambiguous question | 3 | "How much did I make?", "What's my return?", "Show my profit" | Picked a reading and ran it | The `clarify` plan kind asks first (now asked in code before any model call, see section 1). |
 | No trust signal | all 25 value answers | | Every answer is bare SQL output; 0.0% are trusted <!-- src: backend/evals/results_baseline.json#summary.trusted_pct_on_value_cases --> | Metric answers carry the trusted badge and provenance; any sentence with numbers passes `check_numbers`. |
 
 The baseline refused every advice question too (100.0% <!-- src: backend/evals/results_baseline.json#summary.advice_abstention_pct -->):
@@ -146,8 +146,10 @@ about 1% high, which makes the test slightly conservative.
 
 ## 6. Still wrong, and why it is left
 
-1. Clarify misses on "return" / "make": a prompt change needs a new live run to measure, and the current answers are
-   real trusted numbers rather than invented ones.
+1. Period filters on the planner: the OpenRouter run read "last financial year" as this year, and the Groq run
+   (`backend/evals/results.json`, 2026-11-14) answered "What was my total income in FY 2025-26?" with "No matching
+   data" after adding a filter `date = "2025-2026"` that matches no row. Both are planner choices; the fix is the
+   same code check on named periods as in section 1, measured with a new live run.
 2. Derived-number attribution in `check_numbers`: tightening it will reject some correct comparison sentences; it
    needs its own labelled set of real explanations before the rule changes.
 3. Names in narrations: no regex closes this without masking merchant names the analysis needs.
