@@ -64,7 +64,7 @@
 ## What it does
 
 - **Ask your money anything.** Upload bank and card statements (CSV, Excel, HDFC, ICICI and SBI PDFs), broker
-  tradebooks, holdings and CAS files, then ask *"How much did I spend on food this FY?"* or *"Old or new tax regime
+  tradebooks, holdings and CAS files, then ask *"How much did I spend on Swiggy this FY?"* or *"Old or new tax regime
   for me?"*. New users can load a synthetic year with one click. ([ingest](docs/ingest.md))
 - **Every number is checked.** The model plans and explains; code computes. If a sentence has a number that is not
   in the results, the user sees the table instead. ([assistant graph](docs/agent_graph.md))
