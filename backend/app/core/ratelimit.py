@@ -6,6 +6,7 @@ signed-in user when the token is valid, otherwise by IP.
 
 | Rule | Paths | Limit |
 |---|---|---|
+| guest | `/auth/guest` | 5 per hour per IP (each one writes sample files to disk) |
 | auth | `/auth/*` | 10 per minute per IP |
 | ai | `/assistant/ask`, strategy parse / Python run, dashboard AI edit / report, company build | 20 per minute |
 | upload | `/sources/upload` | 30 per hour |
@@ -19,6 +20,7 @@ import threading
 import time
 
 RULES = [  # (name, path pattern, rate, per seconds); first match wins
+    ("guest", re.compile(r"^/auth/guest$"), 5, 3600),
     ("auth", re.compile(r"^/auth/"), 10, 60),
     ("ai", re.compile(r"^/assistant/ask$|^/strategy/[^/]+/[^/]+/(?:parse|python)$|^/dashboards/[^/]+/[^/]+/(?:ai-edit|report)$"
                          r"|^/company/[^/]+/build$"), 20, 60),
