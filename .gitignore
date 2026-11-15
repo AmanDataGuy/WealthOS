@@ -34,3 +34,7 @@ suggested_addition/
 BUILD_PLAN.md
 AUDIT.md
 docs/history/
+
+# Local design notes for the filing Q&A retrieval work
+docs/rag/PLAN.md
+backend/.venv-rag/
