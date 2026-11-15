@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
 
   wealthos-db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16   # Postgres 16 with the pgvector extension (research page vectors)
     container_name: wealthos-db
     ports:
       - "127.0.0.1:5432:5432"   # loopback only: local dev reaches it, the network does not
