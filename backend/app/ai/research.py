@@ -104,8 +104,15 @@ def add(user_id: str, workspace_id: str, path: Path, doc_id: str) -> dict:
 
 # Every indexed filing in the workspace, newest data from disk.
 def _docs(user_id: str, workspace_id: str) -> list[dict]:
+    from app.ai import chunking
     folder = _folder(user_id, workspace_id)
-    return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(folder.glob("*.json"))] if folder.exists() else []
+    docs = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(folder.glob("*.json"))] if folder.exists() else []
+    for d in docs:
+        if "chunks" not in d:  # indexed before chunking existed: chunk the saved pages, so old uploads still answer
+            d["meta"] = chunking.doc_meta(d["pages"], d["doc_type"], Path(d["file"]).stem)
+            d["chunks"] = {"structure": chunking.structure_chunks(d["pages"], d["meta"]),
+                           "fixed": chunking.fixed_chunks(d["pages"], d["meta"])}
+    return docs
 
 
 # The workspace's indexed documents: [{doc_id, file, doc_type, pages}].
