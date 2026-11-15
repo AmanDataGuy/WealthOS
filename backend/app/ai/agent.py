@@ -272,11 +272,12 @@ Never give buy/sell/hold advice or predictions. If the results are empty, say no
 
 
 # Answer one question for one user (on one workspace's data when given). `previous_plan` makes follow-ups work;
-# `define` stores a clarification first; `chat_id` checkpoints the run under that chat. The steps are in `graph.py`.
-async def ask(user_id: str, question: str, previous_plan: dict | None = None,
-              define: dict | None = None, workspace_id: str | None = None, chat_id: str | None = None) -> Answer:
+# `define` stores a clarification first; `chat_id` checkpoints the run under that chat; `on_step` hears each finished
+# step (for the live step list). The steps are in `graph.py`.
+async def ask(user_id: str, question: str, previous_plan: dict | None = None, define: dict | None = None,
+              workspace_id: str | None = None, chat_id: str | None = None, on_step=None) -> Answer:
     from app.ai import graph
-    state = await graph.invoke(user_id, question, previous_plan, define, workspace_id, chat_id)
+    state = await graph.invoke(user_id, question, previous_plan, define, workspace_id, chat_id, on_step)
     return Answer.model_validate({**state["answer"], "timings": state["timings"]})
 
 
