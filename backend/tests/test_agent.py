@@ -185,3 +185,31 @@ def test_vague_questions_are_clarified_in_code(monkeypatch):
     monkeypatch.setattr(llm, "call_json", no_model)
     a = _ask("How much did I make?")
     assert a.badge == "none" and a.clarify and a.clarify["options"] == agent.VAGUE_OPTIONS
+
+
+# The streaming route sends each finished step in order, then the very answer /assistant/ask gives, and never the
+# explanation text before the number check has run.
+def test_stream_sends_steps_then_the_same_answer(monkeypatch):
+    import json
+
+    from fastapi.testclient import TestClient
+
+    import app.main as main
+    monkeypatch.setattr(main, "JWT_SECRET", "test-secret-at-least-32-characters-long")
+    _fake_llm(monkeypatch, {"kind": "metric", "metric_query": {"metrics": ["total_spend"], "time": "2026-04-01..2026-06-30"}},
+              "You spent ₹29,000 between April and June 2026.")
+    c = TestClient(main.app, headers={"Authorization": f"Bearer {main._issue_token('u', 'u')}"})
+    body = {"user_id": "u", "question": "How much did I spend?"}
+    r = c.post("/assistant/ask/stream", json=body)
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
+    events = [(block.split("\n")[0].removeprefix("event: "), json.loads(block.split("\n")[1].removeprefix("data: ")))
+              for block in r.text.strip().split("\n\n")]
+    assert [k for k, _ in events] == ["step"] * 4 + ["answer"]
+    steps = [e for _, e in events[:4]]
+    assert [s["node"] for s in steps] == ["plan", "run", "explain", "verify"]
+    assert steps[0]["kind"] == "metric" and steps[1]["rows"] == 1 and all(s["seconds"] >= 0 for s in steps)
+    assert "29,000" not in json.dumps(steps)  # the text waits for the answer event
+    plain = c.post("/assistant/ask", json=body).json()
+    drop = lambda a: {k: v for k, v in a.items() if k not in ("timings", "chat_id")}  # wall times and new chat ids differ
+    assert drop(events[-1][1]) == drop(plain) and events[-1][1]["verified"]
+    assert c.post("/assistant/ask/stream", json={**body, "chat_id": "no-such-chat"}).status_code == 404
