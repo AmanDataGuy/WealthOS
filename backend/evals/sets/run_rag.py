@@ -132,9 +132,9 @@ def pct(xs: list[float], p: int, nd: int = 1) -> float | None:
 
 
 # Score every arm on the set: per-arm metrics plus each question's (found, reciprocal rank, best top-5 score).
-async def retrieval(rows: list[dict], vecs: dict) -> tuple[dict, dict]:
+async def retrieval(rows: list[dict], vecs: dict, only: list[str] | None = None) -> tuple[dict, dict]:
     arms, per_q = {}, {r["id"]: {} for r in rows}
-    for arm in [*ARMS, BEFORE]:
+    for arm in only or [*ARMS, BEFORE]:
         found, rr, ms, kinds = [], [], [], {}
         for r in rows:
             hits, took = await retrieve(vecs, r["q"], arm)
