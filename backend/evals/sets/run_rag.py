@@ -118,7 +118,8 @@ async def retrieve(vecs: dict, question: str, arm: str) -> tuple[list[dict], flo
                  if not p["toc"] and p["text"].strip()]
         scores = research.bm25_scores(pages, question)
         hits = [{"file": pages[i]["file"], "page_start": pages[i]["page"], "page_end": pages[i]["page"],
-                 "score": scores[i]} for i in sorted(scores, key=scores.get, reverse=True)[:research.CANDIDATES]]
+                 "score": scores[i], "text": pages[i]["text"]}
+                for i in sorted(scores, key=scores.get, reverse=True)[:research.CANDIDATES]]
     else:
         how = ARMS[arm]
         dense = dense_ranking(vecs, how["chunker"], question) if how["mode"] != "bm25" else None
@@ -135,7 +136,7 @@ def pct(xs: list[float], p: int, nd: int = 1) -> float | None:
 async def retrieval(rows: list[dict], vecs: dict, only: list[str] | None = None) -> tuple[dict, dict]:
     arms, per_q = {}, {r["id"]: {} for r in rows}
     for arm in only or [*ARMS, BEFORE]:
-        found, rr, ms, kinds = [], [], [], {}
+        found, rr, ms, kinds, words = [], [], [], {}, []
         for r in rows:
             hits, took = await retrieve(vecs, r["q"], arm)
             ms.append(took)
@@ -145,9 +146,11 @@ async def retrieval(rows: list[dict], vecs: dict, only: list[str] | None = None)
             if r["answerable"]:
                 found.append(per_q[r["id"]][arm][0])
                 rr.append(per_q[r["id"]][arm][1])
+                words.append(sum(len(h["text"].split()) for h in hits[:K]))  # how much text the model would read
                 kinds.setdefault(r["kind"], []).append(found[-1])
         arms[arm] = {"recall_at_5": round(sum(found) / len(found), 3), "mrr": round(sum(rr) / len(rr), 3),
                      "questions": len(found), "p50_ms": pct(ms, 50), "p95_ms": pct(ms, 95),
+                     "top5_words_mean": round(sum(words) / len(words)),
                      "recall_at_5_by_kind": {k: round(sum(v) / len(v), 3) for k, v in sorted(kinds.items())}}
         print(f"{arm:24s} recall@5 {arms[arm]['recall_at_5']:.3f}  MRR {arms[arm]['mrr']:.3f}  "
               f"p50 {arms[arm]['p50_ms']} ms  p95 {arms[arm]['p95_ms']} ms", flush=True)
