@@ -60,3 +60,60 @@ def test_answer_checked(filing, monkeypatch):
     assert not stray["verified"] and "[9]" in stray["warnings"][0]
     research.delete_doc("u", "default", "acme")
     assert research.list_docs("u") == []
+
+
+def test_rrf_fuses_rankings():
+    assert research.rrf([["a", "b", "c"], ["c", "a"]]) == ["a", "c", "b"]  # a: 1/61+1/62, c: 1/63+1/61, b: 1/62
+    assert research.rrf([[], ["x"]]) == ["x"] and research.rrf([]) == []
+
+
+def test_retrieval_metrics():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "evals" / "sets"))
+    import run_retrieval as rr
+    ranked = [("f", 9), ("f", 3), ("f", 4), ("f", 1), ("f", 2), ("f", 5)]
+    assert rr.recall_at(ranked, {("f", 4)}) == 1 and rr.recall_at(ranked, {("f", 5)}) == 0
+    assert rr.reciprocal_rank(ranked, {("f", 4), ("f", 5)}) == 1 / 3 and rr.reciprocal_rank(ranked, {("g", 1)}) == 0.0
+    assert rr.winner({"hybrid": {"recall_at_5": 0.8, "mrr": 0.9}, "bm25_boost": {"recall_at_5": 0.8, "mrr": 0.7}}) == "hybrid"
+    assert rr.winner({"hybrid": {"recall_at_5": 0.7, "mrr": 0.9}, "bm25_boost": {"recall_at_5": 0.8, "mrr": 0.7}}) == "bm25_boost"
+
+
+# A stand-in for main._vectors that records every statement and answers searches with page 4 of the Acme filing.
+def _fake_store(monkeypatch, fail=False):
+    from app import main
+    seen = []
+
+    async def fake(query, *args):
+        seen.append((query.split()[0], args))
+        if fail:
+            raise OSError("connection refused")
+        return [{"file_hash": "acme", "page": 4}]
+    monkeypatch.setattr(main, "_vectors", fake)
+    monkeypatch.setattr(research, "embed", lambda texts: [[0.0] * 384 for _ in texts])  # never download the model
+    return seen
+
+
+def test_hybrid_mode_stores_and_fuses_vectors(filing, tmp_path, monkeypatch):
+    seen = _fake_store(monkeypatch)
+    _fake(monkeypatch, "See [p. 4].")
+    asyncio.run(research.answer("u", "What are the main risks?"))
+    assert seen == []  # default (bm25) mode never touches the store
+
+    monkeypatch.setenv("WEALTHOS_RESEARCH_SEARCH", "hybrid")
+    research.add("u", "default", tmp_path / "acme_10k.pdf", "acme")
+    kind, args = seen[0]
+    assert kind == "INSERT" and args[:3] == ("u", "default", "acme") and args[3] == [1, 2, 3, 4, 5]
+    out = asyncio.run(research.answer("u", "zebra quantum"))  # no keyword match: only the vector side finds page 4
+    assert seen[-1][0] == "SELECT" and [c["page"] for c in out["citations"]] == [4]
+    research.delete_doc("u", "default", "acme")
+    assert seen[-1][0] == "DELETE"
+
+
+def test_hybrid_falls_back_to_keywords_when_store_is_down(filing, monkeypatch, caplog):
+    _fake_store(monkeypatch, fail=True)
+    monkeypatch.setenv("WEALTHOS_RESEARCH_SEARCH", "hybrid")
+    _fake(monkeypatch, "Acme relies on one Taiwan supplier for 70% of motor controllers [p. 3].")
+    ok = asyncio.run(research.answer("u", "What are the main risks?"))
+    assert ok["verified"] and ok["citations"][0]["page"] == 3
+    assert "keyword-only" in caplog.text
