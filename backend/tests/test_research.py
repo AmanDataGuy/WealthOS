@@ -200,6 +200,7 @@ def test_index_pdf_end_to_end(filing, tmp_path, monkeypatch):
     assert filing == {"doc_id": "acme", "file": "acme_10k.pdf", "doc_type": "10-K", "pages": 5}
     doc = research._docs("u", "default")[0]
     assert set(doc["chunks"]) == {"structure", "fixed"} and doc["meta"]["form"] == "10-K"
+    assert all("sections_started" in p for p in doc["pages"])  # the chunker needs it to cut at a mid-page Note
     top = lambda q: _search(q)[0]["page_start"]
     assert top("What are the main risks?") == 3 and top("Is there any lawsuit?") == 4
     assert top("How did revenue do?") == 5
