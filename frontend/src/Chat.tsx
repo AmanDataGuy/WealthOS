@@ -5,17 +5,49 @@
 // A clarify question shows its options as buttons (the choice is remembered as a definition), and a data answer
 // can be pinned to a dashboard: the tile stores the query, never the numbers.
 // Chats are saved (left list, each named in a few words): open one to read it or carry on; "New chat" starts fresh.
+// While an answer is worked out, each finished step shows live with its seconds (/assistant/ask/stream); the answer
+// text only arrives once its numbers are checked. If the stream fails, the plain /assistant/ask is used instead.
 import { useEffect, useRef, useState } from "react";
-import { del, formatNumber, get, post, safeHref } from "./api";
+import { del, formatNumber, get, post, postStream, safeHref } from "./api";
 import Upload from "./Upload";
 
 type Answer = { text: string; badge: string; rows: Record<string, any>[]; provenance: any; warnings: string[];
   plan: any; verified: boolean; clarify: { term: string; options: string[] } | null; timings?: Record<string, number> };
-type Turn = { question: string; answer?: Answer; error?: string };
+type Step = { node: string; seconds: number; kind?: string; tool?: string | null; rows?: number };
+type Turn = { question: string; answer?: Answer; error?: string; steps?: Step[] };
 type ChatItem = { id: string; title: string; updated_at: string; turns: number };
 type Props = { u: string; boards: { id: string; title: string }[]; onPinned: (id: string) => void;
   compact?: boolean; placeholder?: string };
 const ws = "default";
+
+const REPLY_KINDS = ["clarify", "out_of_scope", "smalltalk"];
+
+// A step's name for the live list: "Planning", "Running metric", "Writing", "Checking numbers".
+function stepLabel(node: string, kind?: string, tool?: string | null) {
+  const names: Record<string, string> = { plan: "Planning", reply: "Replying", run: `Running ${tool ?? kind ?? ""}`.trim(),
+    explain: "Writing", verify: "Checking numbers" };
+  return names[node] ?? node;
+}
+
+// The step expected after the last finished one (nothing after verify or reply).
+function nextStep(steps: Step[], kind?: string) {
+  const last = steps[steps.length - 1]?.node;
+  if (!last) return "plan";
+  if (last === "plan") return REPLY_KINDS.includes(kind ?? "") ? "reply" : "run";
+  return { run: "explain", explain: "verify" }[last];
+}
+
+// The live step list shown while an answer is worked out.
+function StepList({ steps }: { steps: Step[] }) {
+  const kind = steps.find((s) => s.kind)?.kind;
+  const next = nextStep(steps, kind);
+  return (
+    <div className="muted">
+      {steps.map((s, i) => <div key={i}>{stepLabel(s.node, kind, s.tool)} {s.seconds.toFixed(2)} s</div>)}
+      {next && <div>{stepLabel(next, kind)}…</div>}
+    </div>
+  );
+}
 
 const BADGES: Record<string, string> = { trusted: "Trusted", exploratory: "Exploratory", external: "External source", none: "" };
 
@@ -42,7 +74,12 @@ export default function Chat({ u, boards, onPinned, compact = false, placeholder
     setTurns((ts) => [...ts, { question }]); setText(""); setBusy(true);
     let turn: Turn;
     try {
-      const answer = await post("/assistant/ask", { user_id: decodeURIComponent(u), question, workspace_id: ws, previous_plan: previous, define, chat_id: chatId });
+      const body = { user_id: decodeURIComponent(u), question, workspace_id: ws, previous_plan: previous, define, chat_id: chatId };
+      // Add a finished step to the turn being worked out (always the last one).
+      const onStep = (step: Step) => setTurns((ts) => [...ts.slice(0, -1), { ...ts[ts.length - 1], steps: [...(ts[ts.length - 1].steps ?? []), step] }]);
+      let answer;
+      try { answer = await postStream("/assistant/ask/stream", body, onStep); }
+      catch { answer = await post("/assistant/ask", body); }  // any stream failure: the plain route answers the same
       turn = { question, answer };
       if (!chatId) setChatId(answer.chat_id);
       loadChats(); if (define) loadMeanings();
@@ -95,7 +132,7 @@ export default function Chat({ u, boards, onPinned, compact = false, placeholder
         {turns.map((t, i) => (
           <div key={i} className="turn">
             <div className="question">{t.question}</div>
-            {!t.answer && !t.error && <div className="muted">Working it out…</div>}
+            {!t.answer && !t.error && <StepList steps={t.steps ?? []} />}
             {t.error && <div className="error">{t.error}</div>}
             {t.answer && <AnswerView a={t.answer} question={t.question} u={u} boards={boards} onPinned={onPinned}
               onChoose={(term, value) => ask(t.question, { term, value })} />}
