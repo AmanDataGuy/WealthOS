@@ -21,7 +21,9 @@ must cite them. Every number in the answer must be in a chunk it cites (`verify.
 must be in a chunk it was shown; a failed answer is replaced by the passages themselves, never "fixed up".
 
 How the app searches comes from `WEALTHOS_RESEARCH_SEARCH` ("bm25", "vector" or "hybrid", plus "+rerank" and/or
-"+fixed"); the default is plain BM25 over structure chunks until the retrieval eval says otherwise.
+"+fixed"). The default is BM25 over structure chunks: on the filing Q&A eval (`evals/results_rag.json`) vector,
+hybrid and re-ranking did not raise recall@5 above BM25, and structure chunks tie fixed ones on recall while sending
+less text to the model.
 Figures for tables (revenue, profit ...) still come from the statements table / SEC facts; this is for the words.
 """
 from __future__ import annotations
@@ -43,8 +45,10 @@ RERANK_MODEL = "BAAI/bge-reranker-base"
 MODELS_DIR = Path(__file__).resolve().parents[2] / "storage" / "models"
 CHUNKERS, MODES = ("structure", "fixed"), ("bm25", "vector", "hybrid")
 TOP_K, CANDIDATES = 5, 20  # chunks the answer sees; chunks each ranking passes on to fusion and re-ranking
-REFUSE_BM25 = 0.5  # best BM25 score under this: "not found" (set from the retrieval eval's dev split)
-REFUSE_RERANK = -5.0  # best re-ranker score (a logit) under this: "not found"
+# BM25 scores grow with the number of documents, so a cut-off tuned on two 10-Ks (4.64 for bm25/structure in
+# results_rag.json) would refuse good questions in a small workspace; this floor only refuses near-empty matches.
+REFUSE_BM25 = 0.5
+REFUSE_RERANK = -2.79  # best re-ranker score (a logit, per pair) under this: "not found" (tuned for hybrid+rerank/structure)
 NOT_FOUND = "Not found in the filings."
 logger = logging.getLogger(__name__)
 STOP = set("the a an and or of to in on for is are was were be by with as at from that this it its which what how "
