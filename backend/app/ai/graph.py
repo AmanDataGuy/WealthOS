@@ -11,6 +11,8 @@ plan or run may also finish early with an answer (model unavailable, `remember`,
 
 - Prompts, tools and the number check are the ones in `agent.py`, `tools.py` and `verify.py`; this file only wires them.
 - Each node records its wall time in `timings` (returned on the answer).
+- An optional `on_step` callback hears each finished node with its seconds and safe details (plan kind, tool, row
+  count), never the answer text, for the live step list in chat.
 - With a `chat_id`, the state is checkpointed per chat (thread id = chat id) in `agent_state.sqlite` in the user's folder.
 - With `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` set, each question is sent to Langfuse as one trace.
 
@@ -205,16 +207,38 @@ def _callbacks() -> list:
 
 # Run one question through the graph; returns the final state. With a chat id, the state is checkpointed per chat.
 async def invoke(user_id: str, question: str, previous_plan: dict | None, define: dict | None,
-                 workspace_id: str | None, chat_id: str | None = None) -> State:
+                 workspace_id: str | None, chat_id: str | None = None, on_step=None) -> State:
     state = State(user_id=user_id, workspace_id=workspace_id, question=question, previous_plan=previous_plan,
                   define=define, plan=None, step=0, rows=[], provenance=None, warnings=[], badges=[], steps=[],
                   text=None, answer=None, timings={})  # every key, so a checkpointed thread never leaks the last turn
     config = {"callbacks": _callbacks(), "run_name": "wealthos-ask"}
     if not chat_id:
-        return await GRAPH.ainvoke(state, config)
+        return await _run_graph(GRAPH, state, config, on_step)
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
     path = engine.user_dir(user_id) / "agent_state.sqlite"  # one file per user, so threads can't cross users
     path.parent.mkdir(parents=True, exist_ok=True)
     async with AsyncSqliteSaver.from_conn_string(str(path)) as saver:
         config["configurable"] = {"thread_id": engine.safe_id(chat_id)}
-        return await BUILDER.compile(checkpointer=saver).ainvoke(state, config)
+        return await _run_graph(BUILDER.compile(checkpointer=saver), state, config, on_step)
+
+
+# Run the compiled graph to its final state, telling `on_step` (when given) about each node as it finishes.
+# Only the step name, its seconds and safe details are sent: the text is shown after `verify` checks its numbers.
+async def _run_graph(compiled, state: State, config: dict, on_step) -> State:
+    final, seen = state, {}
+    async for mode, chunk in compiled.astream(state, config, stream_mode=["updates", "values"]):
+        if mode == "values":
+            final = chunk
+            continue
+        for node, out in (chunk or {}).items():
+            if not on_step or not out:
+                continue
+            total = out["timings"][node]
+            event = {"node": node, "seconds": round(total - seen.get(node, 0), 4)}
+            seen[node] = total
+            if out.get("plan"):
+                event["kind"] = out["plan"]["kind"]
+            if node == "run" and not out.get("answer"):
+                event["tool"], event["rows"] = (out.get("provenance") or {}).get("tool"), len(out.get("rows") or [])
+            on_step(event)
+    return final
