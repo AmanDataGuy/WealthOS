@@ -76,10 +76,14 @@ export default function Chat({ u, boards, onPinned, compact = false, placeholder
     try {
       const body = { user_id: decodeURIComponent(u), question, workspace_id: ws, previous_plan: previous, define, chat_id: chatId };
       // Add a finished step to the turn being worked out (always the last one).
-      const onStep = (step: Step) => setTurns((ts) => [...ts.slice(0, -1), { ...ts[ts.length - 1], steps: [...(ts[ts.length - 1].steps ?? []), step] }]);
+      let started = false;  // once a step arrived the server is answering, so a retry would save the turn twice
+      const onStep = (step: Step) => (started = true) && setTurns((ts) => [...ts.slice(0, -1), { ...ts[ts.length - 1], steps: [...(ts[ts.length - 1].steps ?? []), step] }]);
       let answer;
       try { answer = await postStream("/assistant/ask/stream", body, onStep); }
-      catch { answer = await post("/assistant/ask", body); }  // any stream failure: the plain route answers the same
+      catch (e) {  // the stream never started (old proxy, network): the plain route answers the same
+        if (started) throw e;
+        answer = await post("/assistant/ask", body);
+      }
       turn = { question, answer };
       if (!chatId) setChatId(answer.chat_id);
       loadChats(); if (define) loadMeanings();
