@@ -66,6 +66,27 @@ export const del = async <T = any>(path: string, body?: unknown): Promise<T> => 
 export const put = async <T = any>(path: string, body: unknown): Promise<T> => (await request(path, "PUT", body)).json();
 export const patch = async <T = any>(path: string, body: unknown): Promise<T> => (await request(path, "PATCH", body)).json();
 
+// POST and read the server-sent events (fetch, since EventSource can't send the token): `onStep` hears each `step`,
+// the `answer` event is returned, an `error` event or an early end throws.
+export async function postStream<T = any>(path: string, body: unknown, onStep: (step: any) => void): Promise<T> {
+  const res = await request(path, "POST", body);
+  const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) throw new Error("the answer stream ended early");
+    buf += value;
+    for (let i; (i = buf.indexOf("\n\n")) >= 0; buf = buf.slice(i + 2)) {
+      const block = buf.slice(0, i);
+      const kind = /^event: (.*)$/m.exec(block)?.[1];
+      const data = JSON.parse(/^data: (.*)$/m.exec(block)?.[1] ?? "null");
+      if (kind === "step") onStep(data);
+      else if (kind === "answer") return data;
+      else if (kind === "error") throw new Error(data?.detail ?? "the answer could not be completed");
+    }
+  }
+}
+
 // Send a file as a form (multipart).
 export const upload = async <T = any>(path: string, form: FormData): Promise<T> => (await request(path, "POST", form)).json();
 
