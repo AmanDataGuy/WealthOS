@@ -89,12 +89,19 @@ def test_retrieval_metrics():
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "evals" / "sets"))
-    import run_retrieval as rr
-    ranked = [("f", 9), ("f", 3), ("f", 4), ("f", 1), ("f", 2), ("f", 5)]
-    assert rr.recall_at(ranked, {("f", 4)}) == 1 and rr.recall_at(ranked, {("f", 5)}) == 0
-    assert rr.reciprocal_rank(ranked, {("f", 4), ("f", 5)}) == 1 / 3 and rr.reciprocal_rank(ranked, {("g", 1)}) == 0.0
-    assert rr.winner({"hybrid": {"recall_at_5": 0.8, "mrr": 0.9}, "bm25_boost": {"recall_at_5": 0.8, "mrr": 0.7}}) == "hybrid"
-    assert rr.winner({"hybrid": {"recall_at_5": 0.7, "mrr": 0.9}, "bm25_boost": {"recall_at_5": 0.8, "mrr": 0.7}}) == "bm25_boost"
+    import run_rag as rr
+    hit = lambda a, b, f="f": {"file": f, "page_start": a, "page_end": b}  # noqa: E731
+    hits = [hit(9, 9), hit(3, 3), hit(4, 6), hit(1, 1), hit(2, 2), hit(7, 7)]
+    assert rr.recall_at(hits, {("f", 5)}) == 1 and rr.recall_at(hits, {("f", 7)}) == 0  # 5 is inside pages 4-6
+    assert rr.reciprocal_rank(hits, {("f", 5), ("f", 7)}) == 1 / 3 and rr.reciprocal_rank(hits, {("g", 9)}) == 0.0
+    # no hits (None) is always refused; 0.15 and 0.6 both get 5 of 6 right, and the lower one wins the tie
+    scores, answerable = [0.1, 0.3, 0.2, 0.9, 1.5, None], [False, False, True, True, True, False]
+    assert rr.tune(scores, answerable) == 0.15
+    assert rr.refusals(scores, answerable, 0.6) == {"unanswerable_refused": 3, "unanswerable": 3,
+                                                    "answerable_refused": 1, "answerable": 3}
+    assert rr.fact_share(["$1,234 million", "Ninth Circuit"], "It was $1, 234 million at the ninth  circuit.") == 1.0
+    dev, test = rr.split(rr.load_set())
+    assert len(dev) == 27 and len(test) == 54 and not set(dev) & set(test)
 
 
 def test_filters_from_question_and_caller(two_docs):
