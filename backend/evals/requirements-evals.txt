@@ -1,0 +1,5 @@
+# requirements-evals.txt - extra packages for the retrieval eval's answer scoring (evals/sets/run_retrieval.py --live)
+# Not part of the app image. Install on top of requirements-dev.txt in a separate venv; ragas pulls in langchain.
+-r ../requirements-dev.txt
+fastembed==0.9.1    # also in requirements.txt; listed so this file works alone
+ragas==0.4.4
