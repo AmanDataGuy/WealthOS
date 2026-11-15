@@ -1,9 +1,9 @@
 """
-# evals/sets/fetch_filings.py - downloads the three real 10-K filings the retrieval set is labelled on, as PDFs
+# evals/sets/fetch_filings.py - downloads the two real 10-K filings the filing Q&A set is labelled on, as PDFs
 
 Real filings are not committed (only synthetic fixtures go in git), so this fetches them from SEC EDGAR, checks each
 download against its SHA-256, and renders the HTML to a Letter-size PDF with PyMuPDF. The page numbers in
-`retrieval.yaml` are pages of these PDFs, so the rendered page count is checked too.
+`rag_golden.yaml` are pages of these PDFs, so the rendered page count is checked too.
 
 Needs `SEC_USER_AGENT` (in .env) and pymupdf (requirements-dev.txt). Output: backend/storage/eval_filings/*.pdf
 (gitignored). Run: `python evals/sets/fetch_filings.py`
