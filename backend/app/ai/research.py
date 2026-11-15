@@ -88,6 +88,7 @@ def add(user_id: str, workspace_id: str, path: Path, doc_id: str) -> dict:
         from app.data.finx.pipeline import extract
         res = extract(str(path))
         pages = [{"page": p["page"], "section": (p.get("sections_started") or [p.get("section")])[-1], "toc": p.get("is_toc", False),
+                  "sections_started": p.get("sections_started", []),  # lets the chunker cut at a Note that starts mid-page
                   "headings": " | ".join(h["text"] for h in p.get("headings", [])), "text": p.get("text", "")}
                  for p in res["pages"]]
         doc_type = res["doc_type"]
