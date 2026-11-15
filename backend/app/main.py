@@ -283,6 +283,18 @@ async def _users(query: str, *args):
     return await (await _pool()).fetchrow(query, *args)
 
 
+# Run one query against the research page-vector table (pgvector). Its own short connection, not the pool, because
+# uploads call it from a worker thread with no event loop of the pool's. Tests swap this for a fake.
+async def _vectors(query: str, *args):
+    if not DB_URL:
+        raise RuntimeError("no database (WEALTHOS_DB_URL)")
+    conn = await asyncpg.connect(DB_URL, server_settings={"hnsw.iterative_scan": "strict_order"})  # filtered HNSW still fills LIMIT
+    try:
+        return await conn.fetch(query, *args)
+    finally:
+        await conn.close()
+
+
 # ── Routes: one router per area (app/api/); imported last because they use the sign-in checks above ─────────
 
 from app.api import account, assistant, company, dashboards, sources, strategy  # noqa: E402
