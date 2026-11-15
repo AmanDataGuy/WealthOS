@@ -4,7 +4,7 @@
 For every page it records:
 - the page text (without repeating headers/footers and page numbers),
 - the headings (by font size, bold or capitals),
-- which section the page is in ("Item 7", "Part I Item 2" ...) and which sections start on it,
+- which section the page is in ("Item 7", "Part I Item 2", "Note 7" ...) and which sections start on it,
 - whether it is the table of contents.
 
 It also decides the document type (10-K, 10-Q, 8-K, 20-F, press release, other) from the first two pages.
@@ -111,10 +111,12 @@ def heading_level(line: Line, body: float, is_data: bool) -> int | None:
     return None
 
 
-# "Item 7" or, in a 10-Q, "Part I Item 2"; None before any Item.
-def _section(dtype: str, part: str | None, item: str | None) -> str | None:
+# "Note 7" inside an Item's notes, else "Item 7" or, in a 10-Q, "Part I Item 2"; None before any Item.
+def _section(dtype: str, part: str | None, item: str | None, note: str | None = None) -> str | None:
     if item is None:
         return None
+    if note:
+        return f"Note {note}"
     return f"Part {part} Item {item}" if dtype == "10-Q" and part else f"Item {item}"
 
 
@@ -124,7 +126,7 @@ def build_index(pages_lines: list[list[Line]], pages_rows_kinds: list[list[str]]
     body = body_size(pages_lines)
     dtype = doc_type(" ".join(l.text for lines in pages_lines[:2] for l in lines))
     pages = []
-    part, item = None, None
+    part, item, note = None, None, None
     for idx, (lines, kinds, w, h) in enumerate(zip(pages_lines, pages_rows_kinds, widths, heights)):
         # a table-of-contents page has several "Item 1. Business ... 4" lines that end in a page number
         is_toc = sum(1 for l in lines if ITEM.match(l.text.strip()) and re.search(r"\s\d{1,3}\s*$", l.text.strip())) >= 4
@@ -139,9 +141,9 @@ def build_index(pages_lines: list[list[Line]], pages_rows_kinds: list[list[str]]
             if m:
                 part = m.group(1).upper()
             m = re.search(r"\bITEM\s+(\d{1,2}[A-C]?)\b", r, re.I)
-            if m:
-                item = m.group(1).upper()
-        section_at_start = _section(dtype, part, item)
+            if m and m.group(1).upper() != item:
+                item, note = m.group(1).upper(), None
+        section_at_start = _section(dtype, part, item, note)
         headings, started = [], []
         for l, kind in body_lines:
             text = l.text.strip()
@@ -160,8 +162,13 @@ def build_index(pages_lines: list[list[Line]], pages_rows_kinds: list[list[str]]
                     # 10-K Items come in order; an Item that jumps backwards is a cross-reference, not a new section
                     if dtype != "10-K" or item is None or (ih[0] in ITEM_ORDER_10K and item in ITEM_ORDER_10K
                                                            and ITEM_ORDER_10K.index(ih[0]) >= ITEM_ORDER_10K.index(item)):
-                        item = ih[0]
+                        item, note = ih[0], None
                         started.append(_section(dtype, part, item))
+                mn = NOTE.match(text)
+                # a note heading inside an Item ("NOTE 7. DEBT", bold or capitals) starts its own section
+                if mn and item and lvl == 2 and (l.bold or text.split()[0].isupper()):
+                    note = mn.group(1).upper()
+                    started.append(_section(dtype, part, item, note))
             headings.append({"text": text, "y": round(l.top, 1)})
         pages.append({"page": idx + 1, "section": section_at_start, "sections_started": started, "is_toc": is_toc,
                       "headings": headings, "text": "\n".join(l.text for l, _ in body_lines)})
