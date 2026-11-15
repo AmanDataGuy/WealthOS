@@ -14,6 +14,30 @@ jobs:
         with: { python-version: "3.11" }
       - run: pip install -r requirements-dev.txt
         working-directory: backend
+      # The filing Q&A eval (tests/test_rag_eval.py) needs the two real 10-Ks (never committed) and the fastembed
+      # models. Without the SEC_USER_AGENT repo secret the PDFs are not fetched and those tests skip.
+      - uses: actions/cache/restore@v4
+        id: evalcache
+        with:
+          path: |
+            backend/storage/eval_filings
+            backend/storage/models
+          key: eval-filings-${{ hashFiles('backend/evals/sets/fetch_filings.py') }}-bge-small-en-v1.5-bge-reranker-base
+      - name: Fetch the eval filings on a cache miss
+        run: |
+          if [ -f storage/eval_filings/nvda_10k_2026.pdf ]; then echo "eval filings restored from cache"
+          elif [ -n "$SEC_USER_AGENT" ]; then python evals/sets/fetch_filings.py
+          else echo "no SEC_USER_AGENT secret: the filing eval tests will skip"; fi
+        working-directory: backend
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       # No "|| [ $? -eq 5 ]": zero collected tests must fail the build.
       - run: pytest -v --tb=short
         working-directory: backend
+      - uses: actions/cache/save@v4  # after pytest, so the models it downloaded are kept too
+        if: always() && steps.evalcache.outputs.cache-hit != 'true' && hashFiles('backend/storage/eval_filings/*.pdf') != ''
+        with:
+          path: |
+            backend/storage/eval_filings
+            backend/storage/models
+          key: ${{ steps.evalcache.outputs.cache-primary-key }}
