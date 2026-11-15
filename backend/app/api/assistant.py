@@ -3,18 +3,25 @@
 remembered meanings, and the filings chat can answer from
 
 - Routes under `/metrics`, `/query`, `/assistant` and `/research`.
+- `/assistant/ask/stream` answers the same question as `/assistant/ask` (same code), sending each finished step as a
+  server-sent event and the full answer last. The answer text is never sent early, only after its number check.
 """
 import asyncio
+import json
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Header
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.data import engine
 from app.main import USER, USER_WS, verify_user_token
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ── Numbers: trusted metrics and checked read-only SQL (every answer says where it came from) ──────────────
@@ -73,10 +80,52 @@ class AskBody(BaseModel):
 async def assistant_ask(body: AskBody, authorization: Optional[str] = Header(None)):
     """Answer a question with its numbers, where they came from, and whether the text passed the number check."""
     await verify_user_token(body.user_id, authorization)
+    return await _answer(body, *_chat_for(body))
+
+
+@router.post("/assistant/ask/stream")
+async def assistant_ask_stream(body: AskBody, authorization: Optional[str] = Header(None)):
+    """The same answer as /assistant/ask, as server-sent events: `step` for each finished step, then `answer`
+    (or `error`)."""
+    await verify_user_token(body.user_id, authorization)
+    workspace, chat_id = _chat_for(body)  # an unknown chat is a plain 404 before the stream starts
+    queue: asyncio.Queue = asyncio.Queue()
+
+    # Answer in the background, putting each step and then the answer (or the error) on the queue.
+    async def run():
+        try:
+            answer = await _answer(body, workspace, chat_id, lambda step: queue.put_nowait(("step", step)))
+            queue.put_nowait(("answer", answer))
+        except Exception:
+            logger.exception("streamed answer failed")
+            queue.put_nowait(("error", {"detail": "the answer could not be completed"}))
+
+    # Send queued events until the answer or the error.
+    async def events():
+        task = asyncio.create_task(run())  # kept running if the reader leaves, so the turn is still saved
+        while True:
+            kind, data = await queue.get()
+            yield f"event: {kind}\ndata: {json.dumps(jsonable_encoder(data))}\n\n"
+            if kind != "step":
+                await task
+                return
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+# The chat's workspace and id: a saved chat keeps its workspace; a new chat gets its id now, so its state is saved
+# under it.
+def _chat_for(body: AskBody) -> tuple[str, str]:
     from app.ai import agent
     workspace = agent.get_chat(body.user_id, body.chat_id)["workspace_id"] if body.chat_id else body.workspace_id or "default"
-    chat_id = body.chat_id or datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")  # known before the run: its state is saved under it
-    answer = (await agent.ask(body.user_id, body.question, body.previous_plan, body.define, workspace, chat_id)).model_dump()
+    return workspace, body.chat_id or datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+
+
+# Answer one question, name a new chat and save the turn. Both ask routes use this, so their answers are the same.
+async def _answer(body: AskBody, workspace: str, chat_id: str, on_step=None) -> dict:
+    from app.ai import agent
+    answer = (await agent.ask(body.user_id, body.question, body.previous_plan, body.define, workspace, chat_id,
+                              on_step)).model_dump()
     title = None if body.chat_id else await agent.chat_title(body.user_id, body.question)
     agent.save_turn(body.user_id, chat_id, workspace, body.question, answer, title)
     return {**answer, "chat_id": chat_id}
