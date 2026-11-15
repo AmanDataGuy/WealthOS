@@ -206,3 +206,11 @@ def test_index_pdf_end_to_end(filing, tmp_path, monkeypatch):
     assert set(args[3]) == {"structure", "fixed"}  # both chunk sets embedded
     research.delete_doc("u", "default", "acme")
     assert seen[-1][0] == "DELETE" and research.list_docs("u") == []
+
+
+def test_index_saved_before_chunking_still_answers(filing, monkeypatch):
+    monkeypatch.delenv("WEALTHOS_RESEARCH_SEARCH", raising=False)
+    path = research._folder("u", "default") / "acme.json"
+    old = json.loads(path.read_text(encoding="utf-8"))
+    path.write_text(json.dumps({k: old[k] for k in ("doc_id", "file", "doc_type", "pages")}), encoding="utf-8")
+    assert _search("Is there any lawsuit?")[0]["page_start"] == 4
