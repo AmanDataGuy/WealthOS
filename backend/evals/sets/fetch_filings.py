@@ -59,10 +59,13 @@ def main() -> None:
     for name, (url, sha, pages) in FILINGS.items():
         dest = OUT / name
         if not dest.exists():
-            body = httpx.get(url, headers={"User-Agent": agent}, timeout=60).content
+            reply = httpx.get(url, headers={"User-Agent": agent}, timeout=60)
+            body = reply.content
             got = hashlib.sha256(body).hexdigest()
-            if got != sha:
-                sys.exit(f"{name}: download hash {got} does not match {sha}")
+            if got != sha:  # say what came back: SEC answers some networks with a short notice page instead
+                start = " ".join(body[:300].decode("utf-8", errors="replace").split())
+                sys.exit(f"{name}: download hash {got} does not match {sha} "
+                         f"(HTTP {reply.status_code}, {len(body)} bytes, starts: {start!r})")
             n = render(body.decode("utf-8", errors="replace"), dest)
             time.sleep(0.2)  # SEC asks for at most 10 requests a second
         n = fitz.open(dest).page_count
