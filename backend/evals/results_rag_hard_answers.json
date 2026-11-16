@@ -1,0 +1,4288 @@
+{
+ "provider": "groq",
+ "answer_model": [
+  "groq:openai/gpt-oss-120b"
+ ],
+ "arms": [
+  "bm25/structure",
+  "bm25/structure+check"
+ ],
+ "thresholds": {
+  "bm25/structure": {
+   "threshold": 4.9733,
+   "scored_by": "bm25"
+  }
+ },
+ "summary": {
+  "bm25/structure": {
+   "questions": 45,
+   "answerable": 39,
+   "unanswerable": 6,
+   "answer_accuracy": 0.068,
+   "refused_unanswerable": 6,
+   "refused_unanswerable_pct": 100.0,
+   "wrongly_refused_answerable": 20,
+   "number_check_rejects": 3,
+   "ragas_faithfulness": null,
+   "ragas_context_precision": null,
+   "judged": 0,
+   "judge_errors": 0,
+   "p50_seconds": 1.98,
+   "p95_seconds": 3.22,
+   "usd_per_question_list": 0.000385,
+   "usd_per_question_llm_client": 0.000385,
+   "usd_per_question_billed": 0.0
+  },
+  "bm25/structure+check": {
+   "questions": 45,
+   "answerable": 39,
+   "unanswerable": 6,
+   "answer_accuracy": 0.043,
+   "refused_unanswerable": 6,
+   "refused_unanswerable_pct": 100.0,
+   "wrongly_refused_answerable": 28,
+   "number_check_rejects": 3,
+   "ragas_faithfulness": null,
+   "ragas_context_precision": null,
+   "judged": 0,
+   "judge_errors": 0,
+   "p50_seconds": 2.82,
+   "p95_seconds": 3.83,
+   "usd_per_question_list": 0.000358,
+   "usd_per_question_llm_client": 0.000358,
+   "usd_per_question_billed": 0.0
+  }
+ },
+ "judge": null,
+ "stopped": "groq gave no answer after waiting (daily limit or outage) at bm25/structure h46",
+ "spend": {
+  "billed_total": 0.0,
+  "cap": 0.5,
+  "how": "billed: the provider's reported cost (OpenRouter usage.cost; Groq free tier bills $0); usd_per_question_list: tokens x Groq list price for gpt-oss-120b (llm_client._PRICES['groq'])"
+ },
+ "retrieval_results_git_sha": "57b11d0",
+ "run_at": "2026-11-17T00:14:04+0530",
+ "git_sha": "bb85ae8",
+ "rows": [
+  {
+   "id": "h01",
+   "q": "How big is the pile of money and investments Apple is sitting on?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": false,
+   "verified": false,
+   "refused_by": null,
+   "warnings": [
+    "the written answer was replaced: numbers not in the passages it cites (10, 134.7 billion, 132.4 billion)"
+   ],
+   "text": "The most relevant passages are below; read them directly.",
+   "raw": "Apple’s 2025 Form 10‑K shows it held roughly $134.7 billion in cash and cash equivalents and about $132.4 billion in marketable securities, for a combined “pile” of roughly $267 billion in cash‑like assets as of September 27 2025【p. 54】.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     85
+    ],
+    [
+     "aapl_10k_2025",
+     36
+    ],
+    [
+     "aapl_10k_2025",
+     73
+    ],
+    [
+     "aapl_10k_2025",
+     33
+    ],
+    [
+     "aapl_10k_2025",
+     80
+    ]
+   ],
+   "seconds": 2.33,
+   "llm_cached": false,
+   "tokens": 2395,
+   "prompt_tokens": 2121,
+   "completion_tokens": 274,
+   "usd_llm_client": 0.00048255,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h01",
+   "q": "How big is the pile of money and investments Apple is sitting on?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": false,
+   "verified": false,
+   "refused_by": null,
+   "warnings": [
+    "the written answer was replaced: numbers not in the passages it cites (10, 134.7 billion, 132.4 billion)"
+   ],
+   "text": "The most relevant passages are below; read them directly.",
+   "raw": "Apple’s 2025 Form 10‑K shows it held roughly $134.7 billion in cash and cash equivalents and about $132.4 billion in marketable securities, for a combined “pile” of roughly $267 billion in cash‑like assets as of September 27 2025【p. 54】.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     85
+    ],
+    [
+     "aapl_10k_2025",
+     36
+    ],
+    [
+     "aapl_10k_2025",
+     73
+    ],
+    [
+     "aapl_10k_2025",
+     33
+    ],
+    [
+     "aapl_10k_2025",
+     80
+    ]
+   ],
+   "seconds": 1.221,
+   "llm_cached": false,
+   "tokens": 2208,
+   "prompt_tokens": 2131,
+   "completion_tokens": 77,
+   "usd_llm_client": 0.00036585,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h02",
+   "q": "If market borrowing costs climbed by one percent, how much extra would Apple owe each year on its bonds?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     0
+    ],
+    [
+     "aapl_10k_2025",
+     95
+    ],
+    [
+     "aapl_10k_2025",
+     60
+    ],
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     97
+    ]
+   ],
+   "seconds": 0.818,
+   "llm_cached": false,
+   "tokens": 2206,
+   "prompt_tokens": 2173,
+   "completion_tokens": 33,
+   "usd_llm_client": 0.00034575,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h02",
+   "q": "If market borrowing costs climbed by one percent, how much extra would Apple owe each year on its bonds?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     0
+    ],
+    [
+     "aapl_10k_2025",
+     95
+    ],
+    [
+     "aapl_10k_2025",
+     60
+    ],
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     97
+    ]
+   ],
+   "seconds": 3.332,
+   "llm_cached": false,
+   "tokens": 2234,
+   "prompt_tokens": 2183,
+   "completion_tokens": 51,
+   "usd_llm_client": 0.00035805,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h03",
+   "q": "How much could Apple's FX book lose in 24 hours in a bad scenario, by its own estimate?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     27
+    ],
+    [
+     "aapl_10k_2025",
+     72
+    ],
+    [
+     "aapl_10k_2025",
+     71
+    ],
+    [
+     "aapl_10k_2025",
+     132
+    ]
+   ],
+   "seconds": 1.609,
+   "llm_cached": false,
+   "tokens": 2342,
+   "prompt_tokens": 2314,
+   "completion_tokens": 28,
+   "usd_llm_client": 0.00036389999999999995,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h03",
+   "q": "How much could Apple's FX book lose in 24 hours in a bad scenario, by its own estimate?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     27
+    ],
+    [
+     "aapl_10k_2025",
+     72
+    ],
+    [
+     "aapl_10k_2025",
+     71
+    ],
+    [
+     "aapl_10k_2025",
+     132
+    ]
+   ],
+   "seconds": 2.989,
+   "llm_cached": false,
+   "tokens": 2373,
+   "prompt_tokens": 2324,
+   "completion_tokens": 49,
+   "usd_llm_client": 0.000378,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h04",
+   "q": "How much does Apple still owe from the one-time US levy on profits it had kept overseas?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple recorded a one‑time income‑tax charge of $10.2 billion, which reflected a $15.8 billion amount payable to Ireland for the levy on profits it had kept overseas, offset in part by a U.S. foreign tax credit and other adjustments【p. 58】.",
+   "raw": "Apple recorded a one‑time income‑tax charge of $10.2 billion, which reflected a $15.8 billion amount payable to Ireland for the levy on profits it had kept overseas, offset in part by a U.S. foreign tax credit and other adjustments【p. 58】.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     21
+    ],
+    [
+     "aapl_10k_2025",
+     36
+    ],
+    [
+     "aapl_10k_2025",
+     93
+    ],
+    [
+     "aapl_10k_2025",
+     34
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ]
+   ],
+   "seconds": 2.024,
+   "llm_cached": false,
+   "tokens": 2673,
+   "prompt_tokens": 2472,
+   "completion_tokens": 201,
+   "usd_llm_client": 0.0004913999999999999,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h04",
+   "q": "How much does Apple still owe from the one-time US levy on profits it had kept overseas?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     21
+    ],
+    [
+     "aapl_10k_2025",
+     36
+    ],
+    [
+     "aapl_10k_2025",
+     93
+    ],
+    [
+     "aapl_10k_2025",
+     34
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ]
+   ],
+   "seconds": 3.403,
+   "llm_cached": false,
+   "tokens": 2571,
+   "prompt_tokens": 2482,
+   "completion_tokens": 89,
+   "usd_llm_client": 0.00042569999999999994,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h05",
+   "q": "Why did Apple spend more on inventing new products in 2025?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple increased its spending on inventing new products in 2025 to stay competitive and drive customer demand in a highly volatile and competitive market. The company must continually introduce and transition new products, services, and technologies, enhance existing offerings, and manage associated risks such as production ramp‑up and inventory levels to maintain its market position【pp. 11-12】.",
+   "raw": "Apple increased its spending on inventing new products in 2025 to stay competitive and drive customer demand in a highly volatile and competitive market. The company must continually introduce and transition new products, services, and technologies, enhance existing offerings, and manage associated risks such as production ramp‑up and inventory levels to maintain its market position【pp. 11-12】.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     17
+    ],
+    [
+     "aapl_10k_2025",
+     90
+    ],
+    [
+     "aapl_10k_2025",
+     20
+    ],
+    [
+     "aapl_10k_2025",
+     7
+    ],
+    [
+     "aapl_10k_2025",
+     110
+    ]
+   ],
+   "seconds": 1.913,
+   "llm_cached": false,
+   "tokens": 2239,
+   "prompt_tokens": 2108,
+   "completion_tokens": 131,
+   "usd_llm_client": 0.0003948,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h05",
+   "q": "Why did Apple spend more on inventing new products in 2025?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     17
+    ],
+    [
+     "aapl_10k_2025",
+     90
+    ],
+    [
+     "aapl_10k_2025",
+     20
+    ],
+    [
+     "aapl_10k_2025",
+     7
+    ],
+    [
+     "aapl_10k_2025",
+     110
+    ]
+   ],
+   "seconds": 3.226,
+   "llm_cached": false,
+   "tokens": 2187,
+   "prompt_tokens": 2118,
+   "completion_tokens": 69,
+   "usd_llm_client": 0.0003591,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h06",
+   "q": "Where in the world did Apple sell less this year than last, and what caused it?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     83
+    ],
+    [
+     "aapl_10k_2025",
+     4
+    ],
+    [
+     "aapl_10k_2025",
+     2
+    ],
+    [
+     "aapl_10k_2025",
+     98
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ]
+   ],
+   "seconds": 1.691,
+   "llm_cached": false,
+   "tokens": 2229,
+   "prompt_tokens": 2185,
+   "completion_tokens": 44,
+   "usd_llm_client": 0.00035414999999999996,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h06",
+   "q": "Where in the world did Apple sell less this year than last, and what caused it?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     83
+    ],
+    [
+     "aapl_10k_2025",
+     4
+    ],
+    [
+     "aapl_10k_2025",
+     2
+    ],
+    [
+     "aapl_10k_2025",
+     98
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ]
+   ],
+   "seconds": 2.101,
+   "llm_cached": false,
+   "tokens": 2253,
+   "prompt_tokens": 2195,
+   "completion_tokens": 58,
+   "usd_llm_client": 0.00036404999999999993,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h07",
+   "q": "How much of the money owed to Apple comes from wireless operators?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     4
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ],
+    [
+     "aapl_10k_2025",
+     48
+    ],
+    [
+     "aapl_10k_2025",
+     85
+    ],
+    [
+     "aapl_10k_2025",
+     95
+    ]
+   ],
+   "seconds": 1.589,
+   "llm_cached": false,
+   "tokens": 2263,
+   "prompt_tokens": 2233,
+   "completion_tokens": 30,
+   "usd_llm_client": 0.00035295000000000004,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h07",
+   "q": "How much of the money owed to Apple comes from wireless operators?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     4
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ],
+    [
+     "aapl_10k_2025",
+     48
+    ],
+    [
+     "aapl_10k_2025",
+     85
+    ],
+    [
+     "aapl_10k_2025",
+     95
+    ]
+   ],
+   "seconds": 1.896,
+   "llm_cached": false,
+   "tokens": 2302,
+   "prompt_tokens": 2243,
+   "completion_tokens": 59,
+   "usd_llm_client": 0.00037185,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h08",
+   "q": "How long do Apple's FX safeguards on its bonds stretch?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     48
+    ],
+    [
+     "aapl_10k_2025",
+     106
+    ],
+    [
+     "aapl_10k_2025",
+     47
+    ],
+    [
+     "aapl_10k_2025",
+     133
+    ],
+    [
+     "aapl_10k_2025",
+     82
+    ]
+   ],
+   "seconds": 1.792,
+   "llm_cached": false,
+   "tokens": 2253,
+   "prompt_tokens": 2227,
+   "completion_tokens": 26,
+   "usd_llm_client": 0.00034964999999999996,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h08",
+   "q": "How long do Apple's FX safeguards on its bonds stretch?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     48
+    ],
+    [
+     "aapl_10k_2025",
+     106
+    ],
+    [
+     "aapl_10k_2025",
+     47
+    ],
+    [
+     "aapl_10k_2025",
+     133
+    ],
+    [
+     "aapl_10k_2025",
+     82
+    ]
+   ],
+   "seconds": 2.819,
+   "llm_cached": false,
+   "tokens": 2300,
+   "prompt_tokens": 2237,
+   "completion_tokens": 63,
+   "usd_llm_client": 0.00037334999999999994,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h09",
+   "q": "How big a reserve does NVIDIA hold for fixing broken hardware after it is sold?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     150
+    ],
+    [
+     "nvda_10k_2026",
+     32
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     69
+    ],
+    [
+     "nvda_10k_2026",
+     31
+    ]
+   ],
+   "seconds": 2.918,
+   "llm_cached": false,
+   "tokens": 2473,
+   "prompt_tokens": 2440,
+   "completion_tokens": 33,
+   "usd_llm_client": 0.00038579999999999995,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h09",
+   "q": "How big a reserve does NVIDIA hold for fixing broken hardware after it is sold?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     150
+    ],
+    [
+     "nvda_10k_2026",
+     32
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     69
+    ],
+    [
+     "nvda_10k_2026",
+     31
+    ]
+   ],
+   "seconds": 3.843,
+   "llm_cached": false,
+   "tokens": 2491,
+   "prompt_tokens": 2450,
+   "completion_tokens": 41,
+   "usd_llm_client": 0.0003921,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h10",
+   "q": "Who supplies the DRAM that goes into NVIDIA's products?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     37
+    ],
+    [
+     "nvda_10k_2026",
+     115
+    ],
+    [
+     "nvda_10k_2026",
+     14
+    ],
+    [
+     "nvda_10k_2026",
+     63
+    ],
+    [
+     "nvda_10k_2026",
+     197
+    ]
+   ],
+   "seconds": 2.338,
+   "llm_cached": false,
+   "tokens": 2388,
+   "prompt_tokens": 2362,
+   "completion_tokens": 26,
+   "usd_llm_client": 0.0003699,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h10",
+   "q": "Who supplies the DRAM that goes into NVIDIA's products?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     37
+    ],
+    [
+     "nvda_10k_2026",
+     115
+    ],
+    [
+     "nvda_10k_2026",
+     14
+    ],
+    [
+     "nvda_10k_2026",
+     63
+    ],
+    [
+     "nvda_10k_2026",
+     197
+    ]
+   ],
+   "seconds": 2.786,
+   "llm_cached": false,
+   "tokens": 2433,
+   "prompt_tokens": 2372,
+   "completion_tokens": 61,
+   "usd_llm_client": 0.0003924,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h11",
+   "q": "Which outside firms put together NVIDIA's finished hardware?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "NVIDIA’s finished hardware is assembled by a range of outside partners that purchase its chips directly, including add‑in‑board partners (AIBs), original equipment manufacturers (OEMs), original design manufacturers (ODMs), cloud‑service providers (CSPs) and other system integrators [p. 98‑100].",
+   "raw": "NVIDIA’s finished hardware is assembled by a range of outside partners that purchase its chips directly, including add‑in‑board partners (AIBs), original equipment manufacturers (OEMs), original design manufacturers (ODMs), cloud‑service providers (CSPs) and other system integrators [p. 98‑100].",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     79
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     175
+    ],
+    [
+     "nvda_10k_2026",
+     12
+    ],
+    [
+     "nvda_10k_2026",
+     140
+    ]
+   ],
+   "seconds": 2.307,
+   "llm_cached": false,
+   "tokens": 2590,
+   "prompt_tokens": 2456,
+   "completion_tokens": 134,
+   "usd_llm_client": 0.00044879999999999996,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h11",
+   "q": "Which outside firms put together NVIDIA's finished hardware?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     79
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     175
+    ],
+    [
+     "nvda_10k_2026",
+     12
+    ],
+    [
+     "nvda_10k_2026",
+     140
+    ]
+   ],
+   "seconds": 3.634,
+   "llm_cached": false,
+   "tokens": 2524,
+   "prompt_tokens": 2466,
+   "completion_tokens": 58,
+   "usd_llm_client": 0.00040469999999999997,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h12",
+   "q": "When do NVIDIA's exclusive rights to its inventions start to lapse, and how long do the last ones run?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     159
+    ],
+    [
+     "nvda_10k_2026",
+     192
+    ],
+    [
+     "nvda_10k_2026",
+     163
+    ],
+    [
+     "nvda_10k_2026",
+     92
+    ]
+   ],
+   "seconds": 2.704,
+   "llm_cached": false,
+   "tokens": 2167,
+   "prompt_tokens": 2134,
+   "completion_tokens": 33,
+   "usd_llm_client": 0.00033989999999999997,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h12",
+   "q": "When do NVIDIA's exclusive rights to its inventions start to lapse, and how long do the last ones run?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     159
+    ],
+    [
+     "nvda_10k_2026",
+     192
+    ],
+    [
+     "nvda_10k_2026",
+     163
+    ],
+    [
+     "nvda_10k_2026",
+     92
+    ]
+   ],
+   "seconds": 3.444,
+   "llm_cached": false,
+   "tokens": 2197,
+   "prompt_tokens": 2144,
+   "completion_tokens": 53,
+   "usd_llm_client": 0.0003534,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h13",
+   "q": "When in the year do NVIDIA's graphics cards for PC gamers sell best?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     14
+    ],
+    [
+     "nvda_10k_2026",
+     10
+    ],
+    [
+     "nvda_10k_2026",
+     104
+    ],
+    [
+     "nvda_10k_2026",
+     69
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ]
+   ],
+   "seconds": 2.493,
+   "llm_cached": false,
+   "tokens": 2225,
+   "prompt_tokens": 2180,
+   "completion_tokens": 45,
+   "usd_llm_client": 0.000354,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h13",
+   "q": "When in the year do NVIDIA's graphics cards for PC gamers sell best?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     14
+    ],
+    [
+     "nvda_10k_2026",
+     10
+    ],
+    [
+     "nvda_10k_2026",
+     104
+    ],
+    [
+     "nvda_10k_2026",
+     69
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ]
+   ],
+   "seconds": 3.063,
+   "llm_cached": false,
+   "tokens": 2225,
+   "prompt_tokens": 2190,
+   "completion_tokens": 35,
+   "usd_llm_client": 0.00034950000000000004,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h14",
+   "q": "How much cash did NVIDIA's buyers pay up front before receiving what they ordered this year?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     118
+    ],
+    [
+     "nvda_10k_2026",
+     188
+    ],
+    [
+     "nvda_10k_2026",
+     187
+    ],
+    [
+     "nvda_10k_2026",
+     193
+    ],
+    [
+     "nvda_10k_2026",
+     191
+    ]
+   ],
+   "seconds": 1.771,
+   "llm_cached": false,
+   "tokens": 2168,
+   "prompt_tokens": 2112,
+   "completion_tokens": 56,
+   "usd_llm_client": 0.0003504,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h14",
+   "q": "How much cash did NVIDIA's buyers pay up front before receiving what they ordered this year?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     118
+    ],
+    [
+     "nvda_10k_2026",
+     188
+    ],
+    [
+     "nvda_10k_2026",
+     187
+    ],
+    [
+     "nvda_10k_2026",
+     193
+    ],
+    [
+     "nvda_10k_2026",
+     191
+    ]
+   ],
+   "seconds": 2.323,
+   "llm_cached": false,
+   "tokens": 2188,
+   "prompt_tokens": 2122,
+   "completion_tokens": 66,
+   "usd_llm_client": 0.0003579,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h15",
+   "q": "How many of NVIDIA's people work on building new technology versus everything else?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     15
+    ],
+    [
+     "nvda_10k_2026",
+     14
+    ],
+    [
+     "nvda_10k_2026",
+     9
+    ],
+    [
+     "nvda_10k_2026",
+     16
+    ],
+    [
+     "nvda_10k_2026",
+     175
+    ]
+   ],
+   "seconds": 1.774,
+   "llm_cached": false,
+   "tokens": 2306,
+   "prompt_tokens": 2243,
+   "completion_tokens": 63,
+   "usd_llm_client": 0.00037425,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h15",
+   "q": "How many of NVIDIA's people work on building new technology versus everything else?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     15
+    ],
+    [
+     "nvda_10k_2026",
+     14
+    ],
+    [
+     "nvda_10k_2026",
+     9
+    ],
+    [
+     "nvda_10k_2026",
+     16
+    ],
+    [
+     "nvda_10k_2026",
+     175
+    ]
+   ],
+   "seconds": 2.715,
+   "llm_cached": false,
+   "tokens": 2290,
+   "prompt_tokens": 2253,
+   "completion_tokens": 37,
+   "usd_llm_client": 0.00036014999999999995,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h16",
+   "q": "What did Beijing hint was lurking inside NVIDIA's chips?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     13
+    ],
+    [
+     "nvda_10k_2026",
+     30
+    ],
+    [
+     "nvda_10k_2026",
+     26
+    ],
+    [
+     "nvda_10k_2026",
+     76
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ]
+   ],
+   "seconds": 1.792,
+   "llm_cached": false,
+   "tokens": 2268,
+   "prompt_tokens": 2228,
+   "completion_tokens": 40,
+   "usd_llm_client": 0.0003582,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h16",
+   "q": "What did Beijing hint was lurking inside NVIDIA's chips?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     13
+    ],
+    [
+     "nvda_10k_2026",
+     30
+    ],
+    [
+     "nvda_10k_2026",
+     26
+    ],
+    [
+     "nvda_10k_2026",
+     76
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ]
+   ],
+   "seconds": 3.126,
+   "llm_cached": false,
+   "tokens": 2290,
+   "prompt_tokens": 2238,
+   "completion_tokens": 52,
+   "usd_llm_client": 0.0003669,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h17",
+   "q": "What fraction of NVIDIA's business came from non-American companies?",
+   "arm": "bm25/structure",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     61
+    ],
+    [
+     "nvda_10k_2026",
+     23
+    ],
+    [
+     "nvda_10k_2026",
+     162
+    ],
+    [
+     "nvda_10k_2026",
+     31
+    ],
+    [
+     "nvda_10k_2026",
+     16
+    ]
+   ],
+   "seconds": 2.338,
+   "llm_cached": false,
+   "tokens": 2335,
+   "prompt_tokens": 2305,
+   "completion_tokens": 30,
+   "usd_llm_client": 0.00036375000000000003,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h17",
+   "q": "What fraction of NVIDIA's business came from non-American companies?",
+   "arm": "bm25/structure+check",
+   "kind": "paraphrase",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     61
+    ],
+    [
+     "nvda_10k_2026",
+     23
+    ],
+    [
+     "nvda_10k_2026",
+     162
+    ],
+    [
+     "nvda_10k_2026",
+     31
+    ],
+    [
+     "nvda_10k_2026",
+     16
+    ]
+   ],
+   "seconds": 2.531,
+   "llm_cached": false,
+   "tokens": 2366,
+   "prompt_tokens": 2315,
+   "completion_tokens": 51,
+   "usd_llm_client": 0.00037784999999999994,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h18",
+   "q": "How exposed is NVIDIA to China?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "no passage scored high enough",
+   "warnings": [
+    "refused: no passage scored high enough"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     73
+    ],
+    [
+     "nvda_10k_2026",
+     79
+    ],
+    [
+     "nvda_10k_2026",
+     74
+    ],
+    [
+     "nvda_10k_2026",
+     26
+    ],
+    [
+     "nvda_10k_2026",
+     87
+    ]
+   ],
+   "seconds": 0.023,
+   "llm_cached": false,
+   "tokens": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "usd_llm_client": 0,
+   "billed": 0,
+   "served_by": []
+  },
+  {
+   "id": "h18",
+   "q": "How exposed is NVIDIA to China?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "no passage scored high enough",
+   "warnings": [
+    "refused: no passage scored high enough"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     73
+    ],
+    [
+     "nvda_10k_2026",
+     79
+    ],
+    [
+     "nvda_10k_2026",
+     74
+    ],
+    [
+     "nvda_10k_2026",
+     26
+    ],
+    [
+     "nvda_10k_2026",
+     87
+    ]
+   ],
+   "seconds": 0.021,
+   "llm_cached": false,
+   "tokens": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "usd_llm_client": 0,
+   "billed": 0,
+   "served_by": []
+  },
+  {
+   "id": "h19",
+   "q": "How dependent is Apple on a few manufacturing partners?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple’s manufacturing is heavily reliant on outsourcing partners, many of which are single‑source or limited‑source suppliers. The company notes that it “relies on single‑source partners in the U.S., Asia and Europe to supply and manufacture many components” and that “the Company currently obtains certain components from single or limited sources” [p. 12]. In addition, its vendor non‑trade receivables are “concentrated among a few individual vendors located primarily in Asia,” highlighting the concentration of its supply base [p. 23].",
+   "raw": "Apple’s manufacturing is heavily reliant on outsourcing partners, many of which are single‑source or limited‑source suppliers. The company notes that it “relies on single‑source partners in the U.S., Asia and Europe to supply and manufacture many components” and that “the Company currently obtains certain components from single or limited sources” [p. 12]. In addition, its vendor non‑trade receivables are “concentrated among a few individual vendors located primarily in Asia,” highlighting the concentration of its supply base [p. 23].",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     21
+    ],
+    [
+     "aapl_10k_2025",
+     29
+    ],
+    [
+     "aapl_10k_2025",
+     47
+    ],
+    [
+     "aapl_10k_2025",
+     15
+    ],
+    [
+     "aapl_10k_2025",
+     68
+    ]
+   ],
+   "seconds": 1.916,
+   "llm_cached": false,
+   "tokens": 2656,
+   "prompt_tokens": 2494,
+   "completion_tokens": 162,
+   "usd_llm_client": 0.0004713,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h19",
+   "q": "How dependent is Apple on a few manufacturing partners?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple’s manufacturing is heavily reliant on outsourcing partners, many of which are single‑source or limited‑source suppliers. The company notes that it “relies on single‑source partners in the U.S., Asia and Europe to supply and manufacture many components” and that “the Company currently obtains certain components from single or limited sources” [p. 12]. In addition, its vendor non‑trade receivables are “concentrated among a few individual vendors located primarily in Asia,” highlighting the concentration of its supply base [p. 23].",
+   "raw": "Apple’s manufacturing is heavily reliant on outsourcing partners, many of which are single‑source or limited‑source suppliers. The company notes that it “relies on single‑source partners in the U.S., Asia and Europe to supply and manufacture many components” and that “the Company currently obtains certain components from single or limited sources” [p. 12]. In addition, its vendor non‑trade receivables are “concentrated among a few individual vendors located primarily in Asia,” highlighting the concentration of its supply base [p. 23].",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     21
+    ],
+    [
+     "aapl_10k_2025",
+     29
+    ],
+    [
+     "aapl_10k_2025",
+     47
+    ],
+    [
+     "aapl_10k_2025",
+     15
+    ],
+    [
+     "aapl_10k_2025",
+     68
+    ]
+   ],
+   "seconds": 2.601,
+   "llm_cached": false,
+   "tokens": 2568,
+   "prompt_tokens": 2504,
+   "completion_tokens": 64,
+   "usd_llm_client": 0.00041400000000000003,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h20",
+   "q": "How much does Apple's business hinge on the iPhone?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": false,
+   "refused_by": null,
+   "warnings": [
+    "the written answer was replaced: numbers not in the passages it cites (209.6 billion, 416.2 billion)"
+   ],
+   "text": "The most relevant passages are below; read them directly.",
+   "raw": "Apple’s iPhone accounts for roughly half of the company’s total net sales. In fiscal 2025 the iPhone generated $209.6 billion of net sales, while total net sales were $416.2 billion, indicating that the iPhone represents about 50 % of Apple’s overall revenue [p. 31-32] and is the single largest product category [p. 52].",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     4
+    ],
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     64
+    ],
+    [
+     "aapl_10k_2025",
+     65
+    ],
+    [
+     "aapl_10k_2025",
+     83
+    ]
+   ],
+   "seconds": 1.795,
+   "llm_cached": false,
+   "tokens": 2464,
+   "prompt_tokens": 2319,
+   "completion_tokens": 145,
+   "usd_llm_client": 0.00043484999999999997,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h20",
+   "q": "How much does Apple's business hinge on the iPhone?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": false,
+   "refused_by": null,
+   "warnings": [
+    "the written answer was replaced: numbers not in the passages it cites (209.6 billion, 416.2 billion)"
+   ],
+   "text": "The most relevant passages are below; read them directly.",
+   "raw": "Apple’s iPhone accounts for roughly half of the company’s total net sales. In fiscal 2025 the iPhone generated $209.6 billion of net sales, while total net sales were $416.2 billion, indicating that the iPhone represents about 50 % of Apple’s overall revenue [p. 31-32] and is the single largest product category [p. 52].",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     4
+    ],
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     64
+    ],
+    [
+     "aapl_10k_2025",
+     65
+    ],
+    [
+     "aapl_10k_2025",
+     83
+    ]
+   ],
+   "seconds": 2.306,
+   "llm_cached": false,
+   "tokens": 2406,
+   "prompt_tokens": 2329,
+   "completion_tokens": 77,
+   "usd_llm_client": 0.00039554999999999994,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h21",
+   "q": "Does Apple expect to keep its profit margins where they are?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     19
+    ],
+    [
+     "aapl_10k_2025",
+     7
+    ],
+    [
+     "aapl_10k_2025",
+     44
+    ],
+    [
+     "aapl_10k_2025",
+     41
+    ],
+    [
+     "aapl_10k_2025",
+     83
+    ]
+   ],
+   "seconds": 2.624,
+   "llm_cached": false,
+   "tokens": 2250,
+   "prompt_tokens": 2200,
+   "completion_tokens": 50,
+   "usd_llm_client": 0.00036,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h21",
+   "q": "Does Apple expect to keep its profit margins where they are?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     19
+    ],
+    [
+     "aapl_10k_2025",
+     7
+    ],
+    [
+     "aapl_10k_2025",
+     44
+    ],
+    [
+     "aapl_10k_2025",
+     41
+    ],
+    [
+     "aapl_10k_2025",
+     83
+    ]
+   ],
+   "seconds": 3.213,
+   "llm_cached": false,
+   "tokens": 2276,
+   "prompt_tokens": 2210,
+   "completion_tokens": 66,
+   "usd_llm_client": 0.0003711,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h22",
+   "q": "How tied is Apple's tax bill to Ireland?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple’s 2024 tax bill was heavily linked to Ireland.  In the fourth quarter of 2024 the company recorded a one‑time income‑tax charge of $10.2 billion, which represented $15.8 billion payable to Ireland (partially offset by a U.S. foreign tax credit and a reduction in unrecognized tax benefits)【p. 58】.",
+   "raw": "Apple’s 2024 tax bill was heavily linked to Ireland.  In the fourth quarter of 2024 the company recorded a one‑time income‑tax charge of $10.2 billion, which represented $15.8 billion payable to Ireland (partially offset by a U.S. foreign tax credit and a reduction in unrecognized tax benefits)【p. 58】.",
+   "fact_share": 0.333,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     93
+    ],
+    [
+     "aapl_10k_2025",
+     94
+    ],
+    [
+     "aapl_10k_2025",
+     47
+    ],
+    [
+     "aapl_10k_2025",
+     110
+    ],
+    [
+     "aapl_10k_2025",
+     109
+    ]
+   ],
+   "seconds": 2.008,
+   "llm_cached": false,
+   "tokens": 2486,
+   "prompt_tokens": 2357,
+   "completion_tokens": 129,
+   "usd_llm_client": 0.00043095,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h22",
+   "q": "How tied is Apple's tax bill to Ireland?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple’s 2024 tax bill was heavily linked to Ireland.  In the fourth quarter of 2024 the company recorded a one‑time income‑tax charge of $10.2 billion, which represented $15.8 billion payable to Ireland (partially offset by a U.S. foreign tax credit and a reduction in unrecognized tax benefits)【p. 58】.",
+   "raw": "Apple’s 2024 tax bill was heavily linked to Ireland.  In the fourth quarter of 2024 the company recorded a one‑time income‑tax charge of $10.2 billion, which represented $15.8 billion payable to Ireland (partially offset by a U.S. foreign tax credit and a reduction in unrecognized tax benefits)【p. 58】.",
+   "fact_share": 0.333,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     93
+    ],
+    [
+     "aapl_10k_2025",
+     94
+    ],
+    [
+     "aapl_10k_2025",
+     47
+    ],
+    [
+     "aapl_10k_2025",
+     110
+    ],
+    [
+     "aapl_10k_2025",
+     109
+    ]
+   ],
+   "seconds": 2.398,
+   "llm_cached": false,
+   "tokens": 2431,
+   "prompt_tokens": 2367,
+   "completion_tokens": 64,
+   "usd_llm_client": 0.00039345000000000005,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h23",
+   "q": "How sensitive are Apple's results to currency swings?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple’s results are quite sensitive to currency movements because the company is a net receiver of foreign currencies. A stronger U.S. dollar reduces the dollar‑value of its foreign‑currency sales and gross margins, while a weaker dollar has the opposite effect; the company may have to raise international pricing, which can dampen demand, or absorb the impact on margins if it does not raise prices【p. 38】. Conversely, a strengthening of foreign currencies relative to the dollar can boost foreign‑currency sales but may increase component costs and force pricing adjustments that also affect margins【p. 23】. Overall, fluctuations in exchange rates can materially affect Apple’s net sales, gross margins, and the fair values of certain assets and liabilities【p. 38】.",
+   "raw": "Apple’s results are quite sensitive to currency movements because the company is a net receiver of foreign currencies. A stronger U.S. dollar reduces the dollar‑value of its foreign‑currency sales and gross margins, while a weaker dollar has the opposite effect; the company may have to raise international pricing, which can dampen demand, or absorb the impact on margins if it does not raise prices【p. 38】. Conversely, a strengthening of foreign currencies relative to the dollar can boost foreign‑currency sales but may increase component costs and force pricing adjustments that also affect margins【p. 23】. Overall, fluctuations in exchange rates can materially affect Apple’s net sales, gross margins, and the fair values of certain assets and liabilities【p. 38】.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     74
+    ],
+    [
+     "aapl_10k_2025",
+     46
+    ],
+    [
+     "aapl_10k_2025",
+     73
+    ],
+    [
+     "aapl_10k_2025",
+     45
+    ]
+   ],
+   "seconds": 1.894,
+   "llm_cached": false,
+   "tokens": 2180,
+   "prompt_tokens": 1997,
+   "completion_tokens": 183,
+   "usd_llm_client": 0.00040935,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h23",
+   "q": "How sensitive are Apple's results to currency swings?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     74
+    ],
+    [
+     "aapl_10k_2025",
+     46
+    ],
+    [
+     "aapl_10k_2025",
+     73
+    ],
+    [
+     "aapl_10k_2025",
+     45
+    ]
+   ],
+   "seconds": 2.307,
+   "llm_cached": false,
+   "tokens": 2060,
+   "prompt_tokens": 2007,
+   "completion_tokens": 53,
+   "usd_llm_client": 0.00033285000000000004,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h24",
+   "q": "What role does Taiwan play in NVIDIA's business?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": false,
+   "refused_by": null,
+   "warnings": [
+    "the written answer was replaced: numbers not in the passages it cites (3.2 billion, 2026)"
+   ],
+   "text": "The most relevant passages are below; read them directly.",
+   "raw": "Taiwan is a critical part of NVIDIA’s supply chain, providing components, parts and services that the company relies on for its products.  The company also owns and leases facilities in Taiwan and reports a large amount of its long‑lived assets there—$3.2 billion as of fiscal 2026, the second‑largest country‑level balance after the United States【p. 41】.  Additionally, NVIDIA notes that any new restrictions affecting its ability to receive supply from Taiwan would negatively impact its business and financial results【p. 41】.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     29
+    ],
+    [
+     "nvda_10k_2026",
+     81
+    ],
+    [
+     "nvda_10k_2026",
+     31
+    ],
+    [
+     "nvda_10k_2026",
+     96
+    ],
+    [
+     "nvda_10k_2026",
+     198
+    ]
+   ],
+   "seconds": 1.982,
+   "llm_cached": false,
+   "tokens": 2224,
+   "prompt_tokens": 2061,
+   "completion_tokens": 163,
+   "usd_llm_client": 0.00040694999999999994,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h24",
+   "q": "What role does Taiwan play in NVIDIA's business?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": false,
+   "refused_by": null,
+   "warnings": [
+    "the written answer was replaced: numbers not in the passages it cites (3.2 billion, 2026)"
+   ],
+   "text": "The most relevant passages are below; read them directly.",
+   "raw": "Taiwan is a critical part of NVIDIA’s supply chain, providing components, parts and services that the company relies on for its products.  The company also owns and leases facilities in Taiwan and reports a large amount of its long‑lived assets there—$3.2 billion as of fiscal 2026, the second‑largest country‑level balance after the United States【p. 41】.  Additionally, NVIDIA notes that any new restrictions affecting its ability to receive supply from Taiwan would negatively impact its business and financial results【p. 41】.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     29
+    ],
+    [
+     "nvda_10k_2026",
+     81
+    ],
+    [
+     "nvda_10k_2026",
+     31
+    ],
+    [
+     "nvda_10k_2026",
+     96
+    ],
+    [
+     "nvda_10k_2026",
+     198
+    ]
+   ],
+   "seconds": 2.401,
+   "llm_cached": false,
+   "tokens": 2138,
+   "prompt_tokens": 2071,
+   "completion_tokens": 67,
+   "usd_llm_client": 0.00035085,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h25",
+   "q": "Could a shortage of electricity hold back NVIDIA's sales?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Yes. NVIDIA notes that power or electricity shortages could limit customers’ ability to expand data‑center capacity and use its products, which could in turn negatively affect its sales and overall business. [p. 32]",
+   "raw": "Yes. NVIDIA notes that power or electricity shortages could limit customers’ ability to expand data‑center capacity and use its products, which could in turn negatively affect its sales and overall business. [p. 32]",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     47
+    ],
+    [
+     "nvda_10k_2026",
+     31
+    ],
+    [
+     "nvda_10k_2026",
+     32
+    ],
+    [
+     "nvda_10k_2026",
+     55
+    ],
+    [
+     "nvda_10k_2026",
+     58
+    ]
+   ],
+   "seconds": 3.826,
+   "llm_cached": false,
+   "tokens": 2554,
+   "prompt_tokens": 2454,
+   "completion_tokens": 100,
+   "usd_llm_client": 0.0004281,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h25",
+   "q": "Could a shortage of electricity hold back NVIDIA's sales?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Yes. NVIDIA notes that power or electricity shortages could limit customers’ ability to expand data‑center capacity and use its products, which could in turn negatively affect its sales and overall business. [p. 32]",
+   "raw": "Yes. NVIDIA notes that power or electricity shortages could limit customers’ ability to expand data‑center capacity and use its products, which could in turn negatively affect its sales and overall business. [p. 32]",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     47
+    ],
+    [
+     "nvda_10k_2026",
+     31
+    ],
+    [
+     "nvda_10k_2026",
+     32
+    ],
+    [
+     "nvda_10k_2026",
+     55
+    ],
+    [
+     "nvda_10k_2026",
+     58
+    ]
+   ],
+   "seconds": 4.802,
+   "llm_cached": false,
+   "tokens": 2516,
+   "prompt_tokens": 2464,
+   "completion_tokens": 52,
+   "usd_llm_client": 0.0004008,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h26",
+   "q": "What are the downsides of NVIDIA launching a new chip generation every year?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Launching a new chip architecture each year can create several risks. The company notes that a higher frequency and greater complexity of product introductions may lead to “unanticipated quality or production issues” that increase inventory provisions, warranty or other costs and can cause product delays [p. 24]. Additionally, customers might postpone purchases of existing products when new generations arrive more often, potentially suppressing demand for current‑generation chips [p. 24].",
+   "raw": "Launching a new chip architecture each year can create several risks. The company notes that a higher frequency and greater complexity of product introductions may lead to “unanticipated quality or production issues” that increase inventory provisions, warranty or other costs and can cause product delays [p. 24]. Additionally, customers might postpone purchases of existing products when new generations arrive more often, potentially suppressing demand for current‑generation chips [p. 24].",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     14
+    ],
+    [
+     "nvda_10k_2026",
+     43
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     26
+    ],
+    [
+     "nvda_10k_2026",
+     17
+    ]
+   ],
+   "seconds": 2.101,
+   "llm_cached": false,
+   "tokens": 2189,
+   "prompt_tokens": 2054,
+   "completion_tokens": 135,
+   "usd_llm_client": 0.00038909999999999997,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h26",
+   "q": "What are the downsides of NVIDIA launching a new chip generation every year?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Launching a new chip architecture each year can create several risks. The company notes that a higher frequency and greater complexity of product introductions may lead to “unanticipated quality or production issues” that increase inventory provisions, warranty or other costs and can cause product delays [p. 24]. Additionally, customers might postpone purchases of existing products when new generations arrive more often, potentially suppressing demand for current‑generation chips [p. 24].",
+   "raw": "Launching a new chip architecture each year can create several risks. The company notes that a higher frequency and greater complexity of product introductions may lead to “unanticipated quality or production issues” that increase inventory provisions, warranty or other costs and can cause product delays [p. 24]. Additionally, customers might postpone purchases of existing products when new generations arrive more often, potentially suppressing demand for current‑generation chips [p. 24].",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     14
+    ],
+    [
+     "nvda_10k_2026",
+     43
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     26
+    ],
+    [
+     "nvda_10k_2026",
+     17
+    ]
+   ],
+   "seconds": 3.583,
+   "llm_cached": false,
+   "tokens": 2123,
+   "prompt_tokens": 2064,
+   "completion_tokens": 59,
+   "usd_llm_client": 0.000345,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h27",
+   "q": "Besides selling chips, how is NVIDIA backing other AI companies financially?",
+   "arm": "bm25/structure",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     13
+    ],
+    [
+     "nvda_10k_2026",
+     76
+    ],
+    [
+     "nvda_10k_2026",
+     22
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     113
+    ]
+   ],
+   "seconds": 1.745,
+   "llm_cached": false,
+   "tokens": 2336,
+   "prompt_tokens": 2276,
+   "completion_tokens": 60,
+   "usd_llm_client": 0.00037739999999999996,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h27",
+   "q": "Besides selling chips, how is NVIDIA backing other AI companies financially?",
+   "arm": "bm25/structure+check",
+   "kind": "conceptual",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     13
+    ],
+    [
+     "nvda_10k_2026",
+     76
+    ],
+    [
+     "nvda_10k_2026",
+     22
+    ],
+    [
+     "nvda_10k_2026",
+     8
+    ],
+    [
+     "nvda_10k_2026",
+     113
+    ]
+   ],
+   "seconds": 3.124,
+   "llm_cached": false,
+   "tokens": 2343,
+   "prompt_tokens": 2286,
+   "completion_tokens": 57,
+   "usd_llm_client": 0.0003771,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h28",
+   "q": "Apple was ordered to stop charging fees on purchases made outside apps; how does Apple book the money it makes from third-party apps?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple records revenue from third‑party applications sold through the App Store on a net basis – it does not treat the gross sales as its own. Instead, Apple recognizes only the commission it retains as “Services” net sales, and the remainder is accounted for as a pass‑through to the developer [p. 51].",
+   "raw": "Apple records revenue from third‑party applications sold through the App Store on a net basis – it does not treat the gross sales as its own. Instead, Apple recognizes only the commission it retains as “Services” net sales, and the remainder is accounted for as a pass‑through to the developer [p. 51].",
+   "fact_share": 0.5,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     55
+    ],
+    [
+     "aapl_10k_2025",
+     39
+    ],
+    [
+     "aapl_10k_2025",
+     54
+    ],
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     82
+    ]
+   ],
+   "seconds": 4.56,
+   "llm_cached": false,
+   "tokens": 2495,
+   "prompt_tokens": 2393,
+   "completion_tokens": 102,
+   "usd_llm_client": 0.00042015,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h28",
+   "q": "Apple was ordered to stop charging fees on purchases made outside apps; how does Apple book the money it makes from third-party apps?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple records revenue from third‑party applications sold through the App Store on a net basis – it does not treat the gross sales as its own. Instead, Apple recognizes only the commission it retains as “Services” net sales, and the remainder is accounted for as a pass‑through to the developer [p. 51].",
+   "raw": "Apple records revenue from third‑party applications sold through the App Store on a net basis – it does not treat the gross sales as its own. Instead, Apple recognizes only the commission it retains as “Services” net sales, and the remainder is accounted for as a pass‑through to the developer [p. 51].",
+   "fact_share": 0.5,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     55
+    ],
+    [
+     "aapl_10k_2025",
+     39
+    ],
+    [
+     "aapl_10k_2025",
+     54
+    ],
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     82
+    ]
+   ],
+   "seconds": 2.715,
+   "llm_cached": false,
+   "tokens": 2477,
+   "prompt_tokens": 2403,
+   "completion_tokens": 74,
+   "usd_llm_client": 0.00040485,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h29",
+   "q": "Apple's sales in China fell this year; what drove it, and is the iPhone a bigger share of the mix there than in other regions?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple said its Greater China sales declined because iPhone net sales were lower, which was only partially offset by higher Mac sales【p. 30-31】.  The company also notes that, unlike its other segments, iPhone revenue makes up a moderately higher proportion of total net sales in Greater China【p. 52】.",
+   "raw": "Apple said its Greater China sales declined because iPhone net sales were lower, which was only partially offset by higher Mac sales【p. 30-31】.  The company also notes that, unlike its other segments, iPhone revenue makes up a moderately higher proportion of total net sales in Greater China【p. 52】.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     83
+    ],
+    [
+     "aapl_10k_2025",
+     64
+    ],
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     87
+    ],
+    [
+     "aapl_10k_2025",
+     105
+    ]
+   ],
+   "seconds": 1.59,
+   "llm_cached": false,
+   "tokens": 2384,
+   "prompt_tokens": 2273,
+   "completion_tokens": 111,
+   "usd_llm_client": 0.00040754999999999996,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h29",
+   "q": "Apple's sales in China fell this year; what drove it, and is the iPhone a bigger share of the mix there than in other regions?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple said its Greater China sales declined because iPhone net sales were lower, which was only partially offset by higher Mac sales【p. 30-31】.  The company also notes that, unlike its other segments, iPhone revenue makes up a moderately higher proportion of total net sales in Greater China【p. 52】.",
+   "raw": "Apple said its Greater China sales declined because iPhone net sales were lower, which was only partially offset by higher Mac sales【p. 30-31】.  The company also notes that, unlike its other segments, iPhone revenue makes up a moderately higher proportion of total net sales in Greater China【p. 52】.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     83
+    ],
+    [
+     "aapl_10k_2025",
+     64
+    ],
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     87
+    ],
+    [
+     "aapl_10k_2025",
+     105
+    ]
+   ],
+   "seconds": 3.022,
+   "llm_cached": false,
+   "tokens": 2352,
+   "prompt_tokens": 2283,
+   "completion_tokens": 69,
+   "usd_llm_client": 0.0003838499999999999,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h30",
+   "q": "Apple's notes carry fixed coupons, so why would rising rates push up its interest costs, and by how much?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple’s fixed‑rate notes have coupons that do not change when market rates rise, but the company has used interest‑rate swaps to convert a portion of those fixed‑rate obligations into floating‑rate exposure. When rates increase, the floating leg of the swaps requires higher interest payments, which raises Apple’s overall interest cost even though the underlying notes remain fixed‑coupon [p. 66-67]. The company reports that future interest payments on its notes total $37.0 billion, of which $2.6 billion is payable within the next 12 months [p. 34].",
+   "raw": "Apple’s fixed‑rate notes have coupons that do not change when market rates rise, but the company has used interest‑rate swaps to convert a portion of those fixed‑rate obligations into floating‑rate exposure. When rates increase, the floating leg of the swaps requires higher interest payments, which raises Apple’s overall interest cost even though the underlying notes remain fixed‑coupon [p. 66-67]. The company reports that future interest payments on its notes total $37.0 billion, of which $2.6 billion is payable within the next 12 months [p. 34].",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     99
+    ],
+    [
+     "aapl_10k_2025",
+     89
+    ],
+    [
+     "aapl_10k_2025",
+     97
+    ],
+    [
+     "aapl_10k_2025",
+     95
+    ],
+    [
+     "aapl_10k_2025",
+     68
+    ]
+   ],
+   "seconds": 2.497,
+   "llm_cached": false,
+   "tokens": 2653,
+   "prompt_tokens": 2447,
+   "completion_tokens": 206,
+   "usd_llm_client": 0.00049065,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h30",
+   "q": "Apple's notes carry fixed coupons, so why would rising rates push up its interest costs, and by how much?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     99
+    ],
+    [
+     "aapl_10k_2025",
+     89
+    ],
+    [
+     "aapl_10k_2025",
+     97
+    ],
+    [
+     "aapl_10k_2025",
+     95
+    ],
+    [
+     "aapl_10k_2025",
+     68
+    ]
+   ],
+   "seconds": 3.222,
+   "llm_cached": false,
+   "tokens": 2513,
+   "prompt_tokens": 2457,
+   "completion_tokens": 56,
+   "usd_llm_client": 0.00040215,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h31",
+   "q": "Apple warns about credit risk from the contract manufacturers that build its products; how concentrated is that exposure?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "Apple notes that its unsecured vendor non‑trade receivables – which arise from purchases of components from outsourcing partners and other vendors that manufacture sub‑assemblies or assemble final products – “were concentrated among a few individual vendors located primarily in Asia” as of the reporting date【p. 23】. This indicates that the credit‑risk exposure to contract manufacturers is relatively concentrated in a small number of Asian suppliers.",
+   "raw": "Apple notes that its unsecured vendor non‑trade receivables – which arise from purchases of components from outsourcing partners and other vendors that manufacture sub‑assemblies or assemble final products – “were concentrated among a few individual vendors located primarily in Asia” as of the reporting date【p. 23】. This indicates that the credit‑risk exposure to contract manufacturers is relatively concentrated in a small number of Asian suppliers.",
+   "fact_share": 0.5,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     47
+    ],
+    [
+     "aapl_10k_2025",
+     46
+    ],
+    [
+     "aapl_10k_2025",
+     14
+    ],
+    [
+     "aapl_10k_2025",
+     16
+    ],
+    [
+     "aapl_10k_2025",
+     17
+    ]
+   ],
+   "seconds": 1.943,
+   "llm_cached": false,
+   "tokens": 2450,
+   "prompt_tokens": 2329,
+   "completion_tokens": 121,
+   "usd_llm_client": 0.00042194999999999993,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h31",
+   "q": "Apple warns about credit risk from the contract manufacturers that build its products; how concentrated is that exposure?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     47
+    ],
+    [
+     "aapl_10k_2025",
+     46
+    ],
+    [
+     "aapl_10k_2025",
+     14
+    ],
+    [
+     "aapl_10k_2025",
+     16
+    ],
+    [
+     "aapl_10k_2025",
+     17
+    ]
+   ],
+   "seconds": 2.581,
+   "llm_cached": false,
+   "tokens": 2391,
+   "prompt_tokens": 2339,
+   "completion_tokens": 52,
+   "usd_llm_client": 0.00038205,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h32",
+   "q": "Apple says some parts come from just one supplier; how much has it already committed to pay its manufacturing partners?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     21
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ],
+    [
+     "aapl_10k_2025",
+     104
+    ],
+    [
+     "aapl_10k_2025",
+     15
+    ],
+    [
+     "aapl_10k_2025",
+     8
+    ]
+   ],
+   "seconds": 1.716,
+   "llm_cached": false,
+   "tokens": 2295,
+   "prompt_tokens": 2261,
+   "completion_tokens": 34,
+   "usd_llm_client": 0.00035955,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h32",
+   "q": "Apple says some parts come from just one supplier; how much has it already committed to pay its manufacturing partners?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     21
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ],
+    [
+     "aapl_10k_2025",
+     104
+    ],
+    [
+     "aapl_10k_2025",
+     15
+    ],
+    [
+     "aapl_10k_2025",
+     8
+    ]
+   ],
+   "seconds": 3.1,
+   "llm_cached": false,
+   "tokens": 2311,
+   "prompt_tokens": 2271,
+   "completion_tokens": 40,
+   "usd_llm_client": 0.00036465,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h33",
+   "q": "Apple says it has to keep its skilled people; how much promised stock pay has it not yet expensed?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     28
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ],
+    [
+     "aapl_10k_2025",
+     27
+    ],
+    [
+     "aapl_10k_2025",
+     59
+    ]
+   ],
+   "seconds": 2.208,
+   "llm_cached": false,
+   "tokens": 2347,
+   "prompt_tokens": 2315,
+   "completion_tokens": 32,
+   "usd_llm_client": 0.00036644999999999994,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h33",
+   "q": "Apple says it has to keep its skilled people; how much promised stock pay has it not yet expensed?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     28
+    ],
+    [
+     "aapl_10k_2025",
+     11
+    ],
+    [
+     "aapl_10k_2025",
+     27
+    ],
+    [
+     "aapl_10k_2025",
+     59
+    ]
+   ],
+   "seconds": 4.144,
+   "llm_cached": false,
+   "tokens": 2392,
+   "prompt_tokens": 2325,
+   "completion_tokens": 67,
+   "usd_llm_client": 0.00038894999999999994,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h34",
+   "q": "What export rule triggered NVIDIA's H20 write-down, and how much excess purchase obligation was still accrued at year end?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "The export rule that triggered the H20 write‑down was the U.S. government’s April 2025 licensing requirement that any export of H20 integrated circuits (or any circuit with H20‑level memory or interconnect bandwidth) to China (including Hong Kong and Macau) or to “Country Group D5” customers must obtain a license [p. 14].  \n\nAt fiscal year‑end, NVIDIA still had $95.2 billion of outstanding inventory purchase and long‑term supply and capacity obligations, a large portion of which relates to excess product purchase commitments [p. 73].",
+   "raw": "The export rule that triggered the H20 write‑down was the U.S. government’s April 2025 licensing requirement that any export of H20 integrated circuits (or any circuit with H20‑level memory or interconnect bandwidth) to China (including Hong Kong and Macau) or to “Country Group D5” customers must obtain a license [p. 14].  \n\nAt fiscal year‑end, NVIDIA still had $95.2 billion of outstanding inventory purchase and long‑term supply and capacity obligations, a large portion of which relates to excess product purchase commitments [p. 73].",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     144
+    ],
+    [
+     "nvda_10k_2026",
+     158
+    ],
+    [
+     "nvda_10k_2026",
+     25
+    ],
+    [
+     "nvda_10k_2026",
+     110
+    ],
+    [
+     "nvda_10k_2026",
+     116
+    ]
+   ],
+   "seconds": 2.208,
+   "llm_cached": false,
+   "tokens": 2645,
+   "prompt_tokens": 2415,
+   "completion_tokens": 230,
+   "usd_llm_client": 0.00050025,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h34",
+   "q": "What export rule triggered NVIDIA's H20 write-down, and how much excess purchase obligation was still accrued at year end?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     144
+    ],
+    [
+     "nvda_10k_2026",
+     158
+    ],
+    [
+     "nvda_10k_2026",
+     25
+    ],
+    [
+     "nvda_10k_2026",
+     110
+    ],
+    [
+     "nvda_10k_2026",
+     116
+    ]
+   ],
+   "seconds": 2.608,
+   "llm_cached": false,
+   "tokens": 2617,
+   "prompt_tokens": 2425,
+   "completion_tokens": 192,
+   "usd_llm_client": 0.00047894999999999996,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h35",
+   "q": "How lopsided is NVIDIA's customer base, both in sales and in the money customers still owe it?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "NVIDIA’s revenue is heavily concentrated in a few customers.  In fiscal 2026, sales to a single direct customer accounted for about 22 % of total revenue and sales to another direct customer accounted for roughly 14 % of total revenue, with other direct and indirect customers also representing 10 % or more of revenue in some cases [p. 57].  The filings do not provide details on how much money customers still owe NVIDIA.",
+   "raw": "NVIDIA’s revenue is heavily concentrated in a few customers.  In fiscal 2026, sales to a single direct customer accounted for about 22 % of total revenue and sales to another direct customer accounted for roughly 14 % of total revenue, with other direct and indirect customers also representing 10 % or more of revenue in some cases [p. 57].  The filings do not provide details on how much money customers still owe NVIDIA.",
+   "fact_share": 0.5,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     39
+    ],
+    [
+     "nvda_10k_2026",
+     38
+    ],
+    [
+     "nvda_10k_2026",
+     26
+    ],
+    [
+     "nvda_10k_2026",
+     115
+    ],
+    [
+     "nvda_10k_2026",
+     150
+    ]
+   ],
+   "seconds": 2.001,
+   "llm_cached": false,
+   "tokens": 2427,
+   "prompt_tokens": 2260,
+   "completion_tokens": 167,
+   "usd_llm_client": 0.00043919999999999994,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h35",
+   "q": "How lopsided is NVIDIA's customer base, both in sales and in the money customers still owe it?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     39
+    ],
+    [
+     "nvda_10k_2026",
+     38
+    ],
+    [
+     "nvda_10k_2026",
+     26
+    ],
+    [
+     "nvda_10k_2026",
+     115
+    ],
+    [
+     "nvda_10k_2026",
+     150
+    ]
+   ],
+   "seconds": 2.917,
+   "llm_cached": false,
+   "tokens": 2342,
+   "prompt_tokens": 2270,
+   "completion_tokens": 72,
+   "usd_llm_client": 0.0003837,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h36",
+   "q": "What made NVIDIA's non-operating income jump this year, and how much unrealized gain sits in its listed stock holdings?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "NVIDIA’s jump in non‑operating (other) income was driven primarily by large unrealized gains on its equity investments – both non‑marketable securities and publicly‑held stocks such as its newly announced stake in Intel – which were recorded in “Other income, net” for the year 2026【p. 59】.  \n\nThe company reported that the net unrealized gains on its publicly‑held (listed) equity securities at fiscal‑year end were about **$6.6 billion**【pp. 95-96】.",
+   "raw": "NVIDIA’s jump in non‑operating (other) income was driven primarily by large unrealized gains on its equity investments – both non‑marketable securities and publicly‑held stocks such as its newly announced stake in Intel – which were recorded in “Other income, net” for the year 2026【p. 59】.  \n\nThe company reported that the net unrealized gains on its publicly‑held (listed) equity securities at fiscal‑year end were about **$6.6 billion**【pp. 95-96】.",
+   "fact_share": 0.333,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     117
+    ],
+    [
+     "nvda_10k_2026",
+     174
+    ],
+    [
+     "nvda_10k_2026",
+     146
+    ],
+    [
+     "nvda_10k_2026",
+     178
+    ],
+    [
+     "nvda_10k_2026",
+     172
+    ]
+   ],
+   "seconds": 3.29,
+   "llm_cached": false,
+   "tokens": 2838,
+   "prompt_tokens": 2631,
+   "completion_tokens": 207,
+   "usd_llm_client": 0.00051885,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h36",
+   "q": "What made NVIDIA's non-operating income jump this year, and how much unrealized gain sits in its listed stock holdings?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "NVIDIA’s jump in non‑operating (other) income was driven primarily by large unrealized gains on its equity investments – both non‑marketable securities and publicly‑held stocks such as its newly announced stake in Intel – which were recorded in “Other income, net” for the year 2026【p. 59】.  \n\nThe company reported that the net unrealized gains on its publicly‑held (listed) equity securities at fiscal‑year end were about **$6.6 billion**【pp. 95-96】.",
+   "raw": "NVIDIA’s jump in non‑operating (other) income was driven primarily by large unrealized gains on its equity investments – both non‑marketable securities and publicly‑held stocks such as its newly announced stake in Intel – which were recorded in “Other income, net” for the year 2026【p. 59】.  \n\nThe company reported that the net unrealized gains on its publicly‑held (listed) equity securities at fiscal‑year end were about **$6.6 billion**【pp. 95-96】.",
+   "fact_share": 0.333,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     117
+    ],
+    [
+     "nvda_10k_2026",
+     174
+    ],
+    [
+     "nvda_10k_2026",
+     146
+    ],
+    [
+     "nvda_10k_2026",
+     178
+    ],
+    [
+     "nvda_10k_2026",
+     172
+    ]
+   ],
+   "seconds": 1.684,
+   "llm_cached": false,
+   "tokens": 2729,
+   "prompt_tokens": 2641,
+   "completion_tokens": 88,
+   "usd_llm_client": 0.00044895,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h37",
+   "q": "NVIDIA backs partners' data center leases; what risk does it flag from such deals, and what is the most it could have to pay?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     50
+    ],
+    [
+     "nvda_10k_2026",
+     41
+    ],
+    [
+     "nvda_10k_2026",
+     80
+    ],
+    [
+     "nvda_10k_2026",
+     76
+    ],
+    [
+     "nvda_10k_2026",
+     64
+    ]
+   ],
+   "seconds": 2.097,
+   "llm_cached": false,
+   "tokens": 2454,
+   "prompt_tokens": 2394,
+   "completion_tokens": 60,
+   "usd_llm_client": 0.00039509999999999995,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h37",
+   "q": "NVIDIA backs partners' data center leases; what risk does it flag from such deals, and what is the most it could have to pay?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     50
+    ],
+    [
+     "nvda_10k_2026",
+     41
+    ],
+    [
+     "nvda_10k_2026",
+     80
+    ],
+    [
+     "nvda_10k_2026",
+     76
+    ],
+    [
+     "nvda_10k_2026",
+     64
+    ]
+   ],
+   "seconds": 2.821,
+   "llm_cached": false,
+   "tokens": 2436,
+   "prompt_tokens": 2404,
+   "completion_tokens": 32,
+   "usd_llm_client": 0.00037979999999999996,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h38",
+   "q": "What data center space does NVIDIA use today, and how much new leasing is lined up for the next few years?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     96
+    ],
+    [
+     "nvda_10k_2026",
+     7
+    ],
+    [
+     "nvda_10k_2026",
+     13
+    ],
+    [
+     "nvda_10k_2026",
+     12
+    ],
+    [
+     "nvda_10k_2026",
+     108
+    ]
+   ],
+   "seconds": 2.404,
+   "llm_cached": false,
+   "tokens": 2181,
+   "prompt_tokens": 2119,
+   "completion_tokens": 62,
+   "usd_llm_client": 0.00035504999999999993,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h38",
+   "q": "What data center space does NVIDIA use today, and how much new leasing is lined up for the next few years?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": 0.0,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     96
+    ],
+    [
+     "nvda_10k_2026",
+     7
+    ],
+    [
+     "nvda_10k_2026",
+     13
+    ],
+    [
+     "nvda_10k_2026",
+     12
+    ],
+    [
+     "nvda_10k_2026",
+     108
+    ]
+   ],
+   "seconds": 2.817,
+   "llm_cached": false,
+   "tokens": 2198,
+   "prompt_tokens": 2129,
+   "completion_tokens": 69,
+   "usd_llm_client": 0.00036074999999999996,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h39",
+   "q": "Why did NVIDIA spend so much more cash on investing this year, and how much goodwill did the Groq deal create?",
+   "arm": "bm25/structure",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "NVIDIA’s cash outflow for investing rose sharply in fiscal 2026 because it bought more equity‑investment securities and, importantly, executed a non‑exclusive license agreement with Groq, which required a large cash payment 【p. 61】. The Groq transaction generated $14.4 billion of goodwill on NVIDIA’s balance sheet 【p. 90】.",
+   "raw": "NVIDIA’s cash outflow for investing rose sharply in fiscal 2026 because it bought more equity‑investment securities and, importantly, executed a non‑exclusive license agreement with Groq, which required a large cash payment 【p. 61】. The Groq transaction generated $14.4 billion of goodwill on NVIDIA’s balance sheet 【p. 90】.",
+   "fact_share": 0.5,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     119
+    ],
+    [
+     "nvda_10k_2026",
+     163
+    ],
+    [
+     "nvda_10k_2026",
+     37
+    ],
+    [
+     "nvda_10k_2026",
+     148
+    ],
+    [
+     "nvda_10k_2026",
+     60
+    ]
+   ],
+   "seconds": 2.41,
+   "llm_cached": false,
+   "tokens": 2472,
+   "prompt_tokens": 2298,
+   "completion_tokens": 174,
+   "usd_llm_client": 0.0004491,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h39",
+   "q": "Why did NVIDIA spend so much more cash on investing this year, and how much goodwill did the Groq deal create?",
+   "arm": "bm25/structure+check",
+   "kind": "multi_section",
+   "answerable": true,
+   "refused": false,
+   "verified": true,
+   "refused_by": null,
+   "warnings": [],
+   "text": "NVIDIA’s cash outflow for investing rose sharply in fiscal 2026 because it bought more equity‑investment securities and, importantly, executed a non‑exclusive license agreement with Groq, which required a large cash payment 【p. 61】. The Groq transaction generated $14.4 billion of goodwill on NVIDIA’s balance sheet 【p. 90】.",
+   "raw": "NVIDIA’s cash outflow for investing rose sharply in fiscal 2026 because it bought more equity‑investment securities and, importantly, executed a non‑exclusive license agreement with Groq, which required a large cash payment 【p. 61】. The Groq transaction generated $14.4 billion of goodwill on NVIDIA’s balance sheet 【p. 90】.",
+   "fact_share": 0.5,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     119
+    ],
+    [
+     "nvda_10k_2026",
+     163
+    ],
+    [
+     "nvda_10k_2026",
+     37
+    ],
+    [
+     "nvda_10k_2026",
+     148
+    ],
+    [
+     "nvda_10k_2026",
+     60
+    ]
+   ],
+   "seconds": 2.966,
+   "llm_cached": false,
+   "tokens": 2362,
+   "prompt_tokens": 2308,
+   "completion_tokens": 54,
+   "usd_llm_client": 0.0003786,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h40",
+   "q": "How much revenue did Apple's advertising business bring in during fiscal 2025?",
+   "arm": "bm25/structure",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": null,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     65
+    ],
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     3
+    ],
+    [
+     "aapl_10k_2025",
+     79
+    ]
+   ],
+   "seconds": 1.939,
+   "llm_cached": false,
+   "tokens": 2435,
+   "prompt_tokens": 2386,
+   "completion_tokens": 49,
+   "usd_llm_client": 0.00038730000000000004,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h40",
+   "q": "How much revenue did Apple's advertising business bring in during fiscal 2025?",
+   "arm": "bm25/structure+check",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": null,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     65
+    ],
+    [
+     "aapl_10k_2025",
+     5
+    ],
+    [
+     "aapl_10k_2025",
+     3
+    ],
+    [
+     "aapl_10k_2025",
+     79
+    ]
+   ],
+   "seconds": 2.521,
+   "llm_cached": false,
+   "tokens": 2436,
+   "prompt_tokens": 2396,
+   "completion_tokens": 40,
+   "usd_llm_client": 0.0003834,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h41",
+   "q": "How many dollars did the new U.S. tariffs cost Apple in fiscal 2025?",
+   "arm": "bm25/structure",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": null,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     63
+    ],
+    [
+     "aapl_10k_2025",
+     66
+    ],
+    [
+     "aapl_10k_2025",
+     44
+    ],
+    [
+     "aapl_10k_2025",
+     16
+    ]
+   ],
+   "seconds": 2.104,
+   "llm_cached": false,
+   "tokens": 2543,
+   "prompt_tokens": 2514,
+   "completion_tokens": 29,
+   "usd_llm_client": 0.0003945,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h41",
+   "q": "How many dollars did the new U.S. tariffs cost Apple in fiscal 2025?",
+   "arm": "bm25/structure+check",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": null,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     63
+    ],
+    [
+     "aapl_10k_2025",
+     66
+    ],
+    [
+     "aapl_10k_2025",
+     44
+    ],
+    [
+     "aapl_10k_2025",
+     16
+    ]
+   ],
+   "seconds": 2.405,
+   "llm_cached": false,
+   "tokens": 2565,
+   "prompt_tokens": 2524,
+   "completion_tokens": 41,
+   "usd_llm_client": 0.00040320000000000004,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h42",
+   "q": "What were Apple's Mac net sales in Europe in fiscal 2025?",
+   "arm": "bm25/structure",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": null,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     64
+    ],
+    [
+     "aapl_10k_2025",
+     65
+    ],
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     106
+    ],
+    [
+     "aapl_10k_2025",
+     4
+    ]
+   ],
+   "seconds": 1.896,
+   "llm_cached": false,
+   "tokens": 2680,
+   "prompt_tokens": 2639,
+   "completion_tokens": 41,
+   "usd_llm_client": 0.00042044999999999995,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h42",
+   "q": "What were Apple's Mac net sales in Europe in fiscal 2025?",
+   "arm": "bm25/structure+check",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": null,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     64
+    ],
+    [
+     "aapl_10k_2025",
+     65
+    ],
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     106
+    ],
+    [
+     "aapl_10k_2025",
+     4
+    ]
+   ],
+   "seconds": 3.742,
+   "llm_cached": false,
+   "tokens": 2710,
+   "prompt_tokens": 2649,
+   "completion_tokens": 61,
+   "usd_llm_client": 0.00043395,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h43",
+   "q": "What quarterly dividend per share will Apple pay in fiscal 2026?",
+   "arm": "bm25/structure",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "no passage scored high enough",
+   "warnings": [
+    "refused: no passage scored high enough"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": null,
+   "shown": [],
+   "seconds": 0.013,
+   "llm_cached": false,
+   "tokens": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "usd_llm_client": 0,
+   "billed": 0,
+   "served_by": []
+  },
+  {
+   "id": "h43",
+   "q": "What quarterly dividend per share will Apple pay in fiscal 2026?",
+   "arm": "bm25/structure+check",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "no passage scored high enough",
+   "warnings": [
+    "refused: no passage scored high enough"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": null,
+   "shown": [],
+   "seconds": 0.011,
+   "llm_cached": false,
+   "tokens": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "usd_llm_client": 0,
+   "billed": 0,
+   "served_by": []
+  },
+  {
+   "id": "h44",
+   "q": "What was App Store revenue in fiscal 2025?",
+   "arm": "bm25/structure",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": null,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     55
+    ],
+    [
+     "aapl_10k_2025",
+     82
+    ],
+    [
+     "aapl_10k_2025",
+     79
+    ],
+    [
+     "aapl_10k_2025",
+     54
+    ]
+   ],
+   "seconds": 1.686,
+   "llm_cached": false,
+   "tokens": 2522,
+   "prompt_tokens": 2490,
+   "completion_tokens": 32,
+   "usd_llm_client": 0.00039269999999999995,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h44",
+   "q": "What was App Store revenue in fiscal 2025?",
+   "arm": "bm25/structure+check",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the relevance check found no answer in the passages",
+   "warnings": [
+    "refused: the relevance check found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "",
+   "fact_share": null,
+   "shown": [
+    [
+     "aapl_10k_2025",
+     62
+    ],
+    [
+     "aapl_10k_2025",
+     55
+    ],
+    [
+     "aapl_10k_2025",
+     82
+    ],
+    [
+     "aapl_10k_2025",
+     79
+    ],
+    [
+     "aapl_10k_2025",
+     54
+    ]
+   ],
+   "seconds": 2.132,
+   "llm_cached": false,
+   "tokens": 2537,
+   "prompt_tokens": 2500,
+   "completion_tokens": 37,
+   "usd_llm_client": 0.0003972,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h45",
+   "q": "Which company is the direct customer behind 22% of NVIDIA's fiscal 2026 revenue?",
+   "arm": "bm25/structure",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": null,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     115
+    ],
+    [
+     "nvda_10k_2026",
+     197
+    ],
+    [
+     "nvda_10k_2026",
+     63
+    ],
+    [
+     "nvda_10k_2026",
+     175
+    ],
+    [
+     "nvda_10k_2026",
+     113
+    ]
+   ],
+   "seconds": 1.486,
+   "llm_cached": false,
+   "tokens": 2679,
+   "prompt_tokens": 2650,
+   "completion_tokens": 29,
+   "usd_llm_client": 0.0004149,
+   "billed": 0.0,
+   "served_by": [
+    "groq:openai/gpt-oss-120b"
+   ]
+  },
+  {
+   "id": "h45",
+   "q": "Which company is the direct customer behind 22% of NVIDIA's fiscal 2026 revenue?",
+   "arm": "bm25/structure+check",
+   "kind": "unanswerable",
+   "answerable": false,
+   "refused": true,
+   "verified": true,
+   "refused_by": "the answer step found no answer in the passages",
+   "warnings": [
+    "refused: the answer step found no answer in the passages"
+   ],
+   "text": "Not found in the filings.",
+   "raw": "Not found in the filings.",
+   "fact_share": null,
+   "shown": [
+    [
+     "nvda_10k_2026",
+     115
+    ],
+    [
+     "nvda_10k_2026",
+     197
+    ],
+    [
+     "nvda_10k_2026",
+     63
+    ],
+    [
+     "nvda_10k_2026",
+     175
+    ],
+    [
+     "nvda_10k_2026",
+     113
+    ]
+   ],
+   "seconds": 12.337,
+   "llm_cached": true,
+   "tokens": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "usd_llm_client": 0,
+   "billed": 0,
+   "served_by": []
+  }
+ ]
+}
