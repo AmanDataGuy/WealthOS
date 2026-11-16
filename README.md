@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="tests" src="https://img.shields.io/badge/tests-193%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-219%20passing-brightgreen">
   <img alt="python" src="https://img.shields.io/badge/python-3.11-3776AB">
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
@@ -71,6 +71,10 @@
 - **Company analyst.** Type a US ticker to get five years of statements, ratios and a DCF as an Excel model where
   every figure names its SEC filing. Compare 2 to 6 companies, review each quarter against a forecast you locked
   before the results, and check a rebalance plan against your own limits. ([company mode](docs/company_mode.md))
+- **Ask your filings.** Upload a 10-K or annual report PDF and ask about risks, segments, lawsuits or notes. Answers
+  cite pages, every number must appear in a passage the answer cites, and a question the filing does not answer
+  gets "Not found in the filings." Search is BM25 over section-aware chunks, with hybrid search on pgvector and a
+  re-ranker as a setting. ([results](docs/rag/RESULTS.md))
 - Dashboards you build by hand or by asking, with Excel export and your own Excel templates.
 - A strategy lab that backtests a rule with Indian charges and a deflated Sharpe ratio, and drift from your target mix.
 - A read-only MCP server for metrics, tax, drift and backtests. ([MCP](docs/mcp.md))
@@ -117,6 +121,8 @@ For local development on Python 3.11: `pip install -r backend/requirements-dev.t
 | PII redaction           |    55 strings |      **84.6%** recall | misses names in narrations    |
 | Company tie-outs        |   5 companies |         **115 / 117** | 573 / 573 formulas recompute  |
 | Filing search, recall@5 |  66 questions |             **1.000** | 0.894 page BM25, 0.939 hybrid |
+| Paraphrased filing qs   |  39 questions | **0.769** hybrid + re-rank | 0.615 BM25                |
+| Filing answers          |  81 questions |  **15 / 15** unanswerable refused | 0.967 Ragas faithfulness (31 judged) |
 
 Golden-set answers are replayed in CI with no keys, and the labelled sets fail the build if any rate gets worse.
 To reproduce live: `cd backend && python evals/run.py`. Every run and failure is in the
@@ -124,7 +130,28 @@ To reproduce live: `cd backend && python evals/run.py`. Every run and failure is
 
 <!-- src: backend/evals/results.json, results_openrouter.json, results_baseline.json, results_local_qwen3_8b.json,
      results_sets.json (sql, numbers, pii), company_tieouts.json, company_quarters.json#totals,
-     results_rag.json#arms.bm25/structure.recall_at_5, #arms.pages_bm25_before.recall_at_5, #arms.hybrid/structure.recall_at_5 -->
+     results_rag.json#arms.bm25/structure.recall_at_5, #arms.pages_bm25_before.recall_at_5, #arms.hybrid/structure.recall_at_5,
+     results_rag_hard.json#arms.hybrid+rerank/fixed.recall_at_5, #arms.bm25/structure.recall_at_5,
+     results_rag_answers.json#summary.bm25/structure.refused_unanswerable, #summary.bm25/structure.ragas_faithfulness -->
+
+## Status
+
+Built and measured (every number above has a committed result file):
+- The money assistant, company mode and the MCP server.
+- Filing Q&A over chunked 10-Ks: BM25, pgvector hybrid search and re-ranking compared on 66 easy and 39 hard
+  questions; pgvector returns the same rankings as the in-memory eval; live answers scored for accuracy, refusals
+  and Ragas faithfulness.
+- CI replays the recorded golden answers, gates the labelled sets, and gates filing recall@5 on the real 10-Ks.
+
+Open:
+- Not deployed; an AWS deployment is designed but not built.
+- The open review findings in [SECURITY.md](SECURITY.md) (strategy sandbox, Excel cell escaping, the cost cap without
+  a database, worker and proxy settings, account-delete order).
+- Ragas judged about half the easy filing answers before the eval's OpenRouter credit ran out. The hard-set
+  answer run on Groq's free tier stopped at its daily limit after 45 of 51 questions; the last 6 near-miss questions
+  and Ragas for that set are not measured.
+- The filing number check does not apply a table's units, so "13,308 million" read from an "(in millions)" table is
+  rejected.
 
 ## Limitations
 
@@ -134,6 +161,7 @@ To reproduce live: `cd backend && python evals/run.py`. Every run and failure is
 - 34 golden questions is a small set: one question moves the score by about 3 points.
 - Regex PII redaction misses names inside payment narrations.
 - Company mode covers US filers only, refuses banks and insurers, and takes the share price as an input.
+- Filing evals cover two 10-Ks. Re-ranking runs on the CPU at 6 to 8 s per question, so it is off by default.
 
 ## Docs
 
