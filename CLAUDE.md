@@ -6,5 +6,5 @@ fixtures in git; redact before every LLM call; tenant and user come from the ver
 `verify.guard_sql` and runs on `engine.open_readonly`; outbound messages are decided by code, never the model; every
 eval number comes from a committed live-run result file.
 
-Plan and audit: `BUILD_PLAN.md`, `AUDIT.md` (local, untracked). Numbers rule: every README number has a
+Open work and known issues: `docs/history/carried_over_2026-11-16.md` (local, untracked). Numbers rule: every README number has a
 `<!-- src: -->` comment pointing at a committed result file.
