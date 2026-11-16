@@ -26,7 +26,7 @@ jobs:
       - name: Fetch the eval filings on a cache miss
         run: |
           if [ -f storage/eval_filings/nvda_10k_2026.pdf ]; then echo "eval filings restored from cache"
-          elif [ -n "$SEC_USER_AGENT" ]; then python evals/sets/fetch_filings.py
+          elif [ -n "$SEC_USER_AGENT" ]; then python evals/sets/fetch_filings.py || echo "::warning::the eval filings could not be fetched: the filing eval tests will skip"
           else echo "no SEC_USER_AGENT secret: the filing eval tests will skip"; fi
         working-directory: backend
         env:
