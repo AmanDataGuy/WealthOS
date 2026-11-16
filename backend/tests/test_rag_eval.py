@@ -59,7 +59,8 @@ def test_recorded_answers_replay_unchanged(indexed, monkeypatch, name):
     for module, attr in [(llm, "call_json"), (llm, "call_llm"), (research, "REFUSE_BM25"), (research, "REFUSE_RERANK")]:
         monkeypatch.setattr(module, attr, getattr(module, attr))  # the replay patches these; put them back afterwards
     monkeypatch.setenv("WEALTHOS_DB_URL", "")
-    was = {(r["arm"], r["id"]): r for r in committed["rows"]}
+    # shortcut: re-ranked rows are left out of CI like in the recall gate (6-8 s of CPU re-ranking per question)
+    was = {(r["arm"], r["id"]): r for r in committed["rows"] if "+rerank" not in r["arm"]}
     got, _ = asyncio.run(run_rag.answers(run_rag.load_set(run_rag.QUESTION_SETS[name][0]), indexed[1], committed["arms"], committed["thresholds"],
                                          offline=True, only=set(was)))
     drift = [f"{r['arm']} {r['id']}: refused {r['refused']} verified {r['verified']}" for r in got
