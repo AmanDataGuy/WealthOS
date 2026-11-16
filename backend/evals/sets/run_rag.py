@@ -470,14 +470,17 @@ if __name__ == "__main__":
                                                 done, spent_before, args.max_usd))
         print("stopped:", stopped)
         billed = spent_before + sum(r["billed"] for r in rows_out if (r["arm"], r["id"]) not in done)
-        judged = asyncio.run(judge(rows_out, args.provider, billed, args.max_usd, done)) if not stopped else None
-        OUT_ANSWERS.write_text(json.dumps({
-            "provider": args.provider, "answer_model": sorted({m for r in rows_out for m in r["served_by"]}),
-            "arms": live_arms, "thresholds": {b: committed["thresholds"][b] for b in {a.removesuffix("+check") for a in live_arms}},
-            "summary": summarize(rows_out, live_arms), "judge": judged, "stopped": stopped or (judged or {}).get("stopped"),
-            "spend": {"billed_total": round(billed + (judged or {}).get("billed", 0.0), 6), "cap": args.max_usd,
-                      "how": "billed: the provider's reported cost (OpenRouter usage.cost; Groq free tier bills $0); "
-                             "usd_per_question_list: tokens x Groq list price for gpt-oss-120b (llm_client._PRICES['groq'])"},
-            "retrieval_results_git_sha": committed["git_sha"], "run_at": run_at, "git_sha": sha, "rows": rows_out},
-            indent=1, ensure_ascii=False), encoding="utf-8")
+
+        # Write the answers file; called before judging too, so a killed run keeps its answers for the next one.
+        def save(judged):
+            OUT_ANSWERS.write_text(json.dumps({                "provider": args.provider, "answer_model": sorted({m for r in rows_out for m in r["served_by"]}),
+                "arms": live_arms, "thresholds": {b: committed["thresholds"][b] for b in {a.removesuffix("+check") for a in live_arms}},
+                "summary": summarize(rows_out, live_arms), "judge": judged, "stopped": stopped or (judged or {}).get("stopped"),
+                "spend": {"billed_total": round(billed + (judged or {}).get("billed", 0.0), 6), "cap": args.max_usd,
+                          "how": "billed: the provider's reported cost (OpenRouter usage.cost; Groq free tier bills $0); "
+                                 "usd_per_question_list: tokens x Groq list price for gpt-oss-120b (llm_client._PRICES['groq'])"},
+                "retrieval_results_git_sha": committed["git_sha"], "run_at": run_at, "git_sha": sha, "rows": rows_out},
+                indent=1, ensure_ascii=False), encoding="utf-8")
+        save(None)
+        save(asyncio.run(judge(rows_out, args.provider, billed, args.max_usd, done)) if not stopped else None)
         print(json.dumps(summarize(rows_out, live_arms), indent=1))
