@@ -24,9 +24,9 @@ from dotenv import load_dotenv
 OUT = Path(__file__).resolve().parents[2] / "storage" / "eval_filings"
 FILINGS = {  # pdf name: (EDGAR url, sha256 of the HTML, pages after rendering)
     "aapl_10k_2025.pdf": ("https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
-                          "2e9a48b29574153c8b11f8d070f0198bbad8d53444570e6cefdaf68578f15066", 97),
+                          "7f44c98b2b8d4f0836aac3f151c415149df4a560c4208860a7d2ccfedf9134be", 97),
     "nvda_10k_2026.pdf": ("https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm",
-                          "216bc969a5133d75f5064c52db671e4e380285d8ed9545f2b69f7bc38141ea7f", 129),
+                          "9eacf925ad55b2ef1d0dec1fb4ec168e2a13646c80a0c27229be2b01cfd4e5b2", 129),
 }
 
 
