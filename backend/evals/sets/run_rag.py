@@ -51,6 +51,8 @@ sys.path.insert(0, str(SETS.parent))
 from app.ai import research  # noqa: E402
 from app.data import engine  # noqa: E402
 
+QUESTION_SETS = {"easy": ("rag_golden.yaml", "results_rag.json", "results_rag_answers.json"),  # filing's own words
+                 "hard": ("rag_hard.yaml", "results_rag_hard.json", "results_rag_hard_answers.json")}  # paraphrased
 OUT, OUT_ANSWERS = SETS.parent / "results_rag.json", SETS.parent / "results_rag_answers.json"
 CACHE = SETS.parent / "llm_cache_rag.json"
 FILINGS = ROOT / "storage" / "eval_filings"
@@ -67,11 +69,14 @@ QUOTES = str.maketrans({"’": "'", "‘": "'", "“": '"', "”": '"', "–": "
 
 
 # The golden set, each question with its labelled (file, page) set.
-def load_set() -> list[dict]:
-    rows = yaml.safe_load((SETS / "rag_golden.yaml").read_text(encoding="utf-8"))
+def load_set(name: str = "rag_golden.yaml") -> list[dict]:
+    rows = yaml.safe_load((SETS / name).read_text(encoding="utf-8"))
     for r in rows:
-        r["relevant"] = ({(f, int(p)) for f, p in (x.rsplit(":", 1) for x in r["pages"])} if isinstance(r["file"], list)
-                         else {(r["file"], int(p)) for p in r["pages"]})
+        refs = lambda pages: ({(f, int(p)) for f, p in (x.rsplit(":", 1) for x in pages)}  # noqa: E731
+                              if isinstance(r["file"], list) else {(r["file"], int(p)) for p in pages})
+        r["relevant"] = refs(r["pages"])
+        if r.get("needs"):  # multi-section: one page from each group must be found
+            r["needs"] = [refs(group) for group in r["needs"]]
     return rows
 
 
@@ -136,7 +141,7 @@ def pct(xs: list[float], p: int, nd: int = 1) -> float | None:
 async def retrieval(rows: list[dict], vecs: dict, only: list[str] | None = None) -> tuple[dict, dict]:
     arms, per_q = {}, {r["id"]: {} for r in rows}
     for arm in only or [*ARMS, BEFORE]:
-        found, rr, ms, kinds, words = [], [], [], {}, []
+        found, rr, ms, kinds, words, full = [], [], [], {}, [], []
         for r in rows:
             hits, took = await retrieve(vecs, r["q"], arm)
             ms.append(took)
@@ -147,10 +152,13 @@ async def retrieval(rows: list[dict], vecs: dict, only: list[str] | None = None)
                 found.append(per_q[r["id"]][arm][0])
                 rr.append(per_q[r["id"]][arm][1])
                 words.append(sum(len(h["text"].split()) for h in hits[:K]))  # how much text the model would read
+                if r.get("needs"):
+                    full.append(int(all(recall_at(hits, group) for group in r["needs"])))
                 kinds.setdefault(r["kind"], []).append(found[-1])
         arms[arm] = {"recall_at_5": round(sum(found) / len(found), 3), "mrr": round(sum(rr) / len(rr), 3),
                      "questions": len(found), "p50_ms": pct(ms, 50), "p95_ms": pct(ms, 95),
                      "top5_words_mean": round(sum(words) / len(words)),
+                     "all_parts_at_5": round(sum(full) / len(full), 3) if full else None,  # multi-section questions
                      "recall_at_5_by_kind": {k: round(sum(v) / len(v), 3) for k, v in sorted(kinds.items())}}
         print(f"{arm:24s} recall@5 {arms[arm]['recall_at_5']:.3f}  MRR {arms[arm]['mrr']:.3f}  "
               f"p50 {arms[arm]['p50_ms']} ms  p95 {arms[arm]['p95_ms']} ms", flush=True)
@@ -248,8 +256,10 @@ async def answers(rows: list[dict], vecs: dict, live_arms: list[str], chosen: di
 
     # Remember what the model wrote (research.answer hides it when the checks fail).
     async def recording(system, user, **kw):
-        seen["raw"] = await cached_call(system, user, **kw)
-        return seen["raw"]
+        out = await cached_call(system, user, **kw)
+        if system == research.ANSWERER:
+            seen["raw"] = out
+        return out
     llm.call_llm = recording
     real_search = research.search
 
@@ -268,18 +278,20 @@ async def answers(rows: list[dict], vecs: dict, live_arms: list[str], chosen: di
                     continue
                 if spent + sum(x.get("billed", 0) for x in log) > max_usd:
                     raise Stop(f"spend cap ${max_usd} reached")
-                setattr(research, "REFUSE_RERANK" if ARMS[arm]["rerank"] else "REFUSE_BM25", chosen[arm]["threshold"])
-                dense = dense_ranking(vecs, ARMS[arm]["chunker"], r["q"]) if ARMS[arm]["mode"] != "bm25" else None
+                base, check = arm.removesuffix("+check"), arm.endswith("+check")  # +check: relevance check first
+                setattr(research, "REFUSE_RERANK" if ARMS[base]["rerank"] else "REFUSE_BM25", chosen[base]["threshold"])
+                dense = dense_ranking(vecs, ARMS[base]["chunker"], r["q"]) if ARMS[base]["mode"] != "bm25" else None
                 seen.clear()
                 first, waited, calls = len(log), stats.get("waited", 0), stats["calls"]
                 start = time.perf_counter()
-                res = await research.answer(USER, r["q"], WS, **ARMS[arm], dense=dense)
+                res = await research.answer(USER, r["q"], WS, check=check, **ARMS[base], dense=dense)
                 seconds = time.perf_counter() - start - (stats.get("waited", 0) - waited)
-                if stats["calls"] > calls and not seen.get("raw"):
+                if stats["calls"] > calls and not seen.get("raw") and res["text"] != research.NOT_FOUND:
                     raise Stop(f"{provider} gave no answer after waiting (daily limit or outage) at {arm} {r['id']}")
                 fresh = log[first:]
-                out.append({"id": r["id"], "arm": arm, "kind": r["kind"], "answerable": r["answerable"],
+                out.append({"id": r["id"], "q": r["q"], "arm": arm, "kind": r["kind"], "answerable": r["answerable"],
                             "refused": res["text"] == research.NOT_FOUND, "verified": res["verified"],
+                            "refused_by": next((w.split(": ", 1)[1] for w in res["warnings"] if w.startswith("refused: ")), None),
                             "warnings": res["warnings"], "text": res["text"], "raw": seen.get("raw", ""),
                             "fact_share": round(fact_share(r["facts"], res["text"]), 3) if r["answerable"] else None,
                             "shown": [[h["doc_id"], h["chunk"]] for h in seen.get("hits", [])],
@@ -333,7 +345,6 @@ async def judge(rows: list[dict], provider: str, spent: float, max_usd: float, d
     faith, precision = Faithfulness(llm=model), ContextPrecisionWithoutReference(llm=model)
     texts = {(d["doc_id"], c["chunk"], c["chunker"]): c["text"][:6000]
              for d in research._docs(USER, WS) for name in research.CHUNKERS for c in d["chunks"][name]}
-    questions = {r["id"]: r["q"] for r in load_set()}
     gate, stopped = asyncio.Semaphore(6), None
 
     # Judge one row (both metrics); a judge error is recorded, never scored as 0.
@@ -342,12 +353,12 @@ async def judge(rows: list[dict], provider: str, spent: float, max_usd: float, d
         if "faithfulness" in prev or "judge_error" in prev:
             row.update({k: prev[k] for k in ("faithfulness", "context_precision", "judge_error") if k in prev})
             return
-        contexts = [texts[(doc, n, ARMS[row["arm"]]["chunker"])] for doc, n in row["shown"]]
+        contexts = [texts[(doc, n, ARMS[row["arm"].removesuffix("+check")]["chunker"])] for doc, n in row["shown"]]
         async with gate:
             try:
-                f, p = await asyncio.gather(faith.ascore(user_input=questions[row["id"]], response=row["raw"],
+                f, p = await asyncio.gather(faith.ascore(user_input=row["q"], response=row["raw"],
                                                          retrieved_contexts=contexts),
-                                            precision.ascore(user_input=questions[row["id"]], response=row["raw"],
+                                            precision.ascore(user_input=row["q"], response=row["raw"],
                                                              retrieved_contexts=contexts))
                 row["faithfulness"], row["context_precision"] = round(f.value, 4), round(p.value, 4)
             except Stop:
@@ -399,13 +410,13 @@ def git_sha() -> str:
 
 
 # Keyless part: index, every retrieval arm, thresholds. Returns (result dict, vectors) for the live part and the test.
-def keyless(rows: list[dict]) -> tuple[dict, dict]:
+def keyless(rows: list[dict], set_file: str = "rag_golden.yaml") -> tuple[dict, dict]:
     start = time.perf_counter()
     vecs, counts = index()
     index_s = round(time.perf_counter() - start, 1)
     arms, per_q = asyncio.run(retrieval(rows, vecs))
     chosen, refusal = thresholds(rows, per_q)
-    return {"set": {"file": "evals/sets/rag_golden.yaml", "questions": len(rows),
+    return {"set": {"file": f"evals/sets/{set_file}", "questions": len(rows),
                     "answerable": sum(r["answerable"] for r in rows), "filings": sorted(p.name for p in FILINGS.glob("*.pdf"))},
             "embed_model": research.EMBED_MODEL, "embed_dims": int(next(iter(vecs.values()))[1].shape[1]),
             "rerank_model": research.RERANK_MODEL, "top_k": K, "candidates": research.CANDIDATES,
@@ -420,6 +431,8 @@ if __name__ == "__main__":
     ap.add_argument("--offline", action="store_true", help="replay the recorded answers from llm_cache_rag.json")
     ap.add_argument("--provider", choices=list(PROVIDERS), default="groq", help="where gpt-oss-120b runs for --live")
     ap.add_argument("--max-usd", type=float, default=MAX_USD)
+    ap.add_argument("--set", choices=list(QUESTION_SETS), default="easy", help="easy: the filing's own words; hard: paraphrased")
+    ap.add_argument("--arms", default="", help="live arms, comma separated; add +check for the relevance check")
     args = ap.parse_args()
     if not FILINGS.exists():
         sys.exit("run evals/sets/fetch_filings.py first")
@@ -429,17 +442,20 @@ if __name__ == "__main__":
         os.environ["WEALTHOS_DB_URL"] = ""  # no usage rows or cost-cap lookups, as in evals/run.py
         if args.provider == "openrouter":  # same model through llm_client's second slot (as evals/run.py --name openrouter)
             os.environ.update(GROQ_API_KEY="", LLM_FALLBACK_MODEL=JUDGE)
-    rows = load_set()
+    set_file, out_name, answers_name = QUESTION_SETS[args.set]
+    OUT, OUT_ANSWERS = SETS.parent / out_name, SETS.parent / answers_name
+    rows = load_set(set_file)
+    sha, run_at = git_sha(), time.strftime("%Y-%m-%dT%H:%M:%S%z")  # at the start: the code that runs, not later edits
     with tempfile.TemporaryDirectory() as tmp:
         engine.DATA_ROOT = Path(tmp) / "users"
-        result, vecs = keyless(rows)
-        sha, run_at = git_sha(), time.strftime("%Y-%m-%dT%H:%M:%S%z")
         if not (args.live or args.offline):
+            result, vecs = keyless(rows, set_file)
             OUT.write_text(json.dumps(result | {"run_at": run_at, "git_sha": sha}, indent=1), encoding="utf-8")
             print("best arm", result["best_arm"], "| thresholds", {a: t["threshold"] for a, t in result["thresholds"].items()})
             sys.exit()
+        vecs = index()[0]  # answers need only the index and vectors; arms and thresholds come from the committed file
         committed = json.loads(OUT.read_text(encoding="utf-8"))
-        live_arms = [a for a in ARMS if a.endswith("/structure")] + [committed["best_fixed_arm"]]
+        live_arms = args.arms.split(",") if args.arms else [a for a in ARMS if a.endswith("/structure")] + [committed["best_fixed_arm"]]
         prev = json.loads(OUT_ANSWERS.read_text(encoding="utf-8")) if OUT_ANSWERS.exists() else {"rows": []}
         if args.offline:
             was = {(r["arm"], r["id"]): r for r in prev["rows"]}
@@ -457,7 +473,7 @@ if __name__ == "__main__":
         judged = asyncio.run(judge(rows_out, args.provider, billed, args.max_usd, done)) if not stopped else None
         OUT_ANSWERS.write_text(json.dumps({
             "provider": args.provider, "answer_model": sorted({m for r in rows_out for m in r["served_by"]}),
-            "arms": live_arms, "thresholds": {a: committed["thresholds"][a] for a in live_arms},
+            "arms": live_arms, "thresholds": {b: committed["thresholds"][b] for b in {a.removesuffix("+check") for a in live_arms}},
             "summary": summarize(rows_out, live_arms), "judge": judged, "stopped": stopped or (judged or {}).get("stopped"),
             "spend": {"billed_total": round(billed + (judged or {}).get("billed", 0.0), 6), "cap": args.max_usd,
                       "how": "billed: the provider's reported cost (OpenRouter usage.cost; Groq free tier bills $0); "
