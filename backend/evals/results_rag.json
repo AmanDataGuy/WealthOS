@@ -1,0 +1,4110 @@
+{
+ "set": {
+  "file": "evals/sets/rag_golden.yaml",
+  "questions": 81,
+  "answerable": 66,
+  "filings": [
+   "aapl_10k_2025.pdf",
+   "nvda_10k_2026.pdf"
+  ]
+ },
+ "embed_model": "BAAI/bge-small-en-v1.5",
+ "embed_dims": 384,
+ "rerank_model": "BAAI/bge-reranker-base",
+ "top_k": 5,
+ "candidates": 20,
+ "chunk_counts": {
+  "structure": {
+   "aapl_10k_2025.pdf": 135,
+   "nvda_10k_2026.pdf": 207
+  },
+  "fixed": {
+   "aapl_10k_2025.pdf": 107,
+   "nvda_10k_2026.pdf": 171
+  }
+ },
+ "index_and_embed_seconds": 105.4,
+ "arms": {
+  "bm25/structure": {
+   "recall_at_5": 1.0,
+   "mrr": 0.873,
+   "questions": 66,
+   "p50_ms": 43.0,
+   "p95_ms": 66.8,
+   "recall_at_5_by_kind": {
+    "cross_company": 1.0,
+    "fact": 1.0,
+    "legal": 1.0,
+    "notes": 1.0,
+    "numeric": 1.0,
+    "risk": 1.0
+   }
+  },
+  "vector/structure": {
+   "recall_at_5": 0.773,
+   "mrr": 0.687,
+   "questions": 66,
+   "p50_ms": 45.3,
+   "p95_ms": 58.8,
+   "recall_at_5_by_kind": {
+    "cross_company": 0.667,
+    "fact": 0.867,
+    "legal": 0.833,
+    "notes": 0.789,
+    "numeric": 0.667,
+    "risk": 0.8
+   }
+  },
+  "hybrid/structure": {
+   "recall_at_5": 0.939,
+   "mrr": 0.815,
+   "questions": 66,
+   "p50_ms": 43.6,
+   "p95_ms": 74.7,
+   "recall_at_5_by_kind": {
+    "cross_company": 1.0,
+    "fact": 0.933,
+    "legal": 1.0,
+    "notes": 0.947,
+    "numeric": 0.889,
+    "risk": 1.0
+   }
+  },
+  "hybrid+rerank/structure": {
+   "recall_at_5": 0.985,
+   "mrr": 0.814,
+   "questions": 66,
+   "p50_ms": 8404.6,
+   "p95_ms": 10307.2,
+   "recall_at_5_by_kind": {
+    "cross_company": 1.0,
+    "fact": 1.0,
+    "legal": 1.0,
+    "notes": 1.0,
+    "numeric": 0.944,
+    "risk": 1.0
+   }
+  },
+  "bm25/fixed": {
+   "recall_at_5": 1.0,
+   "mrr": 0.895,
+   "questions": 66,
+   "p50_ms": 39.0,
+   "p95_ms": 65.2,
+   "recall_at_5_by_kind": {
+    "cross_company": 1.0,
+    "fact": 1.0,
+    "legal": 1.0,
+    "notes": 1.0,
+    "numeric": 1.0,
+    "risk": 1.0
+   }
+  },
+  "vector/fixed": {
+   "recall_at_5": 0.803,
+   "mrr": 0.676,
+   "questions": 66,
+   "p50_ms": 49.0,
+   "p95_ms": 87.5,
+   "recall_at_5_by_kind": {
+    "cross_company": 1.0,
+    "fact": 0.8,
+    "legal": 0.833,
+    "notes": 0.842,
+    "numeric": 0.722,
+    "risk": 0.8
+   }
+  },
+  "hybrid/fixed": {
+   "recall_at_5": 0.955,
+   "mrr": 0.845,
+   "questions": 66,
+   "p50_ms": 52.8,
+   "p95_ms": 111.7,
+   "recall_at_5_by_kind": {
+    "cross_company": 1.0,
+    "fact": 1.0,
+    "legal": 1.0,
+    "notes": 0.947,
+    "numeric": 0.889,
+    "risk": 1.0
+   }
+  },
+  "hybrid+rerank/fixed": {
+   "recall_at_5": 0.939,
+   "mrr": 0.796,
+   "questions": 66,
+   "p50_ms": 6635.8,
+   "p95_ms": 9121.6,
+   "recall_at_5_by_kind": {
+    "cross_company": 0.667,
+    "fact": 1.0,
+    "legal": 1.0,
+    "notes": 1.0,
+    "numeric": 0.889,
+    "risk": 0.8
+   }
+  },
+  "pages_bm25_before": {
+   "recall_at_5": 0.894,
+   "mrr": 0.764,
+   "questions": 66,
+   "p50_ms": 35.5,
+   "p95_ms": 53.3,
+   "recall_at_5_by_kind": {
+    "cross_company": 1.0,
+    "fact": 0.867,
+    "legal": 1.0,
+    "notes": 0.895,
+    "numeric": 0.833,
+    "risk": 1.0
+   }
+  }
+ },
+ "best_arm": "bm25/fixed",
+ "best_fixed_arm": "bm25/fixed",
+ "thresholds": {
+  "bm25/structure": {
+   "threshold": 4.643,
+   "scored_by": "bm25"
+  },
+  "vector/structure": {
+   "threshold": 1.9728,
+   "scored_by": "bm25"
+  },
+  "hybrid/structure": {
+   "threshold": 7.7934,
+   "scored_by": "bm25"
+  },
+  "hybrid+rerank/structure": {
+   "threshold": -2.7945,
+   "scored_by": "rerank"
+  },
+  "bm25/fixed": {
+   "threshold": 3.9613,
+   "scored_by": "bm25"
+  },
+  "vector/fixed": {
+   "threshold": 0.1006,
+   "scored_by": "bm25"
+  },
+  "hybrid/fixed": {
+   "threshold": 3.296,
+   "scored_by": "bm25"
+  },
+  "hybrid+rerank/fixed": {
+   "threshold": -1.6733,
+   "scored_by": "rerank"
+  }
+ },
+ "refusal": {
+  "seed": 20261115,
+  "dev": [
+   "a05",
+   "a08",
+   "a15",
+   "a17",
+   "a19",
+   "a25",
+   "a26",
+   "a27",
+   "a28",
+   "n06",
+   "n07",
+   "n09",
+   "n11",
+   "n13",
+   "n16",
+   "n18",
+   "n20",
+   "n22",
+   "n25",
+   "n27",
+   "u04",
+   "u07",
+   "u08",
+   "u11",
+   "u12",
+   "x01",
+   "x02"
+  ],
+  "test_questions": 54,
+  "test": {
+   "bm25/structure": {
+    "unanswerable_refused": 2,
+    "unanswerable": 10,
+    "answerable_refused": 0,
+    "answerable": 44,
+    "unanswerable_refused_pct": 20.0,
+    "answerable_refused_pct": 0.0
+   },
+   "vector/structure": {
+    "unanswerable_refused": 1,
+    "unanswerable": 10,
+    "answerable_refused": 1,
+    "answerable": 44,
+    "unanswerable_refused_pct": 10.0,
+    "answerable_refused_pct": 2.3
+   },
+   "hybrid/structure": {
+    "unanswerable_refused": 5,
+    "unanswerable": 10,
+    "answerable_refused": 4,
+    "answerable": 44,
+    "unanswerable_refused_pct": 50.0,
+    "answerable_refused_pct": 9.1
+   },
+   "hybrid+rerank/structure": {
+    "unanswerable_refused": 2,
+    "unanswerable": 10,
+    "answerable_refused": 1,
+    "answerable": 44,
+    "unanswerable_refused_pct": 20.0,
+    "answerable_refused_pct": 2.3
+   },
+   "bm25/fixed": {
+    "unanswerable_refused": 1,
+    "unanswerable": 10,
+    "answerable_refused": 0,
+    "answerable": 44,
+    "unanswerable_refused_pct": 10.0,
+    "answerable_refused_pct": 0.0
+   },
+   "vector/fixed": {
+    "unanswerable_refused": 1,
+    "unanswerable": 10,
+    "answerable_refused": 0,
+    "answerable": 44,
+    "unanswerable_refused_pct": 10.0,
+    "answerable_refused_pct": 0.0
+   },
+   "hybrid/fixed": {
+    "unanswerable_refused": 2,
+    "unanswerable": 10,
+    "answerable_refused": 0,
+    "answerable": 44,
+    "unanswerable_refused_pct": 20.0,
+    "answerable_refused_pct": 0.0
+   },
+   "hybrid+rerank/fixed": {
+    "unanswerable_refused": 3,
+    "unanswerable": 10,
+    "answerable_refused": 0,
+    "answerable": 44,
+    "unanswerable_refused_pct": 30.0,
+    "answerable_refused_pct": 0.0
+   }
+  }
+ },
+ "questions": {
+  "a01": {
+   "bm25/structure": [
+    1,
+    1.0,
+    18.0089
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    18.0089
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    18.0089
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    -0.4115
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    19.0337
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    9.1913
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    19.0337
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    0.8068
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    24.5483
+   ]
+  },
+  "a02": {
+   "bm25/structure": [
+    1,
+    1.0,
+    17.683
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    17.683
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    17.683
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    -0.3922
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    16.4675
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    16.4675
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    16.4675
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    0.0506
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    19.4516
+   ]
+  },
+  "a03": {
+   "bm25/structure": [
+    1,
+    1.0,
+    25.9928
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    25.9928
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    25.9928
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    1.14
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    17.6295
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    17.6295
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    17.6295
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    1.1403
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    18.6053
+   ]
+  },
+  "a04": {
+   "bm25/structure": [
+    1,
+    1.0,
+    13.0955
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    13.0955
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    13.0955
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    0.9996
+   ],
+   "bm25/fixed": [
+    1,
+    0.5,
+    10.4074
+   ],
+   "vector/fixed": [
+    1,
+    0.5,
+    10.4074
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    10.4074
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.5147
+   ],
+   "pages_bm25_before": [
+    1,
+    0.25,
+    12.8191
+   ]
+  },
+  "a05": {
+   "bm25/structure": [
+    1,
+    1.0,
+    30.1198
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    30.1198
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    30.1198
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    -0.0544
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    18.9008
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    18.4716
+   ],
+   "hybrid/fixed": [
+    1,
+    0.5,
+    18.9008
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    -0.2058
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    21.8415
+   ]
+  },
+  "a06": {
+   "bm25/structure": [
+    1,
+    0.2,
+    5.1718
+   ],
+   "vector/structure": [
+    1,
+    0.3333,
+    3.7725
+   ],
+   "hybrid/structure": [
+    1,
+    0.2,
+    4.9087
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    -0.3946
+   ],
+   "bm25/fixed": [
+    1,
+    0.5,
+    5.0221
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    1.1006
+   ],
+   "hybrid/fixed": [
+    1,
+    0.5,
+    5.0221
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.4101
+   ],
+   "pages_bm25_before": [
+    0,
+    0.1667,
+    7.5409
+   ]
+  },
+  "a07": {
+   "bm25/structure": [
+    1,
+    1.0,
+    8.8328
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    8.8328
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    8.8328
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    -2.3078
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    8.6288
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    8.6288
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    8.6288
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.3333,
+    0.1643
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    11.8328
+   ]
+  },
+  "a08": {
+   "bm25/structure": [
+    1,
+    1.0,
+    22.5433
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    22.5433
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    22.5433
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    -1.7669
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    14.2458
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    14.2458
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    14.2458
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    0.1087
+   ],
+   "pages_bm25_before": [
+    1,
+    0.5,
+    26.362
+   ]
+  },
+  "a09": {
+   "bm25/structure": [
+    1,
+    1.0,
+    21.889
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    21.889
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    21.889
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    3.4915
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    19.1561
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    19.1561
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    19.1561
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    5.5168
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    20.8747
+   ]
+  },
+  "a10": {
+   "bm25/structure": [
+    1,
+    1.0,
+    15.7417
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    15.7417
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    15.7417
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    2.5153
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    9.6468
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    9.6468
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    9.6468
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    2.1532
+   ],
+   "pages_bm25_before": [
+    0,
+    0.1,
+    10.4546
+   ]
+  },
+  "a11": {
+   "bm25/structure": [
+    1,
+    1.0,
+    17.3735
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    17.3735
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    17.3735
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    0.9831
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    20.188
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    20.188
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    20.188
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    -1.0313
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    20.5905
+   ]
+  },
+  "a12": {
+   "bm25/structure": [
+    1,
+    1.0,
+    35.7989
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    35.7989
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    35.7989
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    3.192
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    33.422
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    33.422
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    33.422
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    4.0836
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    37.813
+   ]
+  },
+  "a13": {
+   "bm25/structure": [
+    1,
+    1.0,
+    14.6604
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    14.6604
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    14.6604
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    -3.4251
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    13.0647
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    13.0647
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    13.0647
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    -1.6431
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    11.1095
+   ]
+  },
+  "a14": {
+   "bm25/structure": [
+    1,
+    1.0,
+    19.0285
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    19.0285
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    19.0285
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    2.3906
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    15.7762
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    15.7762
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    15.7762
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    0.0413
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    21.6635
+   ]
+  },
+  "a15": {
+   "bm25/structure": [
+    1,
+    1.0,
+    5.643
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    5.643
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    5.643
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    3.6203
+   ],
+   "bm25/fixed": [
+    1,
+    0.25,
+    4.9613
+   ],
+   "vector/fixed": [
+    0,
+    0.1429,
+    1.1006
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    4.296
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    1.173
+   ],
+   "pages_bm25_before": [
+    0,
+    0.1,
+    6.0237
+   ]
+  },
+  "a16": {
+   "bm25/structure": [
+    1,
+    1.0,
+    24.4315
+   ],
+   "vector/structure": [
+    1,
+    0.5,
+    24.4315
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    24.4315
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    6.8778
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    20.6798
+   ],
+   "vector/fixed": [
+    1,
+    0.5,
+    20.6798
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    20.6798
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    7.4858
+   ],
+   "pages_bm25_before": [
+    1,
+    0.5,
+    21.4377
+   ]
+  },
+  "a17": {
+   "bm25/structure": [
+    1,
+    1.0,
+    17.518
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    17.518
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    17.518
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    4.8628
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    15.3573
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    15.3573
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    15.3573
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    4.5673
+   ],
+   "pages_bm25_before": [
+    1,
+    0.5,
+    19.7731
+   ]
+  },
+  "a18": {
+   "bm25/structure": [
+    1,
+    1.0,
+    39.9898
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    39.9898
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    39.9898
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    4.1077
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    34.9143
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    34.9143
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    34.9143
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    5.3486
+   ],
+   "pages_bm25_before": [
+    1,
+    0.5,
+    37.8623
+   ]
+  },
+  "a19": {
+   "bm25/structure": [
+    1,
+    1.0,
+    22.6548
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    22.6548
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    22.6548
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    4.7146
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    24.6025
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    24.6025
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    24.6025
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    0.8209
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    26.2175
+   ]
+  },
+  "a20": {
+   "bm25/structure": [
+    1,
+    0.3333,
+    14.9887
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    14.9887
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    14.9887
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    4.5422
+   ],
+   "bm25/fixed": [
+    1,
+    0.3333,
+    12.0105
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    8.4814
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    12.0105
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    5.8884
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0625,
+    11.4375
+   ]
+  },
+  "a21": {
+   "bm25/structure": [
+    1,
+    1.0,
+    21.1094
+   ],
+   "vector/structure": [
+    1,
+    0.5,
+    21.1094
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    21.1094
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    1.4146
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    18.6108
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    18.6108
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    18.6108
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.2732
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    18.6367
+   ]
+  },
+  "a22": {
+   "bm25/structure": [
+    1,
+    1.0,
+    30.2845
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    30.2845
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    30.2845
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    7.3765
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    27.59
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    27.59
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    27.59
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    6.2106
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    27.4444
+   ]
+  },
+  "a23": {
+   "bm25/structure": [
+    1,
+    1.0,
+    15.9475
+   ],
+   "vector/structure": [
+    0,
+    0.0714,
+    10.8242
+   ],
+   "hybrid/structure": [
+    1,
+    0.3333,
+    15.9475
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    3.3739
+   ],
+   "bm25/fixed": [
+    1,
+    0.5,
+    13.2412
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    12.9458
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    13.2412
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    3.4342
+   ],
+   "pages_bm25_before": [
+    0,
+    0.1429,
+    17.1252
+   ]
+  },
+  "a24": {
+   "bm25/structure": [
+    1,
+    0.3333,
+    5.7034
+   ],
+   "vector/structure": [
+    1,
+    0.5,
+    5.7034
+   ],
+   "hybrid/structure": [
+    1,
+    0.3333,
+    5.7034
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    3.291
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    5.8659
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    5.8659
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    5.8659
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    2.7827
+   ],
+   "pages_bm25_before": [
+    1,
+    0.5,
+    6.0727
+   ]
+  },
+  "a25": {
+   "bm25/structure": [
+    1,
+    1.0,
+    25.8397
+   ],
+   "vector/structure": [
+    1,
+    0.5,
+    25.8397
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    25.8397
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    5.4026
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    22.1246
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    22.1246
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    22.1246
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    4.6359
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    19.5512
+   ]
+  },
+  "a26": {
+   "bm25/structure": [
+    1,
+    1.0,
+    12.8356
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    12.8356
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    12.8356
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    3.71
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    10.6866
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    10.6866
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    10.6866
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    2.1419
+   ],
+   "pages_bm25_before": [
+    1,
+    0.3333,
+    12.0291
+   ]
+  },
+  "a27": {
+   "bm25/structure": [
+    1,
+    1.0,
+    13.6875
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    13.6875
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    13.6875
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    6.3504
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    11.6193
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    11.6193
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    11.6193
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    2.1074
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    13.3942
+   ]
+  },
+  "a28": {
+   "bm25/structure": [
+    1,
+    0.5,
+    10.7063
+   ],
+   "vector/structure": [
+    1,
+    0.5,
+    7.6648
+   ],
+   "hybrid/structure": [
+    1,
+    0.25,
+    10.7063
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.3333,
+    1.3779
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    7.8984
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    7.2966
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    7.2966
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    1.2105
+   ],
+   "pages_bm25_before": [
+    0,
+    0.1667,
+    8.9775
+   ]
+  },
+  "a29": {
+   "bm25/structure": [
+    1,
+    1.0,
+    21.6085
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    21.6085
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    21.6085
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    4.9908
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    16.7812
+   ],
+   "vector/fixed": [
+    1,
+    0.2,
+    16.7812
+   ],
+   "hybrid/fixed": [
+    1,
+    0.5,
+    16.7812
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    3.6661
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    13.3187
+   ]
+  },
+  "a30": {
+   "bm25/structure": [
+    1,
+    1.0,
+    9.1329
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    7.1399
+   ],
+   "hybrid/structure": [
+    0,
+    0.1111,
+    7.1399
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    -0.9435
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    7.7305
+   ],
+   "vector/fixed": [
+    1,
+    0.2,
+    7.7305
+   ],
+   "hybrid/fixed": [
+    1,
+    0.5,
+    7.7305
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    1.4587
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    8.0408
+   ]
+  },
+  "a31": {
+   "bm25/structure": [
+    1,
+    1.0,
+    13.0724
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    13.0724
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    13.0724
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    4.581
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    11.6376
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    11.6376
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    11.6376
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    4.4069
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    13.3779
+   ]
+  },
+  "n01": {
+   "bm25/structure": [
+    1,
+    1.0,
+    10.2701
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    10.2701
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    10.2701
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    2.2511
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    8.785
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    8.785
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    8.785
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    8.7671
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    9.2332
+   ]
+  },
+  "n02": {
+   "bm25/structure": [
+    1,
+    1.0,
+    13.814
+   ],
+   "vector/structure": [
+    1,
+    0.3333,
+    13.814
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    13.814
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    3.9974
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    11.2513
+   ],
+   "vector/fixed": [
+    1,
+    0.3333,
+    11.2513
+   ],
+   "hybrid/fixed": [
+    1,
+    0.5,
+    11.2513
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    1.5047
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    18.5202
+   ]
+  },
+  "n03": {
+   "bm25/structure": [
+    1,
+    0.5,
+    13.2109
+   ],
+   "vector/structure": [
+    0,
+    0.0588,
+    1.9819
+   ],
+   "hybrid/structure": [
+    1,
+    0.5,
+    13.2109
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    1.0301
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    11.7566
+   ],
+   "vector/fixed": [
+    0,
+    0.125,
+    4.8662
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    11.7566
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    -1.2771
+   ],
+   "pages_bm25_before": [
+    1,
+    0.5,
+    13.4806
+   ]
+  },
+  "n04": {
+   "bm25/structure": [
+    1,
+    1.0,
+    25.8261
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    25.8261
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    25.8261
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    6.1838
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    23.5575
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    23.5575
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    23.5575
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.8571
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    23.9934
+   ]
+  },
+  "n05": {
+   "bm25/structure": [
+    1,
+    1.0,
+    20.2237
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    20.2237
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    20.2237
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    4.8747
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    16.4053
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    16.4053
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    16.4053
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.7894
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    19.371
+   ]
+  },
+  "n06": {
+   "bm25/structure": [
+    1,
+    0.2,
+    15.0725
+   ],
+   "vector/structure": [
+    0,
+    0.1429,
+    2.9728
+   ],
+   "hybrid/structure": [
+    0,
+    0.1111,
+    15.0725
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.3333,
+    0.0283
+   ],
+   "bm25/fixed": [
+    1,
+    0.3333,
+    13.9834
+   ],
+   "vector/fixed": [
+    1,
+    0.5,
+    2.6212
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    13.9834
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.3759
+   ],
+   "pages_bm25_before": [
+    1,
+    0.2,
+    13.1511
+   ]
+  },
+  "n07": {
+   "bm25/structure": [
+    1,
+    1.0,
+    27.281
+   ],
+   "vector/structure": [
+    1,
+    0.25,
+    27.281
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    27.281
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    -1.586
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    22.1285
+   ],
+   "vector/fixed": [
+    0,
+    0.1429,
+    3.9253
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    22.1285
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    4.9636
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    27.0158
+   ]
+  },
+  "n08": {
+   "bm25/structure": [
+    1,
+    1.0,
+    19.213
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    19.213
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    19.213
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    6.4109
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    18.327
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    18.327
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    18.327
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    5.0311
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    22.3076
+   ]
+  },
+  "n09": {
+   "bm25/structure": [
+    1,
+    1.0,
+    8.2668
+   ],
+   "vector/structure": [
+    0,
+    0.1,
+    4.959
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    7.8673
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    -1.6613
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    7.4376
+   ],
+   "vector/fixed": [
+    1,
+    0.3333,
+    7.2125
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    7.2125
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    1.7803
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    7.8635
+   ]
+  },
+  "n10": {
+   "bm25/structure": [
+    1,
+    1.0,
+    13.0803
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    13.0803
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    13.0803
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    4.0033
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    10.8151
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    10.8151
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    10.8151
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    4.3793
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    15.0456
+   ]
+  },
+  "n11": {
+   "bm25/structure": [
+    1,
+    1.0,
+    13.4438
+   ],
+   "vector/structure": [
+    0,
+    0.0833,
+    4.0858
+   ],
+   "hybrid/structure": [
+    1,
+    0.3333,
+    12.9246
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.3333,
+    1.8259
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    11.6329
+   ],
+   "vector/fixed": [
+    0,
+    0.1429,
+    6.5812
+   ],
+   "hybrid/fixed": [
+    1,
+    0.5,
+    10.0835
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.862
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    10.5326
+   ]
+  },
+  "n12": {
+   "bm25/structure": [
+    1,
+    1.0,
+    9.5721
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    7.727
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    7.727
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    3.5945
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    9.2391
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    9.2391
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    9.2391
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.1123
+   ],
+   "pages_bm25_before": [
+    1,
+    0.5,
+    9.6264
+   ]
+  },
+  "n13": {
+   "bm25/structure": [
+    1,
+    0.3333,
+    9.4066
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    8.774
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    9.4066
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.2,
+    -1.9146
+   ],
+   "bm25/fixed": [
+    1,
+    0.3333,
+    12.1815
+   ],
+   "vector/fixed": [
+    1,
+    0.3333,
+    9.2916
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    10.3076
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.125,
+    6.028
+   ],
+   "pages_bm25_before": [
+    1,
+    0.3333,
+    12.8378
+   ]
+  },
+  "n14": {
+   "bm25/structure": [
+    1,
+    1.0,
+    13.9133
+   ],
+   "vector/structure": [
+    0,
+    0.0909,
+    4.9244
+   ],
+   "hybrid/structure": [
+    1,
+    0.25,
+    13.9133
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    -1.482
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    12.6633
+   ],
+   "vector/fixed": [
+    0,
+    0.0625,
+    4.3581
+   ],
+   "hybrid/fixed": [
+    1,
+    0.25,
+    12.6633
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.25,
+    1.1048
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    12.2605
+   ]
+  },
+  "n15": {
+   "bm25/structure": [
+    1,
+    1.0,
+    18.7823
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    18.7823
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    18.7823
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    1.9878
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    17.3092
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    17.3092
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    17.3092
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    3.2983
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    21.466
+   ]
+  },
+  "n16": {
+   "bm25/structure": [
+    1,
+    1.0,
+    13.2026
+   ],
+   "vector/structure": [
+    1,
+    0.3333,
+    13.2026
+   ],
+   "hybrid/structure": [
+    1,
+    0.5,
+    13.2026
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    0.9189
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    11.1412
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    11.1412
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    11.1412
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    -1.2055
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    13.0143
+   ]
+  },
+  "n17": {
+   "bm25/structure": [
+    1,
+    1.0,
+    14.7651
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    14.7651
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    14.7651
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    5.6909
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    11.6871
+   ],
+   "vector/fixed": [
+    0,
+    0.0667,
+    9.4651
+   ],
+   "hybrid/fixed": [
+    1,
+    0.2,
+    11.6871
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.6171
+   ],
+   "pages_bm25_before": [
+    1,
+    0.5,
+    13.3739
+   ]
+  },
+  "n18": {
+   "bm25/structure": [
+    1,
+    1.0,
+    16.6203
+   ],
+   "vector/structure": [
+    1,
+    0.5,
+    16.6203
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    16.6203
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    2.8008
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    11.3492
+   ],
+   "vector/fixed": [
+    1,
+    0.5,
+    11.3492
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    11.3492
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    2.1761
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    16.1423
+   ]
+  },
+  "n19": {
+   "bm25/structure": [
+    1,
+    1.0,
+    19.4063
+   ],
+   "vector/structure": [
+    0,
+    0.0909,
+    1.966
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    19.4063
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    -0.9922
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    15.5539
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    1.7899
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    15.5539
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    3.2625
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    15.3198
+   ]
+  },
+  "n20": {
+   "bm25/structure": [
+    1,
+    0.5,
+    16.3468
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    14.1554
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    16.3468
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    3.8674
+   ],
+   "bm25/fixed": [
+    1,
+    0.3333,
+    15.0674
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    7.4781
+   ],
+   "hybrid/fixed": [
+    1,
+    0.5,
+    15.0674
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    4.8038
+   ],
+   "pages_bm25_before": [
+    1,
+    0.3333,
+    16.0578
+   ]
+  },
+  "n21": {
+   "bm25/structure": [
+    1,
+    1.0,
+    15.6214
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    15.6214
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    15.6214
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    3.695
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    13.6418
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    13.6418
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    13.6418
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.7556
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    16.6943
+   ]
+  },
+  "n22": {
+   "bm25/structure": [
+    1,
+    1.0,
+    25.0424
+   ],
+   "vector/structure": [
+    0,
+    0.1,
+    7.8809
+   ],
+   "hybrid/structure": [
+    0,
+    0.1111,
+    7.8809
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    3.0197
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    19.6911
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    6.6001
+   ],
+   "hybrid/fixed": [
+    0,
+    0.1,
+    7.2921
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    4.0014
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    23.2555
+   ]
+  },
+  "n23": {
+   "bm25/structure": [
+    1,
+    1.0,
+    21.4473
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    21.4473
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    21.4473
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    4.1214
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    17.9803
+   ],
+   "vector/fixed": [
+    1,
+    0.5,
+    17.9803
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    17.9803
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    5.0426
+   ],
+   "pages_bm25_before": [
+    1,
+    0.5,
+    21.6749
+   ]
+  },
+  "n24": {
+   "bm25/structure": [
+    1,
+    0.3333,
+    17.3474
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    14.9607
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    14.9607
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    4.8228
+   ],
+   "bm25/fixed": [
+    1,
+    0.25,
+    16.3427
+   ],
+   "vector/fixed": [
+    1,
+    0.5,
+    13.7074
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    13.892
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    3.4391
+   ],
+   "pages_bm25_before": [
+    1,
+    0.3333,
+    17.9027
+   ]
+  },
+  "n25": {
+   "bm25/structure": [
+    1,
+    0.3333,
+    16.7476
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    13.9675
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    16.7476
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.3333,
+    4.9259
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    14.9015
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    14.9015
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    14.9015
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    4.2317
+   ],
+   "pages_bm25_before": [
+    1,
+    0.3333,
+    18.1047
+   ]
+  },
+  "n26": {
+   "bm25/structure": [
+    1,
+    1.0,
+    14.384
+   ],
+   "vector/structure": [
+    1,
+    0.5,
+    12.3466
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    14.384
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    2.549
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    10.9511
+   ],
+   "vector/fixed": [
+    1,
+    0.3333,
+    9.4298
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    10.9511
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    2.8536
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    12.9952
+   ]
+  },
+  "n27": {
+   "bm25/structure": [
+    1,
+    1.0,
+    19.5337
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    5.7408
+   ],
+   "hybrid/structure": [
+    1,
+    0.25,
+    19.5337
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    2.0474
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    19.5807
+   ],
+   "vector/fixed": [
+    0,
+    0.0625,
+    6.1644
+   ],
+   "hybrid/fixed": [
+    1,
+    0.5,
+    19.5807
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    2.9931
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    18.0103
+   ]
+  },
+  "n28": {
+   "bm25/structure": [
+    1,
+    0.25,
+    9.0201
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    2.4196
+   ],
+   "hybrid/structure": [
+    0,
+    0.1111,
+    9.0201
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.1111,
+    -0.9449
+   ],
+   "bm25/fixed": [
+    1,
+    0.25,
+    8.9921
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    8.3139
+   ],
+   "hybrid/fixed": [
+    0,
+    0.1111,
+    8.3139
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0714,
+    2.6429
+   ],
+   "pages_bm25_before": [
+    0,
+    0.1,
+    7.8963
+   ]
+  },
+  "n29": {
+   "bm25/structure": [
+    1,
+    1.0,
+    12.3941
+   ],
+   "vector/structure": [
+    0,
+    0.0909,
+    4.7878
+   ],
+   "hybrid/structure": [
+    1,
+    0.3333,
+    12.3941
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.25,
+    5.52
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    10.9023
+   ],
+   "vector/fixed": [
+    0,
+    0.0769,
+    10.1313
+   ],
+   "hybrid/fixed": [
+    1,
+    0.25,
+    10.6893
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.3333,
+    4.864
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    12.1225
+   ]
+  },
+  "n30": {
+   "bm25/structure": [
+    1,
+    0.5,
+    14.3413
+   ],
+   "vector/structure": [
+    0,
+    0.1111,
+    8.1586
+   ],
+   "hybrid/structure": [
+    1,
+    0.3333,
+    13.5343
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    5.8875
+   ],
+   "bm25/fixed": [
+    1,
+    0.5,
+    13.9538
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    5.8825
+   ],
+   "hybrid/fixed": [
+    0,
+    0.125,
+    7.4741
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0909,
+    5.3858
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    15.5131
+   ]
+  },
+  "n31": {
+   "bm25/structure": [
+    1,
+    1.0,
+    19.076
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    19.076
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    19.076
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.5,
+    6.8902
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    22.866
+   ],
+   "vector/fixed": [
+    1,
+    0.5,
+    22.866
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    22.866
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.5,
+    7.9196
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    20.5704
+   ]
+  },
+  "n32": {
+   "bm25/structure": [
+    1,
+    1.0,
+    16.4447
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    5.3733
+   ],
+   "hybrid/structure": [
+    1,
+    0.2,
+    16.4447
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    7.32
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    16.519
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    5.193
+   ],
+   "hybrid/fixed": [
+    1,
+    0.25,
+    16.519
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    0.7769
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    12.7219
+   ]
+  },
+  "x01": {
+   "bm25/structure": [
+    1,
+    1.0,
+    11.8349
+   ],
+   "vector/structure": [
+    0,
+    0.125,
+    8.88
+   ],
+   "hybrid/structure": [
+    1,
+    0.5,
+    11.8349
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    0.3333,
+    0.6216
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    10.5094
+   ],
+   "vector/fixed": [
+    1,
+    0.2,
+    6.4683
+   ],
+   "hybrid/fixed": [
+    1,
+    0.5,
+    10.1452
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.1111,
+    1.5048
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    10.8717
+   ]
+  },
+  "x02": {
+   "bm25/structure": [
+    1,
+    0.3333,
+    7.902
+   ],
+   "vector/structure": [
+    1,
+    1.0,
+    6.9554
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    7.902
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    0.7842
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    8.9962
+   ],
+   "vector/fixed": [
+    1,
+    1.0,
+    8.9962
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    8.9962
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    1.0,
+    0.6863
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    8.1264
+   ]
+  },
+  "x03": {
+   "bm25/structure": [
+    1,
+    1.0,
+    15.4153
+   ],
+   "vector/structure": [
+    1,
+    0.5,
+    11.4663
+   ],
+   "hybrid/structure": [
+    1,
+    1.0,
+    15.4153
+   ],
+   "hybrid+rerank/structure": [
+    1,
+    1.0,
+    -0.3892
+   ],
+   "bm25/fixed": [
+    1,
+    1.0,
+    14.5007
+   ],
+   "vector/fixed": [
+    1,
+    0.3333,
+    14.5007
+   ],
+   "hybrid/fixed": [
+    1,
+    1.0,
+    14.5007
+   ],
+   "hybrid+rerank/fixed": [
+    1,
+    0.25,
+    3.7483
+   ],
+   "pages_bm25_before": [
+    1,
+    1.0,
+    12.9353
+   ]
+  },
+  "u01": {
+   "bm25/structure": [
+    0,
+    0.0,
+    null
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    null
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    null
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    null
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    null
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    null
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    null
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    null
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    19.2405
+   ]
+  },
+  "u02": {
+   "bm25/structure": [
+    0,
+    0.0,
+    14.0025
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    13.2068
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    14.0025
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    0.6862
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    12.9007
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    10.5995
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    12.9007
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    -0.0181
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    15.5037
+   ]
+  },
+  "u03": {
+   "bm25/structure": [
+    0,
+    0.0,
+    7.9886
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    7.9886
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    7.9886
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    0.3258
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    7.1661
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    6.7039
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    7.1661
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    -2.3169
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    10.5409
+   ]
+  },
+  "u04": {
+   "bm25/structure": [
+    0,
+    0.0,
+    8.3569
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    8.3569
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    8.3569
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    -3.7559
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    8.3764
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    7.0841
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    8.3764
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    -2.1411
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    6.3138
+   ]
+  },
+  "u05": {
+   "bm25/structure": [
+    0,
+    0.0,
+    4.2391
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    2.1226
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    2.1226
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    0.6493
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    4.0468
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    1.5813
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    1.5813
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    -0.5802
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    4.6461
+   ]
+  },
+  "u06": {
+   "bm25/structure": [
+    0,
+    0.0,
+    5.4382
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    1.9819
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    2.1489
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    -1.5914
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    6.3329
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    1.7899
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    6.3329
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    -2.8171
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    6.5855
+   ]
+  },
+  "u07": {
+   "bm25/structure": [
+    0,
+    0.0,
+    13.258
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    11.2133
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    11.2133
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    -3.6743
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    9.0415
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    7.8521
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    9.0415
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    -4.2272
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    19.9305
+   ]
+  },
+  "u08": {
+   "bm25/structure": [
+    0,
+    0.0,
+    11.3822
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    7.7196
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    7.7196
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    -4.9662
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    9.8768
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    6.8663
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    8.4014
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    -2.6778
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    9.5404
+   ]
+  },
+  "u09": {
+   "bm25/structure": [
+    0,
+    0.0,
+    8.989
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    8.989
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    8.989
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    -3.2986
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    10.9975
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    10.9975
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    10.9975
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    1.6323
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    14.9415
+   ]
+  },
+  "u10": {
+   "bm25/structure": [
+    0,
+    0.0,
+    10.1061
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    4.69
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    4.9871
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    -0.3643
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    10.1515
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    4.1496
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    4.1496
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    1.0638
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    10.7649
+   ]
+  },
+  "u11": {
+   "bm25/structure": [
+    0,
+    0.0,
+    14.9875
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    4.6544
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    10.0987
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    1.6857
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    14.0125
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    3.8928
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    14.0125
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    3.6907
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    16.1807
+   ]
+  },
+  "u12": {
+   "bm25/structure": [
+    0,
+    0.0,
+    7.5564
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    6.9337
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    7.5564
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    -0.8701
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    6.8655
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    6.1898
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    6.1898
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    6.1102
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    7.1253
+   ]
+  },
+  "u13": {
+   "bm25/structure": [
+    0,
+    0.0,
+    7.2549
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    6.0506
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    7.2549
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    -0.0772
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    7.3938
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    7.3938
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    7.3938
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    -0.1039
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    10.8594
+   ]
+  },
+  "u14": {
+   "bm25/structure": [
+    0,
+    0.0,
+    14.9537
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    11.7235
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    14.9537
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    -0.78
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    13.1431
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    13.1431
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    13.1431
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    2.6715
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    15.1882
+   ]
+  },
+  "u15": {
+   "bm25/structure": [
+    0,
+    0.0,
+    14.5902
+   ],
+   "vector/structure": [
+    0,
+    0.0,
+    14.5902
+   ],
+   "hybrid/structure": [
+    0,
+    0.0,
+    14.5902
+   ],
+   "hybrid+rerank/structure": [
+    0,
+    0.0,
+    1.7286
+   ],
+   "bm25/fixed": [
+    0,
+    0.0,
+    14.3752
+   ],
+   "vector/fixed": [
+    0,
+    0.0,
+    14.3752
+   ],
+   "hybrid/fixed": [
+    0,
+    0.0,
+    14.3752
+   ],
+   "hybrid+rerank/fixed": [
+    0,
+    0.0,
+    1.6706
+   ],
+   "pages_bm25_before": [
+    0,
+    0.0,
+    17.5679
+   ]
+  }
+ },
+ "run_at": "2026-11-16T00:47:53+0530",
+ "git_sha": "fb296a5"
+}
