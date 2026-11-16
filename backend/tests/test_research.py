@@ -151,6 +151,12 @@ def test_relevance_check_refuses_before_answering(two_docs, monkeypatch):
     assert yes["verified"] and "Taiwan" in yes["text"] and calls[-1] == research.ANSWERER
 
 
+def test_full_width_citations_are_read(two_docs, monkeypatch):
+    _fake(monkeypatch, "Acme relies on one Taiwan supplier for 70% of motor controllers【p. 3】.")
+    out = _answer("What are Acme's main risks?")
+    assert out["verified"] and out["citations"][0]["page"] == 3
+
+
 def test_model_saying_not_found_is_a_refusal(two_docs, monkeypatch):
     _fake(monkeypatch, "Not found in the filings")
     out = _answer("What are Acme's main risks?")
