@@ -131,9 +131,30 @@ def test_rerank_orders_and_scores(two_docs, monkeypatch):
 def test_refusal_below_threshold_makes_no_model_call(two_docs, monkeypatch):
     calls = _fake(monkeypatch, "anything [p. 3]")
     out = _answer("zebra quantum")
-    assert out == {"text": research.NOT_FOUND, "citations": [], "verified": True, "warnings": []} and calls == []
+    assert out == {"text": research.NOT_FOUND, "citations": [], "verified": True,
+                   "warnings": ["refused: no passage scored high enough"]} and calls == []
     monkeypatch.setattr(research, "rerank_scores", lambda q, texts: [research.REFUSE_RERANK - 1] * len(texts))
     assert _answer("supplier", rerank=True)["text"] == research.NOT_FOUND and calls == []
+
+
+def test_relevance_check_refuses_before_answering(two_docs, monkeypatch):
+    replies = ['{"answerable": false}', '{"answerable": true}', "Acme relies on one Taiwan supplier [p. 3]."]
+    calls = []
+
+    async def fake(system, user, **kw):
+        calls.append(system)
+        return replies.pop(0)
+    monkeypatch.setattr(llm, "call_llm", fake)
+    no = _answer("What are Acme's main risks?", check=True)
+    assert no["text"] == research.NOT_FOUND and "relevance check" in no["warnings"][0] and len(calls) == 1
+    yes = _answer("What are Acme's main risks?", check=True)
+    assert yes["verified"] and "Taiwan" in yes["text"] and calls[-1] == research.ANSWERER
+
+
+def test_model_saying_not_found_is_a_refusal(two_docs, monkeypatch):
+    _fake(monkeypatch, "Not found in the filings")
+    out = _answer("What are Acme's main risks?")
+    assert out["text"] == research.NOT_FOUND and "answer step" in out["warnings"][0]
 
 
 def test_above_threshold_calls_the_model(two_docs, monkeypatch):
