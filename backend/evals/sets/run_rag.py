@@ -241,6 +241,15 @@ async def answers(rows: list[dict], vecs: dict, live_arms: list[str], chosen: di
 
     stats, log, out, done, stopped = {"calls": 0}, [], [], done or {}, None
     evals.install_cache(offline, stats, CACHE)
+    if offline:  # a relevance check that got no reply live was never recorded and fell through: replay it as failed
+        replay_json = llm.call_json
+
+        async def lenient_json(*a, **kw):
+            try:
+                return await replay_json(*a, **kw)
+            except LookupError:
+                return None
+        llm.call_json = lenient_json
     llm.CALL_LOG.set(log)
     if provider == "groq" and not offline:  # never let a rate-limited Groq call fall through to another model
         llm._PROVIDERS = [p for p in llm._PROVIDERS if p[0] != "openrouter"]
