@@ -473,7 +473,8 @@ if __name__ == "__main__":
 
         # Write the answers file; called before judging too, so a killed run keeps its answers for the next one.
         def save(judged):
-            OUT_ANSWERS.write_text(json.dumps({                "provider": args.provider, "answer_model": sorted({m for r in rows_out for m in r["served_by"]}),
+            OUT_ANSWERS.write_text(json.dumps({
+                "provider": args.provider, "answer_model": sorted({m for r in rows_out for m in r["served_by"]}),
                 "arms": live_arms, "thresholds": {b: committed["thresholds"][b] for b in {a.removesuffix("+check") for a in live_arms}},
                 "summary": summarize(rows_out, live_arms), "judge": judged, "stopped": stopped or (judged or {}).get("stopped"),
                 "spend": {"billed_total": round(billed + (judged or {}).get("billed", 0.0), 6), "cap": args.max_usd,
