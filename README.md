@@ -116,18 +116,21 @@ For local development on Python 3.11: `pip install -r backend/requirements-dev.t
 | Number check            | 179 sentences | **1.5%** false accept | 0% false reject               |
 | PII redaction           |    55 strings |      **84.6%** recall | misses names in narrations    |
 | Company tie-outs        |   5 companies |         **115 / 117** | 573 / 573 formulas recompute  |
+| Filing search, recall@5 |  66 questions |             **1.000** | 0.894 page BM25, 0.939 hybrid |
 
 Golden-set answers are replayed in CI with no keys, and the labelled sets fail the build if any rate gets worse.
 To reproduce live: `cd backend && python evals/run.py`. Every run and failure is in the
 [eval results](docs/eval/README.md) and the [error analysis](docs/eval/ERROR_ANALYSIS.md).
 
 <!-- src: backend/evals/results.json, results_openrouter.json, results_baseline.json, results_local_qwen3_8b.json,
-     results_sets.json (sql, numbers, pii), company_tieouts.json, company_quarters.json#totals -->
+     results_sets.json (sql, numbers, pii), company_tieouts.json, company_quarters.json#totals,
+     results_rag.json#arms.bm25/structure.recall_at_5, #arms.pages_bm25_before.recall_at_5, #arms.hybrid/structure.recall_at_5 -->
 
 ## Limitations
 
 - Not deployed yet. It runs locally or with Docker; an AWS deployment is planned.
-- Every eval set is synthetic, and the PDF reader has not seen a real bank statement.
+- The money eval sets are synthetic, and the PDF reader has not seen a real bank statement. The company tie-outs
+  and the filing search set use real SEC filings.
 - 34 golden questions is a small set: one question moves the score by about 3 points.
 - Regex PII redaction misses names inside payment narrations.
 - Company mode covers US filers only, refuses banks and insurers, and takes the share price as an input.
@@ -141,8 +144,9 @@ To reproduce live: `cd backend && python evals/run.py`. Every run and failure is
 | File ingest and column mapping             | [docs/ingest.md](docs/ingest.md)                                              |
 | Company mode and the earnings loop         | [docs/company_mode.md](docs/company_mode.md)                                  |
 | Evals, result files, error analysis        | [docs/eval/](docs/eval/README.md), [TECHNICAL_REPORT.md](TECHNICAL_REPORT.md) |
+| Filing search: chunking, hybrid, re-ranking | [docs/rag/RESULTS.md](docs/rag/RESULTS.md)                                    |
 | MCP server setup                           | [docs/mcp.md](docs/mcp.md)                                                    |
 | Security model                             | [SECURITY.md](SECURITY.md)                                                    |
 
-**Stack:** Python 3.11, FastAPI, LangGraph, DuckDB, Postgres, React and TypeScript, Groq and OpenRouter, openpyxl,
+**Stack:** Python 3.11, FastAPI, LangGraph, DuckDB, Postgres with pgvector, fastembed, React and TypeScript, Groq and OpenRouter, openpyxl,
 MCP, Docker. **License:** MIT.
