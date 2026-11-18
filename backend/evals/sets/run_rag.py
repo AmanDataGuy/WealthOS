@@ -359,9 +359,10 @@ async def judge(rows: list[dict], provider: str, spent: float, max_usd: float, d
     # Judge one row (both metrics); a judge error is recorded, never scored as 0.
     async def one(row):
         prev = done.get((row["arm"], row["id"]), {})
-        if "faithfulness" in prev or "judge_error" in prev:
-            row.update({k: prev[k] for k in ("faithfulness", "context_precision", "judge_error") if k in prev})
+        if "faithfulness" in prev:  # already scored; a row whose judging failed is judged again
+            row.update({k: prev[k] for k in ("faithfulness", "context_precision")})
             return
+        row.pop("judge_error", None)
         contexts = [texts[(doc, n, ARMS[row["arm"].removesuffix("+check")]["chunker"])] for doc, n in row["shown"]]
         async with gate:
             try:
