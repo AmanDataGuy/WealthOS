@@ -3,13 +3,16 @@
 
 | Source | What | Cost / key |
 |---|---|---|
-| NSE "bhavcopy" (nsearchives.nseindia.com) | every NSE stock / ETF's open, high, low, close, volume for one trading day, official | free, no key |
+| NSE "bhavcopy" (nsearchives.nseindia.com) | every NSE stock / ETF's open, high, low, close, volume for one trading day, official; the current file format from early 2024, the older format before that | free, no key |
 | mfapi.in (built on AMFI's NAV files) | a mutual fund scheme's whole daily NAV history; also a scheme search | free, no key |
 
 - One NSE file per trading day (~200 KB zip). Each day is downloaded once and cached, trimmed to the price columns,
-  under `data/cache/nse/` (public data, shared by every user); a holiday is cached as an empty file.
+  under `data/cache/nse/` (public data, shared by every user); a day missing in both formats is a holiday, cached as
+  an empty file.
 - NSE closes are **not** adjusted for splits / bonuses (`adjusted = false`); the strategy lab's split guard warns on
   jumps. NAVs need no adjustment (`adjusted = true`).
+- `quality_flags` adds plain-English warnings to a fetched source: stale, flat runs, one-day jumps over 20%, and days
+  where every symbol repeats its previous close.
 - A workspace remembers what it fetched (`prices.json`: source, symbols, start), so `refresh` brings everything up to
   today; `worker.py` does that once a day.
 - NSE fetching is off in production unless `WEALTHOS_ENABLE_NSE=1` (NSE data is not ours to redistribute).
@@ -36,10 +39,18 @@ from app.data import timeexpr
 from app.data.ingest import ExtractedTable, SourceRef
 
 NSE_URL = "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_{d:%Y%m%d}_F_0000.csv.zip"
+# NSE serves the file above only from early 2024; earlier days are in this older format.
+NSE_OLD_URL = "https://nsearchives.nseindia.com/content/historical/EQUITIES/{d:%Y}/{mon}/cm{d:%d}{mon}{d:%Y}bhav.csv.zip"
+# Source columns for: series, then symbol, open, high, low, close, volume.
+NSE_COLS = ("SctySrs", "TckrSymb", "OpnPric", "HghPric", "LwPric", "ClsPric", "TtlTradgVol")
+NSE_OLD_COLS = ("SERIES", "SYMBOL", "OPEN", "HIGH", "LOW", "CLOSE", "TOTTRDQTY")
 MFAPI = "https://api.mfapi.in/mf"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36"}
 SERIES = {"EQ", "BE", "BZ", "SM", "ST"}  # equity series (ETFs trade as EQ); others are bonds, warrants ...
 MAX_DAYS = 3 * 366  # ponytail: one file per day, so cap a first fetch at ~3 years (~750 downloads, cached after)
+STALE_DAYS = 10  # a listed stock or fund quotes every trading day; 10 calendar days without one is more than any holiday run
+FLAT_RUN = 5  # five identical closes in a row is a week of no trading or a feed copying the last value
+BIG_MOVE = 0.20  # NSE's widest daily price band is 20%, so a bigger one-day move is a split / bonus or a bad tick
 
 
 # Folder where downloaded NSE files are kept.
@@ -51,10 +62,11 @@ def _cache() -> Path:
 def nse_day(d: date) -> dict[str, dict]:
     path = _cache() / f"{d:%Y%m%d}.csv"
     if not path.exists():
-        r = httpx.get(NSE_URL.format(d=d), headers=HEADERS, timeout=30, follow_redirects=True)
-        if r.status_code == 404:
-            text = ""  # no trading that day
-        else:
+        text = ""  # stays empty when both formats 404: no trading that day
+        for url, cols in ((NSE_URL, NSE_COLS), (NSE_OLD_URL, NSE_OLD_COLS)):
+            r = httpx.get(url.format(d=d, mon=f"{d:%b}".upper()), headers=HEADERS, timeout=30, follow_redirects=True)
+            if r.status_code == 404:
+                continue
             r.raise_for_status()
             z = zipfile.ZipFile(io.BytesIO(r.content))
             rows = csv.DictReader(io.StringIO(z.read(z.namelist()[0]).decode("utf-8", "replace")))
@@ -62,9 +74,10 @@ def nse_day(d: date) -> dict[str, dict]:
             w = csv.writer(out)
             w.writerow(["symbol", "open", "high", "low", "close", "volume"])
             for row in rows:
-                if row.get("SctySrs") in SERIES:
-                    w.writerow([row["TckrSymb"], row["OpnPric"], row["HghPric"], row["LwPric"], row["ClsPric"], row["TtlTradgVol"]])
+                if (row.get(cols[0]) or "").strip() in SERIES:
+                    w.writerow([row[c].strip() for c in cols[1:]])
             text = out.getvalue()
+            break
         if d < timeexpr.today_ist() or text:  # today's file may not be published yet: don't cache it as a holiday
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8")
@@ -122,6 +135,31 @@ def fetch_mf(codes: list[str], start: date) -> tuple[list[dict], list[str]]:
     return rows, warnings
 
 
+# Plain-English warnings about suspect prices in a batch of rows (ts, symbol, close): stale, flat, jumpy, or a day
+# where every symbol just repeats its previous close. `today` is the date the series should reach.
+def quality_flags(rows: list[dict], today: date) -> list[str]:
+    series: dict[str, list[tuple[date, float]]] = {}
+    for r in sorted(rows, key=lambda r: r["ts"]):
+        series.setdefault(r["symbol"], []).append((r["ts"], r["close"]))
+    flags, repeats = [], {}
+    for sym, pts in series.items():
+        if (today - pts[-1][0]).days >= STALE_DAYS:
+            flags.append(f"{sym}: no new price since {pts[-1][0]}, {(today - pts[-1][0]).days} days ago")
+        run = 1
+        for (d0, c0), (d1, c1) in zip(pts, pts[1:]):
+            run = run + 1 if c1 == c0 else 1
+            if run == FLAT_RUN:
+                flags.append(f"{sym}: the same close {c1} for {FLAT_RUN}+ days in a row up to {d1}")
+            if c0 and abs(c1 / c0 - 1) > BIG_MOVE:
+                flags.append(f"{sym}: moved {c1 / c0 - 1:+.0%} on {d1}, a possible split / bonus or a bad price")
+            if c1 == c0:
+                repeats.setdefault(d1, set()).add(sym)
+    if len(series) > 1:
+        flags += [f"every symbol repeats its previous close on {d}: the data source may have copied the day before"
+                  for d, syms in sorted(repeats.items()) if len(syms) == len(series)]
+    return flags
+
+
 # ── Saved price sources per workspace ──────────────────────────────────────────────────────────────────────
 
 # File listing a workspace's saved price sources.
@@ -155,6 +193,7 @@ def add(user_id: str, workspace_id: str, source: str, symbols: list[str], start:
     rows, warnings = fetch_nse(symbols, start, today) if source == "nse" else fetch_mf(symbols, start)
     if not rows:
         raise ValueError("; ".join(warnings) or "no prices found")
+    warnings += quality_flags(rows, today)
     key = f"{source}:{','.join(symbols)}"
     src = SourceRef(file=f"{'NSE' if source == 'nse' else 'mfapi.in'}: {', '.join(symbols)}"[:200],
                     content_hash=hashlib.sha256(key.encode()).hexdigest())  # same source -> same dataset, replaced
