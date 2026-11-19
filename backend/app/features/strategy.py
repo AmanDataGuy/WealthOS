@@ -28,6 +28,10 @@ Trees are at most 8 deep, windows 1..400 days, and unknown keys are refused (`ex
 - Sizing: `equal_weight` splits the money across the stocks currently held; `fixed_amount` gives each stock
   1/N of the capital (the rest stays in cash).
 - Costs: Indian equity charges per rupee traded (`COSTS`). Money not invested earns nothing.
+- Robustness warnings (never verdicts) when a profitable run loses money with all charges doubled, or does
+  badly (loss or Sharpe below zero) in the last 30% of the period. That slice is not a holdout: the rule was chosen
+  with the whole period visible.
+- EMA and RSI (Wilder) start from the simple average of the first n values; a flat price has RSI 50.
 - Results: CAGR, volatility, Sharpe (risk-free 6.5% a year unless `WEALTHOS_RISK_FREE_RATE` says otherwise), max
   drawdown, turnover, hit rate, time invested, and the same for **buy-and-hold** of the same stocks.
 - Prices must be split-adjusted: a one-day move beyond -45% / +80% on prices not marked adjusted stops the run.
@@ -56,7 +60,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.data import engine
 
 LABEL = "Historical simulation, not advice. Past performance does not predict future results."
-ENGINE_VERSION = "1"
+ENGINE_VERSION = "2"  # 2: EMA and RSI seeded with a simple average; flat price RSI 50
 MAX_DEPTH = 8
 MAX_WINDOW = 400
 TRADING_DAYS = 252
@@ -143,15 +147,15 @@ def evaluate(sig: Signal, close: pd.DataFrame, depth: int = 0):
         if op == "ts_std":
             return x.rolling(n).std()
         if op == "ema":
-            return x.ewm(span=n, adjust=False, min_periods=n).mean()
+            return _seeded_ewm(x, n, 2 / (n + 1))
         if op == "delta":
             return x - x.shift(n)
         if op == "lag":
             return x.shift(n)
         change = x.diff()  # rsi, Wilder smoothing
-        gain = change.clip(lower=0).ewm(alpha=1 / n, adjust=False, min_periods=n).mean()
-        loss = (-change.clip(upper=0)).ewm(alpha=1 / n, adjust=False, min_periods=n).mean()
-        return (100 - 100 / (1 + gain / loss)).where(loss > 0, 100.0).where(gain.notna())
+        gain, loss = _seeded_ewm(change.clip(lower=0), n, 1 / n), _seeded_ewm(-change.clip(upper=0), n, 1 / n)
+        flat = (gain > 0).astype(float) * 50 + 50  # no losses: 100 if it rose, 50 if the price never moved
+        return (100 - 100 / (1 + gain / loss)).where(loss > 0, flat).where(gain.notna())
     if op == "rank":
         need(1)
         return series(args[0]).rank(axis=1, pct=True)
@@ -168,6 +172,19 @@ def evaluate(sig: Signal, close: pd.DataFrame, depth: int = 0):
         return (a > b) & (a.shift(1) <= b.shift(1))
     a, b = a.fillna(0).astype(bool), b.fillna(0).astype(bool)
     return (a & b) if op == "and" else (a | b)
+
+
+# Exponential average per column, seeded with the simple average of the first n values (nothing before n values).
+def _seeded_ewm(x: pd.DataFrame, n: int, alpha: float) -> pd.DataFrame:
+    # One column: drop gaps, put the seed on the n-th value, run the recurrence, put the dates back.
+    def one(col: pd.Series) -> pd.Series:
+        v = col.dropna()
+        if len(v) < n:
+            return pd.Series(np.nan, index=col.index)
+        v = v.iloc[n - 1:].copy()
+        v.iloc[0] = col.dropna().iloc[:n].mean()
+        return v.ewm(alpha=alpha, adjust=False).mean().reindex(col.index)
+    return x.apply(one)
 
 
 # A number spread over the panel's shape, so every op can work on frames.
@@ -260,12 +277,6 @@ def load_prices(user_id: str, workspace_id: str | None, universe: list[str], end
 
 # ── The simulation ──────────────────────────────────────────────────────────────────────
 
-# Simulate a strategy on price panels. Returns daily net returns, the exposure per stock, the amount traded per
-# day (as a share of the money), and the buy-and-hold value per rupee, all on the same days.
-def simulate(spec: StrategySpec, close: pd.DataFrame, opens: pd.DataFrame | None):
-    return simulate_weights(target_weights(spec, close), close, opens, spec.costs, spec.start, spec.end)
-
-
 # The weight a rule wants in each stock at each day's close (0..1, rows sum to at most 1).
 def target_weights(spec: StrategySpec, close: pd.DataFrame) -> pd.DataFrame:
     entry = _frame(evaluate(spec.entry, close), close).fillna(0).astype(bool)
@@ -284,9 +295,11 @@ def target_weights(spec: StrategySpec, close: pd.DataFrame) -> pd.DataFrame:
     return held / len(spec.universe)
 
 
-# Trade target weights (decided at a day's close, filled at the next day's open) with Indian costs.
+# Trade target weights (decided at a day's close, filled at the next day's open) with Indian costs (times
+# `cost_scale`). Returns daily net returns, the exposure per stock, the amount traded per day (as a share of the
+# money), and the buy-and-hold value per rupee, all on the same days.
 def simulate_weights(weights: pd.DataFrame, close: pd.DataFrame, opens: pd.DataFrame | None, costs: str,
-                     start: date | None = None, end: date | None = None):
+                     start: date | None = None, end: date | None = None, cost_scale: float = 1.0):
     fill = opens if opens is not None else close
     ret = (fill.shift(-1) / fill - 1).fillna(0.0)  # day t's fill price to day t+1's fill price
     exposure = weights.shift(1).fillna(0.0)        # decided at day t-1's close, filled at day t
@@ -298,11 +311,34 @@ def simulate_weights(weights: pd.DataFrame, close: pd.DataFrame, opens: pd.DataF
     trades = exposure.diff()
     trades.iloc[0] = exposure.iloc[0]  # ponytail: weights reset to target daily; drift trades aren't charged
     buys, sells = trades.clip(lower=0).sum(axis=1), (-trades).clip(lower=0).sum(axis=1)
-    rate = COSTS[costs]
+    rate = {side: r * cost_scale for side, r in COSTS[costs].items()}
     net = (exposure * ret).sum(axis=1) - buys * rate["buy"] - sells * rate["sell"]
     growth = (fill / fill.iloc[0]).mean(axis=1).iloc[1:].to_numpy()  # buy-and-hold, equal amounts on day one
     bench = pd.Series(growth * (1 - rate["buy"]), index=net.index)
     return net, exposure, buys + sells, bench
+
+
+# Warnings (never verdicts) from re-running the same weights with doubled charges and on the last 30% of the period.
+def robustness(weights: pd.DataFrame, close: pd.DataFrame, opens: pd.DataFrame | None, costs: str,
+               start: date | None, end: date | None, net: pd.Series) -> list[str]:
+    if (1 + net).prod() <= 1:
+        return []  # nothing to stress: the run did not make money
+    out = []
+    doubled = simulate_weights(weights, close, opens, costs, start, end, cost_scale=2)[0]
+    if (1 + doubled).prod() < 1:
+        out.append("with trading charges doubled, this rule would have lost money: its profit is thin next to costs, "
+                   "and real costs (spreads, slippage) can be higher than the ones modelled here")
+    cut = net.index[int(len(net) * 0.7)]
+    try:
+        last = simulate_weights(weights, close, opens, costs, cut, end)[0]
+    except ValueError:
+        return out  # too few days in the last 30% to say anything
+    excess = last - RISK_FREE / TRADING_DAYS
+    if (1 + last).prod() < 1 or (excess.std() > 0 and excess.mean() < 0):
+        out.append(f"in the last 30% of the period (from {cut.date()}) this rule lost money or did worse than the "
+                   "risk-free rate (Sharpe below zero), although the whole period was positive. The rule was chosen "
+                   "with the whole period visible, so this is a check of how steady it was, not an out-of-sample test")
+    return out
 
 
 # Growth, risk and drawdown of an equity curve that started at `start` (and its daily returns).
@@ -368,7 +404,9 @@ def run(user_id: str, workspace_id: str | None, spec: StrategySpec | dict, gener
     spec = spec if isinstance(spec, StrategySpec) else StrategySpec(**spec)
     spec = spec.model_copy(update={"universe": list(dict.fromkeys(s.strip().upper() for s in spec.universe))})
     close, opens, warnings, fingerprint = load_prices(user_id, workspace_id, spec.universe, spec.end)
-    sim = simulate(spec, close, opens)
+    weights = target_weights(spec, close)
+    sim = simulate_weights(weights, close, opens, spec.costs, spec.start, spec.end)
+    warnings += robustness(weights, close, opens, spec.costs, spec.start, spec.end, sim[0])
     return _score_and_save(user_id, workspace_id, sim, spec.universe, spec.capital, warnings, fingerprint,
                            describe(spec), json.loads(spec.model_dump_json()), spec.model_dump_json(), generated_by)
 
@@ -385,6 +423,7 @@ def run_python(user_id: str, workspace_id: str | None, code: str, universe: list
     close, opens, warnings, fingerprint = load_prices(user_id, workspace_id, universe, end)
     weights = sandbox.run_weights(code, close)
     sim = simulate_weights(weights, close, opens, costs, start, end)
+    warnings += robustness(weights, close, opens, costs, start, end, sim[0])
     spec = {"kind": "python", "universe": universe, "capital": capital, "costs": costs,
             "start": str(start) if start else None, "end": str(end) if end else None, "code": code}
     description = f"Your Python strategy on {', '.join(universe)}: target weights from weights(close), traded at the next open."
