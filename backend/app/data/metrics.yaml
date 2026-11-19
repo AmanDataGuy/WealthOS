@@ -146,22 +146,6 @@ holdings_count:
   unit: count
   sql: COUNT(*)
 
-effective_holdings:
-  name: Effective number of holdings (1 / sum of squared weights; 4 equal holdings = 4, one big one pulls it toward 1)
-  shape: holdings
-  date: as_of
-  time_semantics: point_in_time
-  unit: count
-  sql: POWER(SUM(value), 2) / NULLIF(SUM(value * value), 0)
-
-top5_share_pct:
-  name: Share of portfolio value in the 5 largest holdings (%)
-  shape: holdings
-  date: as_of
-  time_semantics: point_in_time
-  unit: pct
-  sql: 100.0 * list_sum(list(value ORDER BY value DESC) FILTER (WHERE value IS NOT NULL)[1:5]) / NULLIF(SUM(value), 0)
-
 xirr:
   name: XIRR (annual return of all trades, using today's holdings value)
   shape: trades
