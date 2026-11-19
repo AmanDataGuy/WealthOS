@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="tests" src="https://img.shields.io/badge/tests-219%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-234%20passing-brightgreen">
   <img alt="python" src="https://img.shields.io/badge/python-3.11-3776AB">
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
@@ -76,7 +76,9 @@
   gets "Not found in the filings." Search is BM25 over section-aware chunks, with hybrid search on pgvector and a
   re-ranker as a setting. ([results](docs/rag/RESULTS.md))
 - Dashboards you build by hand or by asking, with Excel export and your own Excel templates.
-- A strategy lab that backtests a rule with Indian charges and a deflated Sharpe ratio, and drift from your target mix.
+- A strategy lab that backtests a rule with Indian charges and a deflated Sharpe ratio, warns when the profit does not
+  survive doubled charges or the last 30% of the period, and refuses uploaded strategies that read future prices.
+- Drift from your target mix, with how concentrated the holdings are (effective number of holdings, top five's share).
 - A read-only MCP server for metrics, tax, drift and backtests. ([MCP](docs/mcp.md))
 - No buy, sell or hold advice. WealthOS is not SEBI-registered.
 
