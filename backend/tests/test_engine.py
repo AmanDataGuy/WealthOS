@@ -72,6 +72,33 @@ def test_realized_gains(tmp_path):
 def test_xirr_known_answer():
     assert engine.xirr([(date(2025, 1, 1), -100.0), (date(2026, 1, 1), 110.0)]) == pytest.approx(0.10, abs=1e-6)
     assert engine.xirr([(date(2025, 1, 1), -100.0)]) is None  # no money coming back: no answer, not a guess
+    # 100 in, 121 back after 730 days (two 365-day years) = exactly 10% a year (1.1 ** 2 = 1.21)
+    assert engine.xirr([(date(2025, 1, 1), -100.0), (date(2027, 1, 1), 121.0)]) == pytest.approx(0.10, abs=1e-9)
+
+
+# Irregular, losing and many-flow cases: at the returned rate the flows are worth zero (365-day years, as the engine uses).
+@pytest.mark.parametrize("flows, gain", [
+    ([(date(2024, 1, 15), -10000.0), (date(2024, 3, 2), -2500.0), (date(2024, 11, 30), 1200.0), (date(2025, 7, 19), 13500.0)], True),
+    ([(date(2023, 6, 1), -5000.0), (date(2024, 2, 10), -3000.0), (date(2025, 9, 5), 6100.0)], False),  # a loss
+    ([(date(2022 + i // 12, 1 + i % 12, 5), -1000.0) for i in range(36)] + [(date(2025, 3, 31), 41000.0)], True),  # monthly buys
+])
+def test_xirr_sets_present_value_to_zero(flows, gain):
+    rate = engine.xirr(flows)
+    t0 = min(d for d, _ in flows)
+    pv = sum(a / (1 + rate) ** ((d - t0).days / 365.0) for d, a in flows)
+    assert abs(pv) < 1e-6 * sum(abs(a) for _, a in flows) and (rate > 0) == gain
+
+
+# Concentration: weights 0.5 / 0.3 / 0.2 give 1 / 0.38 = 2.63 effective holdings; the top 5 of 7 hold their share.
+def test_concentration_metrics(tmp_path):
+    _upload(tmp_path, "holdings.csv", "Instrument,Qty.,Avg. cost,Cur. val\nAAA,1,1,5000\nBBB,1,1,3000\nCCC,1,1,2000\n")
+    r = engine.run_metric("u", MetricQuery(metrics=["effective_holdings", "top5_share_pct"], time="today"))
+    assert r.rows[0]["effective_holdings"] == pytest.approx(1 / 0.38) and r.rows[0]["top5_share_pct"] == pytest.approx(100.0)
+    for m in engine.list_datasets("u"):
+        engine.remove_dataset("u", m)
+    _upload(tmp_path, "holdings.csv", "Instrument,Qty.,Avg. cost,Cur. val\n" + "".join(f"S{v},1,1,{v}\n" for v in (50, 30, 20, 3, 2, 1, 0)))
+    assert engine.run_metric("u", MetricQuery(metrics=["top5_share_pct"], time="today")).rows[0]["top5_share_pct"] == \
+        pytest.approx(100 * 105 / 106)
 
 
 # Bad metric names, bad dimensions and SQL that reaches outside the data are refused with a reason.
