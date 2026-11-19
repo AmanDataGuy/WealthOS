@@ -6,7 +6,9 @@
   rows are missing is left blank.
 - `dcf()`: five years of free cash flow growing at a fixed rate, a Gordon-growth terminal value, discounted at one
   flat rate. The assumptions are explicit inputs (`ASSUMPTIONS`), shown in blue on the Valuation sheet so a user can
-  change them; there is no market data (no share price, beta or bond yield is fetched).
+  change them; there is no market data (no share price, beta or bond yield is fetched). It also returns a terminal
+  value cross-check (implied exit EV / EBITDA, terminal share of EV) and a value-per-share grid over discount rate x
+  terminal growth (`RATE_STEPS` x `GROWTH_STEPS`).
 
 Used by `pipeline.py`, `workbook.py` and `tieout.py`.
 """
@@ -33,6 +35,9 @@ RATIOS = [
 # House assumptions, in one place. A flat 9% discount rate stands in for a full WACC (no beta or bond yield is
 # fetched); growth is the company's own revenue CAGR over the years shown, held between 0% and the cap.
 ASSUMPTIONS = {"discount_rate": 0.09, "terminal_growth": 0.03, "growth_cap": 0.15, "years": 5}
+# Sensitivity grid: steps added to the discount rate (rows) and to terminal growth (columns).
+RATE_STEPS = (-0.02, -0.01, 0.0, 0.01, 0.02)
+GROWTH_STEPS = (-0.01, -0.005, 0.0, 0.005, 0.01)
 
 
 # Every ratio for every year column: {key: [value or None per year]}.
@@ -72,8 +77,9 @@ def dcf_inputs(values: dict[str, list]) -> dict:
 
 
 # Discounted cash flow from `dcf_inputs`: per-year cash flows, terminal value, enterprise and equity value, value
-# per share ($) and the multiples that value implies. Money in $ millions, shares in millions.
-def dcf(i: dict) -> dict:
+# per share ($), the multiples that value implies, the terminal-value cross-check and the sensitivity grid (skipped
+# when `grid` is False). Money in $ millions, shares in millions.
+def dcf(i: dict, grid: bool = True) -> dict:
     g, r, tg, n = i["growth"], i["discount_rate"], i["terminal_growth"], ASSUMPTIONS["years"]
     fcf = [i["base_fcf"] * (1 + g) ** t for t in range(1, n + 1)]
     pv = [f / (1 + r) ** t for t, f in enumerate(fcf, start=1)]
@@ -83,8 +89,15 @@ def dcf(i: dict) -> dict:
     net_debt = i["total_debt"] - i["cash"] - i["short_term_investments"]
     equity = ev - net_debt
     per_share = equity / i["diluted_shares"]
+    ebitda_n = i["ebitda"] * (1 + g) ** n if i["ebitda"] else None  # latest EBITDA grown like free cash flow
+    # A grid cell is None where growth is at or above the rate (1e-9 absorbs float noise such as 0.04 - 0.01): the
+    # Gordon formula has no meaning there.
+    sens = [[dcf(i | {"discount_rate": r + dr, "terminal_growth": tg + dg}, grid=False)["per_share"]
+             if r + dr - (tg + dg) > 1e-9 else None for dg in GROWTH_STEPS] for dr in RATE_STEPS] if grid else None
     return {"fcf": fcf, "pv": pv, "terminal_value": terminal, "pv_terminal": pv_terminal, "enterprise_value": ev,
             "net_debt": net_debt, "equity_value": equity, "per_share": per_share,
             "ev_to_revenue": ev / i["revenue"] if i["revenue"] else None,
             "ev_to_ebitda": ev / i["ebitda"] if i["ebitda"] else None,
-            "pe": per_share / i["eps_diluted"] if i["eps_diluted"] else None}
+            "pe": per_share / i["eps_diluted"] if i["eps_diluted"] else None,
+            "exit_ev_to_ebitda": terminal / ebitda_n if ebitda_n else None, "terminal_share": pv_terminal / ev,
+            "sensitivity": sens}
