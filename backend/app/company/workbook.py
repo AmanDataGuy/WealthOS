@@ -2,7 +2,8 @@
 # workbook.py - the company model as an .xlsx a finance user can audit
 
 Sheets: Cover (company, filings with links, colour key, notes), Income Statement, Balance Sheet, Cash Flow, Ratios,
-Valuation, Releases (figures read from the earnings release, verified or not), Checks (tie-outs as live formulas).
+Valuation (DCF, terminal-value cross-check, rate x growth grid), Releases (figures read from the earnings release,
+verified or not), Checks (tie-outs as live formulas).
 
 - Blue = a number copied from a filing (hover a cell for its XBRL concept, accession number and filing date);
   black = a formula on the same sheet; green = a formula that links to another sheet. A grey note row under each
@@ -22,7 +23,7 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from app.company.analysis import ASSUMPTIONS, RATIOS
+from app.company.analysis import ASSUMPTIONS, GROWTH_STEPS, RATE_STEPS, RATIOS
 from app.company.statements import evaluate
 from app.company.tieout import CHECKS, TOLERANCE
 
@@ -223,6 +224,49 @@ def _valuation(ws, result: dict, where: dict, years: list[str], expected: dict) 
     ws["B31"].font = BLUE
     ws["A32"] = "Value per share vs market price"
     ws["B32"], ws["B32"].number_format = '=IF(B31>0,B26/B31-1,"")', FORMATS["pct"]
+    _terminal_check(ws, v, expected)
+    _sensitivity(ws, v, expected)
+
+
+# Terminal-value cross-check: the exit multiple the Gordon value implies and how much of EV it carries. Information only.
+def _terminal_check(ws, v: dict, expected: dict) -> None:
+    ws["A34"], ws["A34"].font = "Terminal value cross-check", BOLD
+    rows = [(35, "Implied exit EV / EBITDA (terminal value / year-5 EBITDA)", "=B21/(B14*(1+B7)^5)", "exit_ev_to_ebitda", "x",
+             "year-5 EBITDA = latest EBITDA grown at the year 1-5 rate (the model projects free cash flow only); "
+             "blank when operating income or D&A is not reported"),
+            (36, "Share of enterprise value from the terminal value", "=B22/B23", "terminal_share", "pct",
+             "present value of the terminal value / enterprise value")]
+    for r, label, formula, key, fmt, note in rows:
+        ws.cell(row=r, column=1, value=label)
+        ws.cell(row=r, column=7, value=note)
+        if v.get(key) is not None:
+            cell = ws.cell(row=r, column=2, value=formula)
+            cell.number_format = FORMATS[fmt]
+            expected[(ws.title, cell.coordinate)] = v[key]
+
+
+# Sensitivity: value per share with the discount rate down the rows and terminal growth across, each cell the full DCF.
+def _sensitivity(ws, v: dict, expected: dict) -> None:
+    ws["A38"], ws["A38"].font = "Value per share ($): discount rate (rows) x terminal growth (columns)", BOLD
+    ws["G38"] = ("Each cell re-runs the DCF above with that rate and growth; the centre cell is the value per share. "
+                 "Blank = terminal growth at or above the discount rate, where the terminal formula has no meaning.")
+    inp = v["inputs"]
+    for k, dg in enumerate(GROWTH_STEPS):
+        col = _col(k)
+        ws[f"{col}39"], ws[f"{col}39"].number_format, ws[f"{col}39"].font = f"=B6{dg:+g}", FORMATS["pct"], BOLD
+        expected[(ws.title, f"{col}39")] = inp["terminal_growth"] + dg
+    for j, dr in enumerate(RATE_STEPS):
+        r = 40 + j
+        ws[f"A{r}"], ws[f"A{r}"].number_format, ws[f"A{r}"].font = f"=B5{dr:+g}", FORMATS["pct"], BOLD
+        expected[(ws.title, f"A{r}")] = inp["discount_rate"] + dr
+        for k, value in enumerate(v["sensitivity"][j]):
+            if value is None:
+                continue
+            col, g = _col(k), f"{_col(k)}39"
+            pv = "+".join(f"{c}18/(1+A{r})^{t}" for t, c in enumerate("BCDEF", start=1))
+            ws[f"{col}{r}"] = f"=({pv}+F18*(1+{g})/(A{r}-{g})/(1+A{r})^5-B24)/B12"
+            ws[f"{col}{r}"].number_format = FORMATS["per_share"]
+            expected[(ws.title, f"{col}{r}")] = value
 
 
 # Releases: what the one AI step read from the latest earnings release, and whether each number was found in it.
