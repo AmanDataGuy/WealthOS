@@ -18,6 +18,9 @@ Three layers:
 2. **Runs in its own Python process** (`-I`, an empty environment, a throwaway folder), killed after 30 s; on Linux
    also CPU, 1 GB memory, file-size and open-file limits.
 3. **Its answer is checked:** the same dates and stocks, finite, 0..1, rows at most 1.
+4. **No look-ahead:** in the same child run, weights(close) is called again on the history cut at a few dates
+   (`CUTS`); if a cut date's weights change once later prices are removed, the strategy used the future and the
+   run is refused.
 
 Off in production unless `WEALTHOS_ENABLE_PY_STRATEGIES=1`.
 ponytail: layers 1-2 raise the bar but are not a security boundary (Python can't sandbox itself); before enabling it
@@ -45,18 +48,35 @@ BANNED_NAMES = {"open", "exec", "eval", "compile", "__import__", "globals", "loc
 BANNED_ATTR = re.compile(r"^_|^read_|^to_(?!numpy$|frame$|dict$|list$)|^(eval|query|load|loads|save|savez|savetxt|"
                          r"loadtxt|fromfile|tofile|genfromtxt|memmap|ctypeslib|lib|testing|f2py|show_config|system)$")
 
-# The child: load the file and the prices from its folder, call weights(close), print the answer as CSV.
+CUTS = (0.2, 0.4, 0.6, 0.8)  # where the history is cut for the look-ahead check (share of the days)
+LOOKAHEAD = "LOOKAHEAD "
+
+# The child: load the file and the prices from its folder, call weights(close) on the full history and on each cut,
+# then print the full answer as CSV (or LOOKAHEAD <date> on stderr when a cut changes that date's weights).
 RUNNER = """
 import sys
+import numpy as np
 import pandas as pd
 close = pd.read_csv("close.csv", index_col=0, parse_dates=True)
 namespace = {"__name__": "strategy"}
 exec(compile(open("strategy.py", encoding="utf-8").read(), "strategy.py", "exec"), namespace)
-out = namespace["weights"](close.copy())
-if not isinstance(out, pd.DataFrame):
-    sys.exit("weights(close) must return a pandas DataFrame")
-out.reindex(index=close.index, columns=close.columns).to_csv(sys.stdout)
-"""
+
+
+def run(c):
+    out = namespace["weights"](c.copy())
+    if not isinstance(out, pd.DataFrame):
+        sys.exit("weights(close) must return a pandas DataFrame")
+    return out.reindex(index=c.index, columns=c.columns)
+
+
+full = run(close)
+for share in %s:
+    day = close.index[int(len(close) * share)]
+    seen = run(close.loc[:day]).loc[day].to_numpy(dtype=float, na_value=0.0)
+    if not np.allclose(seen, full.loc[day].to_numpy(dtype=float, na_value=0.0), equal_nan=True):
+        sys.exit("%s" + str(day.date()))
+full.to_csv(sys.stdout)
+""" % (CUTS, LOOKAHEAD)
 
 
 def enabled() -> bool:
@@ -113,6 +133,10 @@ def run_weights(code: str, close: pd.DataFrame) -> pd.DataFrame:
         except subprocess.TimeoutExpired:
             raise ValueError(f"the strategy ran longer than {TIMEOUT_S} s and was stopped") from None
     if proc.returncode:
+        if proc.stderr.strip().startswith(LOOKAHEAD):
+            day = proc.stderr.strip()[len(LOOKAHEAD):][:10]
+            raise ValueError(f"the strategy looks into the future: its weights for {day} change when prices after "
+                             f"{day} are removed (for example shift(-1) or a full-history max). Use only past prices.")
         last = (proc.stderr.strip().splitlines() or ["it stopped without saying why"])[-1]
         raise ValueError(f"the strategy failed: {last[:300]}")
     out = pd.read_csv(io.StringIO(proc.stdout), index_col=0, parse_dates=True).reindex(index=close.index,
