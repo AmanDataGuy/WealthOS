@@ -61,7 +61,12 @@ def drift(user_id: str, workspace_id: str | None = None, band: float = 5.0) -> d
         warnings.append("no target mix set yet: set one to see drift")
     elif missing := [n for n in values if n not in goal]:
         warnings.append(f"{len(missing)} holding(s) have no target: {', '.join(missing[:5])}")
-    return {"total_value": round(total, 2), "band_pts": band, "rows": rows, "warnings": warnings,
+    # Concentration: 1 / sum of squared weights (4 equal holdings = 4) and the five largest holdings' share of value.
+    held = sorted((v for v in values.values() if v > 0), reverse=True)
+    concentration = {"effective_holdings": round(total ** 2 / sum(v * v for v in held), 2),
+                     "top5_share_pct": round(100 * sum(held[:5]) / total, 2)}
+    return {"total_value": round(total, 2), "band_pts": band, "rows": rows, "concentration": concentration,
+            "warnings": warnings,
             "provenance": r.provenance.model_dump(), "label": LABEL}
 
 
