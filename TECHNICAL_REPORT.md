@@ -31,7 +31,7 @@ five companies, and 573 of 573 workbook formulas recompute to the Python values.
 finds the answering page in the top 5 for every one of 66 questions worded like the filing, with BM25 over
 structure-aware chunks; on 39 paraphrased and multi-section questions BM25 falls to 0.615 and hybrid search with
 re-ranking reaches 0.769. The backend test suite passes
-(219 passed) with no keys and no network.
+(234 passed) with no keys and no network.
 
 <!-- src: backend/evals/results.json#summary.value_accuracy_pct, #summary.plan_match_pct;
      backend/evals/results_baseline.json#summary.value_accuracy_pct, #summary.plan_match_pct;
@@ -39,7 +39,7 @@ re-ranking reaches 0.769. The backend test suite passes
      #numbers.false_accept_pct, #numbers.false_reject_pct; backend/evals/company_tieouts.json#pass_rates;
      backend/evals/results_rag.json#arms.bm25/structure.recall_at_5; backend/evals/results_rag_hard.json#set.answerable,
      #arms.bm25/structure.recall_at_5, #arms.hybrid+rerank/fixed.recall_at_5;
-     tests: `cd backend && WEALTHOS_ENV=test pytest -q`, run 2026-11-17 -->
+     tests: `cd backend && WEALTHOS_ENV=test pytest -q`, run 2026-11-19 -->
 
 ## 2. What WealthOS does and how a question flows
 
@@ -372,12 +372,12 @@ the page on a paraphrased question, the model says "Not found in the filings." r
 
 ## 7. Tests and CI
 
-Run on 2026-11-17, Python 3.11.18, pytest 9.0.3, no API keys used and no network (the two 10-K filings were
+Run on 2026-11-19, Python 3.11.18, pytest 9.0.3, no API keys used and no network (the two 10-K filings were
 already downloaded, and LibreOffice is installed on this machine):
 
 ```
 cd backend && WEALTHOS_ENV=test pytest -q
-219 passed in 133.83s
+234 passed in 143.17s
 ```
 
 Without LibreOffice one Excel test skips; without the downloaded filings the four filing eval tests skip.
@@ -388,25 +388,25 @@ and free fallback models. Run that way on 14 November, the suite gave `2 failed,
 `tests/test_strategy.py::test_generated_by_names_the_model_that_answered`), which is the production guard working.
 CI sets `WEALTHOS_ENV=test`.
 
-`pytest --collect-only -q` collects 219 tests in 24 modules:
+`pytest --collect-only -q` collects 234 tests in 24 modules:
 
 | Area | What the tests check | Modules | Tests |
 |---|---|---|---|
 | Number check | Exact values always pass, values off by more than 1% never do (property test), wrong currency fails, small amounts and years are checked, space-grouped digits | `test_verify_numbers` | 32 |
-| Engine and metrics | Time expressions, flow metrics, FIFO realised gains, XIRR known answer, SQL guard refusals, locked connection, column mapping, workspaces, dashboards with undo, Excel export, calculator | `test_engine` | 26 |
+| Engine and metrics | Time expressions, flow metrics, FIFO realised gains, XIRR known answer and zero present value on multi-flow cases, SQL guard refusals, locked connection, column mapping, workspaces, dashboards with undo, Excel export, calculator, concentration in the drift | `test_engine` | 30 |
 | Hostile input | Path escapes, bad uploads and queries, calculator bombs: always a clear 4xx, never a 500, no leaks | `test_stress` | 15 |
 | Assistant graph | Fake model: metric answers verified, invented numbers replaced, empty result not trusted, advice refused, clarify round trip, multi-step plans, per-chat checkpoints, vague questions asked back in code, streamed steps | `test_agent` | 14 |
-| Company mode | Ticker resolution, bank refusal, statements tie out on a recorded Apple filing, ratios and DCF, release figures verified, workbook recomputes, deadline stops a build; quarters, locked forecasts, kill rules, rebalance plan | `test_company`, `test_company_review` | 21 |
+| Company mode | Ticker resolution, bank refusal, statements tie out on a recorded Apple filing, ratios and DCF, release figures verified, workbook recomputes, deadline stops a build; quarters, locked forecasts, kill rules, rebalance plan, DCF sensitivity grid and terminal-value cross-check recalculated | `test_company`, `test_company_review` | 25 |
 | Auth and isolation | Weak or missing secret stops startup, lockout after ten failures, same message for unknown users; every user route checks the token | `test_settings`, `test_isolation` | 15 |
 | Ingest | Tradebooks, bank statements, holdings, Google Sheets CSV, three PDF bank layouts, CAS files, PDF financial statements with a planted wrong number | `test_ingest`, `test_bank_pdf`, `test_cas`, `test_extraction` | 33 |
-| Tax and strategy | Hand-computed tax cases; signal ops, no look-ahead, Indian charges against a contract note, deflated Sharpe known answer | `test_tax`, `test_strategy` | 19 |
+| Tax and strategy | Hand-computed tax cases; signal ops, no look-ahead per operator (future rows corrupted), textbook Wilder RSI and hand-computed EMA, Indian charges against a contract note, deflated Sharpe known answer, doubled-charge and last-30% warnings, uploaded strategies that read the future refused | `test_tax`, `test_strategy` | 23 |
 | MCP server | Read-only tools answer with provenance, token required | `test_mcp_server` | 7 |
 | Evals in CI | All 34 golden questions replayed through the graph from each of the 4 recorded runs; labelled sets must not regress | `test_evals_smoke`, `test_eval_sets` | 5 |
 | Filing Q&A | Chunks never cross an Item or Note, page ranges, fixed-window overlap, cover-page metadata; filters, fusion, re-ranking, refusals, the relevance check, full-width citations, the cited-chunk number check; recall@5 gate and answer replay on the real 10-Ks | `test_research`, `test_chunking`, `test_rag_eval` | 25 |
-| Other | Migrations run once in order, price refresh, reports, Excel templates | `test_migrate`, `test_prices`, `test_reports`, `test_excel` | 7 |
-| **Total** | | **24 modules** | **219** |
+| Other | Migrations run once in order, price refresh, NSE's older daily file and price quality flags, reports, Excel templates | `test_migrate`, `test_prices`, `test_reports`, `test_excel` | 10 |
+| **Total** | | **24 modules** | **234** |
 
-<!-- src: `cd backend && WEALTHOS_ENV=test pytest --collect-only -q` (per-module counts), run 2026-11-17 -->
+<!-- src: `cd backend && WEALTHOS_ENV=test pytest --collect-only -q` (per-module counts), run 2026-11-19 -->
 
 **Frontend.** `cd frontend && npx tsc --noEmit` exits 0 (no type errors). `npm run build` (typecheck plus Vite
 build) was not run for this report.
