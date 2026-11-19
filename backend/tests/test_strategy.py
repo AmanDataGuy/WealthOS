@@ -1,5 +1,6 @@
 # tests/test_strategy.py
-"""The signal ops against hand-computed series, the look-ahead guard, Indian costs against a hand-written
+"""The signal ops against hand-computed series and the textbook RSI, the look-ahead guards (rules and uploaded
+Python), the robustness warnings, Indian costs against a hand-written
 contract note, the split check, run cards with the deflated Sharpe, and plain English -> spec with a fake LLM."""
 import asyncio
 import json
@@ -31,13 +32,15 @@ PANEL = pd.DataFrame({"A": [1.0, 2, 3, 4, 5, 6], "B": [6.0, 5, 4, 3, 2, 1]})
 # Every op on a tiny panel, checked against values worked out by hand.
 def test_signal_ops():
     assert evaluate(S("sma", CLOSE, 3), PANEL)["A"].tolist()[2:] == [2, 3, 4, 5]
-    assert evaluate(S("ema", CLOSE, 3), PANEL)["A"][2] == 2.25            # alpha 0.5: 1 -> 1.5 -> 2.25
+    ema = evaluate(S("ema", CLOSE, 3), PANEL)["A"]
+    assert ema[:2].isna().all() and ema[2] == 2 and ema[3] == 3          # seed (1+2+3)/3, then 2 + 0.5*(4-2)
     assert evaluate(S("delta", CLOSE, 2), PANEL)["A"][2] == 2
     assert evaluate(S("lag", CLOSE, 1), PANEL)["A"][1] == 1
     assert evaluate(S("ts_std", CLOSE, 2), PANEL)["A"][1] == pytest.approx(0.70710678)
     rsi = evaluate(S("rsi", CLOSE, 2), pd.DataFrame({"A": [10.0, 11, 10, 11]}))["A"]
     assert rsi[2] == pytest.approx(50) and rsi[3] == pytest.approx(75)    # Wilder: gains .5/.75, losses .5/.25
     assert evaluate(S("rsi", CLOSE, 2), PANEL)["A"][3] == 100             # only gains
+    assert evaluate(S("rsi", CLOSE, 2), pd.DataFrame({"A": [5.0] * 4}))["A"][3] == 50  # flat price
     assert evaluate(S("rank", CLOSE), PANEL).iloc[0].tolist() == [0.5, 1.0]
     assert evaluate(S("gt", CLOSE, 3.5), PANEL)["A"].tolist() == [False] * 3 + [True] * 3
     assert evaluate(S("crossover", CLOSE, 3.5), PANEL)["A"].tolist() == [False] * 3 + [True, False, False]
@@ -47,6 +50,82 @@ def test_signal_ops():
     assert evaluate(S("const", 7), PANEL) == 7.0
     assert evaluate(S("lt", CLOSE, S("mul", S("lag", CLOSE, 1), 1.4)), PANEL)["A"].tolist()[1:] == [False, False, True, True, True]
     assert strategy.describe_signal(S("mul", S("sma", CLOSE, 20), 0.95)) == "0.95 × the 20-day average of the price"
+
+
+# Wilder's RSI(14) on the textbook series (StockCharts' worked example; its 70.53 / 66.25 come from rounded
+# averages): average gain 3.34/14 and loss 1.40/14 over the first 14 changes, then Wilder smoothing.
+def test_rsi_textbook_and_ema_by_hand():
+    closes = [44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.42, 45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28,
+              46.00]
+    rsi = evaluate(S("rsi", CLOSE, 14), pd.DataFrame({"A": closes}))["A"]
+    assert rsi[:14].isna().all()
+    assert rsi[14] == pytest.approx(100 - 100 / (1 + 3.34 / 1.40)) == pytest.approx(70.53, abs=0.1)
+    gain, loss = (3.34 / 14 * 13) / 14, (1.40 / 14 * 13 + 0.28) / 14
+    assert rsi[15] == pytest.approx(100 - 100 / (1 + gain / loss)) == pytest.approx(66.25, abs=0.1)
+
+    x = [22.27, 22.19, 22.08, 22.17, 22.18, 22.13, 22.23, 22.43, 22.24, 22.29, 22.15, 22.39]
+    want, alpha = [sum(x[:10]) / 10], 2 / 11
+    for v in x[10:]:
+        want.append(want[-1] + alpha * (v - want[-1]))
+    ema = evaluate(S("ema", CLOSE, 10), pd.DataFrame({"A": x}))["A"]
+    assert ema[:9].isna().all() and ema[9:].tolist() == pytest.approx(want)
+
+
+# No op may read the future: changing every price after day t leaves every signal up to t unchanged.
+def test_rule_ops_never_read_future():
+    days = pd.bdate_range("2026-01-01", periods=80)
+    base = pd.DataFrame({"A": [100 + 10 * ((i * 7) % 11) / 11 + i * 0.3 for i in range(80)],
+                         "B": [90 + 8 * ((i * 5) % 13) / 13 - i * 0.1 for i in range(80)]}, index=days)
+    t = days[50]
+    bent = base.copy()
+    bent.loc[bent.index > t] *= 1.5
+    sma = S("sma", CLOSE, 5)
+    rules = [CLOSE, sma, S("ts_mean", CLOSE, 5), S("ema", CLOSE, 5), S("ts_std", CLOSE, 5), S("rsi", CLOSE, 5),
+             S("delta", CLOSE, 3), S("lag", CLOSE, 3), S("rank", CLOSE), S("gt", CLOSE, sma), S("lt", CLOSE, sma),
+             S("crossover", CLOSE, sma), S("and", S("gt", CLOSE, sma), S("lt", CLOSE, 200)),
+             S("or", S("gt", CLOSE, sma), S("lt", CLOSE, 95)), S("mul", sma, 0.95), S("mul", CLOSE, S("const", 2))]
+    assert {r.op for r in rules} | {"const"} == set(Signal.model_fields["op"].annotation.__args__)
+    for rule in rules:
+        before, after = evaluate(rule, base).loc[:t], evaluate(rule, bent).loc[:t]
+        pd.testing.assert_frame_equal(before, after, obj=rule.op)
+
+
+# Robustness warnings: a rule that only just beats its charges warns at double charges; one whose gains all came
+# early warns about the last 30%; a steady winner gets neither.
+def test_robustness_warnings():
+    days = pd.bdate_range("2025-01-01", periods=100)
+    close = pd.DataFrame({"A": [100 * 1.003 ** i for i in range(100)]}, index=days)
+    always = pd.DataFrame(1.0, index=days, columns=["A"])
+    net = strategy.simulate_weights(always, close, None, "india_equity_delivery")[0]
+    assert strategy.robustness(always, close, None, "india_equity_delivery", None, None, net) == []
+
+    # daily in-and-out: each round trip earns 0.3% and pays about 0.22% in charges (0.44% when doubled)
+    flip = pd.DataFrame([[float(i % 2)] for i in range(100)], index=days, columns=["A"])
+    net = strategy.simulate_weights(flip, close, None, "india_equity_delivery")[0]
+    assert (1 + net).prod() > 1
+    warns = strategy.robustness(flip, close, None, "india_equity_delivery", None, None, net)
+    assert len(warns) == 1 and "charges doubled" in warns[0]
+
+    fade = pd.DataFrame({"A": [100 * 1.01 ** min(i, 70) * 0.998 ** max(0, i - 70) for i in range(100)]}, index=days)
+    net = strategy.simulate_weights(always, fade, None, "none")[0]
+    warns = strategy.robustness(always, fade, None, "none", None, None, net)
+    assert len(warns) == 1 and "last 30% of the period" in warns[0] and "not an out-of-sample test" in warns[0]
+
+
+# Uploaded Python: a strategy that peeks at tomorrow (shift(-1)) is refused; a moving-average one runs.
+def test_python_lookahead_check():
+    from app.features import sandbox
+    days = pd.bdate_range("2026-01-01", periods=60)
+    close = pd.DataFrame({"A": [100 + i + 3 * (i % 4) for i in range(60)], "B": [80 + 0.5 * i for i in range(60)]},
+                         index=days)
+    peek = "import pandas as pd\ndef weights(close):\n    return (close.shift(-1) > close).astype(float) / 2\n"
+    with pytest.raises(ValueError, match="looks into the future"):
+        sandbox.run_weights(peek, close)
+    ma = ("import pandas as pd\ndef weights(close):\n"
+          "    held = (close > close.rolling(5).mean()).astype(float)\n"
+          "    return held.div(held.sum(axis=1).where(lambda s: s > 0), axis=0).fillna(0)\n")
+    w = sandbox.run_weights(ma, close)
+    assert w.shape == close.shape and w.to_numpy().sum() > 0
 
 
 # Bad rules are refused before anything runs.
