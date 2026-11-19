@@ -90,15 +90,15 @@ def test_xirr_sets_present_value_to_zero(flows, gain):
 
 
 # Concentration: weights 0.5 / 0.3 / 0.2 give 1 / 0.38 = 2.63 effective holdings; the top 5 of 7 hold their share.
-def test_concentration_metrics(tmp_path):
+def test_concentration_in_drift(tmp_path):
+    from app.features import rebalance
     _upload(tmp_path, "holdings.csv", "Instrument,Qty.,Avg. cost,Cur. val\nAAA,1,1,5000\nBBB,1,1,3000\nCCC,1,1,2000\n")
-    r = engine.run_metric("u", MetricQuery(metrics=["effective_holdings", "top5_share_pct"], time="today"))
-    assert r.rows[0]["effective_holdings"] == pytest.approx(1 / 0.38) and r.rows[0]["top5_share_pct"] == pytest.approx(100.0)
+    c = rebalance.drift("u")["concentration"]
+    assert c["effective_holdings"] == pytest.approx(1 / 0.38, abs=0.01) and c["top5_share_pct"] == 100.0
     for m in engine.list_datasets("u"):
         engine.remove_dataset("u", m)
     _upload(tmp_path, "holdings.csv", "Instrument,Qty.,Avg. cost,Cur. val\n" + "".join(f"S{v},1,1,{v}\n" for v in (50, 30, 20, 3, 2, 1, 0)))
-    assert engine.run_metric("u", MetricQuery(metrics=["top5_share_pct"], time="today")).rows[0]["top5_share_pct"] == \
-        pytest.approx(100 * 105 / 106)
+    assert rebalance.drift("u")["concentration"]["top5_share_pct"] == pytest.approx(100 * 105 / 106, abs=0.01)
 
 
 # Bad metric names, bad dimensions and SQL that reaches outside the data are refused with a reason.
