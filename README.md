@@ -81,7 +81,8 @@
   survive doubled charges or the last 30% of the period, and refuses uploaded strategies that read future prices.
 - Drift from your target mix, with how concentrated the holdings are (effective number of holdings, top five's share),
   and a risk report on today's holdings over past prices: volatility, worst drawdown and month, one-day VaR, each
-  holding's share of risk and the most correlated pairs.
+  holding's share of risk and the most correlated pairs. Sector shares appear only where NSE data is switched on
+  (the Nifty 500 industry list is for personal use), so never on a production server.
 - A read-only MCP server for metrics, tax, drift and backtests. ([MCP](docs/mcp.md))
 - No buy, sell or hold advice. WealthOS is not SEBI-registered.
 
