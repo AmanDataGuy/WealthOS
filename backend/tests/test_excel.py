@@ -67,3 +67,31 @@ def test_template_recalculated_by_libreoffice(tmp_path, monkeypatch):
                               "debits": 3, "biggest": 90000}
     assert excel.filled_path("u", "default", meta["id"]).exists()
     assert excel.list_templates("u", "default")[0]["last_run"]["outputs"]["rent"] == 50000
+
+
+# A defined name gets the same formula check as a cell: web calls, links and other workbooks are refused.
+def test_defined_names_checked(tmp_path):
+    for i, text in enumerate(['WEBSERVICE("http://example.com")', 'HYPERLINK("http://example.com")',
+                              "[1]Sheet1!$A$1", "'C:\\x\\[book.xlsx]Sheet1'!$A$1", "cmd|' /c calc'!A0"]):
+        path = _template(tmp_path / f"name{i}.xlsx")
+        wb = openpyxl.load_workbook(path)
+        wb.defined_names["evil"] = DefinedName("evil", attr_text=text)
+        wb.save(path)
+        res = excel.check(path)
+        assert not res["ok"] and any(p.startswith("defined name evil") for p in res["problems"]), text
+
+
+# Workspace strings that start like a formula are written to the Data sheet as text, showing the original string.
+def test_data_strings_written_as_text(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine, "DATA_ROOT", tmp_path / "users")
+    monkeypatch.setattr(excel, "recalc", lambda src, out_dir: src)  # no LibreOffice needed: keep the filled file
+    bank = ("Date,Narration,Debit,Credit\n05/04/2026,\"=HYPERLINK(\"\"http://x\"\")\",100,\n"
+            "06/04/2026,+1+1,50,\n07/04/2026,@SUM(1),20,\n08/04/2026,-2+3,10,\n09/04/2026,Rent,5,\n")
+    (tmp_path / "bank.csv").write_text(bank, encoding="utf-8")
+    engine.save_tables("u", parse_file(tmp_path / "bank.csv"))
+    meta = excel.add("u", "default", _template(tmp_path / "t.xlsx"), "T", "transactions")
+    excel.run("u", "default", meta["id"])
+    ws = openpyxl.load_workbook(excel.filled_path("u", "default", meta["id"]))["Data"]
+    cells = [c for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value[:1] in "=+-@"]
+    assert {c.value for c in cells} >= {'=HYPERLINK("http://x")', "+1+1", "@SUM(1)", "-2+3"}
+    assert all(c.data_type == "s" for c in cells)
