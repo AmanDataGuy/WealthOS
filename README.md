@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="tests" src="https://img.shields.io/badge/tests-249%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-269%20passing-brightgreen">
   <img alt="python" src="https://img.shields.io/badge/python-3.11-3776AB">
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
