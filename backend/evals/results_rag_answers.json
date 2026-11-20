@@ -21,11 +21,11 @@
    "questions": 81,
    "answerable": 66,
    "unanswerable": 15,
-   "answer_accuracy": 0.515,
+   "answer_accuracy": 0.561,
    "refused_unanswerable": 15,
    "refused_unanswerable_pct": 100.0,
    "wrongly_refused_answerable": 0,
-   "number_check_rejects": 6,
+   "number_check_rejects": 2,
    "ragas_faithfulness": 0.967,
    "ragas_context_precision": 0.862,
    "judged": 31,
@@ -40,11 +40,11 @@
    "questions": 81,
    "answerable": 66,
    "unanswerable": 15,
-   "answer_accuracy": 0.508,
+   "answer_accuracy": 0.553,
    "refused_unanswerable": 15,
    "refused_unanswerable_pct": 100.0,
    "wrongly_refused_answerable": 1,
-   "number_check_rejects": 6,
+   "number_check_rejects": 2,
    "ragas_faithfulness": 0.98,
    "ragas_context_precision": 0.866,
    "judged": 32,
@@ -59,11 +59,11 @@
    "questions": 81,
    "answerable": 66,
    "unanswerable": 15,
-   "answer_accuracy": 0.485,
+   "answer_accuracy": 0.535,
    "refused_unanswerable": 15,
    "refused_unanswerable_pct": 100.0,
    "wrongly_refused_answerable": 4,
-   "number_check_rejects": 8,
+   "number_check_rejects": 3,
    "ragas_faithfulness": 0.953,
    "ragas_context_precision": 0.862,
    "judged": 31,
@@ -2863,14 +2863,12 @@
    "kind": "notes",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (13,308 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s total future unconditional purchase obligations amount to $13,308 million. [p. 70]",
    "raw": "Apple’s total future unconditional purchase obligations amount to $13,308 million. [p. 70]",
-   "fact_share": 0.0,
+   "fact_share": 1.0,
    "shown": [
     [
      "aapl_10k_2025",
@@ -2911,14 +2909,12 @@
    "kind": "notes",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (13,308 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s total future unconditional purchase obligations amount to $13,308 million. [p. 70]",
    "raw": "Apple’s total future unconditional purchase obligations amount to $13,308 million. [p. 70]",
-   "fact_share": 0.0,
+   "fact_share": 1.0,
    "shown": [
     [
      "aapl_10k_2025",
@@ -2959,14 +2955,12 @@
    "kind": "notes",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (13,308 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s disclosed total future unconditional purchase obligations amount to $13,308 million [ p. 70 ].",
    "raw": "Apple’s disclosed total future unconditional purchase obligations amount to $13,308 million [ p. 70 ].",
-   "fact_share": 0.0,
+   "fact_share": 1.0,
    "shown": [
     [
      "aapl_10k_2025",
@@ -3697,14 +3691,12 @@
    "kind": "numeric",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (209,586 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s iPhone net sales for 2025 were $209,586 million [pp. 31-32] and the same amount is shown in the detailed revenue note [ p. 52 ].",
    "raw": "Apple’s iPhone net sales for 2025 were $209,586 million [pp. 31-32] and the same amount is shown in the detailed revenue note [ p. 52 ].",
-   "fact_share": 0.0,
+   "fact_share": 0.5,
    "shown": [
     [
      "aapl_10k_2025",
@@ -3745,14 +3737,12 @@
    "kind": "numeric",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (209,586 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s iPhone net sales for 2025 were $209,586 million [pp. 31-32] and the same amount is shown in the detailed revenue note [ p. 52 ].",
    "raw": "Apple’s iPhone net sales for 2025 were $209,586 million [pp. 31-32] and the same amount is shown in the detailed revenue note [ p. 52 ].",
-   "fact_share": 0.0,
+   "fact_share": 0.5,
    "shown": [
     [
      "aapl_10k_2025",
@@ -3793,14 +3783,12 @@
    "kind": "numeric",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (209,586 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s iPhone net sales for 2025 were $209,586 million【p. 52】.",
    "raw": "Apple’s iPhone net sales for 2025 were $209,586 million【p. 52】.",
-   "fact_share": 0.0,
+   "fact_share": 0.5,
    "shown": [
     [
      "aapl_10k_2025",
@@ -3841,14 +3829,12 @@
    "kind": "numeric",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (34,550 million, 34.6 billion)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple spent $34,550 million on research and development in 2025, i.e., about $34.6 billion [pp. 39-42].",
    "raw": "Apple spent $34,550 million on research and development in 2025, i.e., about $34.6 billion [pp. 39-42].",
-   "fact_share": 0.0,
+   "fact_share": 1.0,
    "shown": [
     [
      "aapl_10k_2025",
@@ -3889,14 +3875,12 @@
    "kind": "numeric",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (34,550 million, 34.6 billion)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple spent $34,550 million on research and development in 2025, i.e., about $34.6 billion [pp. 39-42].",
    "raw": "Apple spent $34,550 million on research and development in 2025, i.e., about $34.6 billion [pp. 39-42].",
-   "fact_share": 0.0,
+   "fact_share": 1.0,
    "shown": [
     [
      "aapl_10k_2025",
@@ -3937,14 +3921,12 @@
    "kind": "numeric",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (34,550 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple spent $34,550 million on research and development in 2025【p. 32】.",
    "raw": "Apple spent $34,550 million on research and development in 2025【p. 32】.",
-   "fact_share": 0.0,
+   "fact_share": 1.0,
    "shown": [
     [
      "aapl_10k_2025",
@@ -7517,14 +7499,12 @@
    "kind": "notes",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (19,677 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "NVIDIA reported that revenue from customers headquartered in China (including Hong Kong) was $19,677 million in fiscal 2026【pp. 116-117】.",
    "raw": "NVIDIA reported that revenue from customers headquartered in China (including Hong Kong) was $19,677 million in fiscal 2026【pp. 116-117】.",
-   "fact_share": 0.0,
+   "fact_share": 0.5,
    "shown": [
     [
      "nvda_10k_2026",
@@ -7564,14 +7544,12 @@
    "kind": "notes",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (19,677 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "NVIDIA reported that revenue from customers headquartered in China (including Hong Kong) was $19,677 million in fiscal 2026【pp. 116-117】.",
    "raw": "NVIDIA reported that revenue from customers headquartered in China (including Hong Kong) was $19,677 million in fiscal 2026【pp. 116-117】.",
-   "fact_share": 0.0,
+   "fact_share": 0.5,
    "shown": [
     [
      "nvda_10k_2026",
@@ -7611,14 +7589,12 @@
    "kind": "notes",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (19,677 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "NVIDIA reported that revenue from China (including Hong Kong) was $19,677 million in fiscal 2026【p. 116-117】.",
    "raw": "NVIDIA reported that revenue from China (including Hong Kong) was $19,677 million in fiscal 2026【p. 116-117】.",
-   "fact_share": 0.0,
+   "fact_share": 0.5,
    "shown": [
     [
      "nvda_10k_2026",
@@ -7748,14 +7724,12 @@
    "kind": "numeric",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (215,938 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "NVIDIA reported total revenue of $215,938 million for fiscal year 2026 [pp. 116-117] and the same figure is shown in the detailed revenue‑by‑market table for the year ended January 25, 2026 [p. 118].",
    "raw": "NVIDIA reported total revenue of $215,938 million for fiscal year 2026 [pp. 116-117] and the same figure is shown in the detailed revenue‑by‑market table for the year ended January 25, 2026 [p. 118].",
-   "fact_share": 0.0,
+   "fact_share": 0.333,
    "shown": [
     [
      "nvda_10k_2026",
@@ -11150,5 +11124,7 @@
    "billed": 0,
    "served_by": []
   }
- ]
+ ],
+ "rescored_at": "2026-11-20T22:20:28+0530",
+ "rescored_git_sha": "7c475b9"
 }
