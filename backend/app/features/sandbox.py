@@ -14,7 +14,8 @@ The file defines one function, `weights(close)`:
 
 Three layers:
 1. **Checked before it runs:** imports only pandas / numpy / math; no file, network, eval or introspection
-   builtins; no `_private` attributes and no pandas / numpy file readers or writers (`read_*`, `to_csv`, `load` ...).
+   builtins; no `__builtins__`, no dunder names or dunder strings (`x["__import__"]`); no `_private` attributes and
+   no pandas / numpy file readers or writers (`read_*`, `to_csv`, `load` ...), as attributes or `from ... import`.
 2. **Runs in its own Python process** (`-I`, an empty environment, a throwaway folder), killed after 30 s; on Linux
    also CPU, 1 GB memory, file-size and open-file limits.
 3. **Its answer is checked:** the same dates and stocks, finite, 0..1, rows at most 1.
@@ -45,7 +46,9 @@ TIMEOUT_S = 30
 MAX_CODE = 50_000
 ALLOWED_IMPORTS = {"pandas", "numpy", "math"}
 BANNED_NAMES = {"open", "exec", "eval", "compile", "__import__", "globals", "locals", "vars", "getattr", "setattr",
-                "delattr", "input", "breakpoint", "memoryview", "help", "exit", "quit", "dir", "type", "object"}
+                "delattr", "input", "breakpoint", "memoryview", "help", "exit", "quit", "dir", "type", "object",
+                "__builtins__", "builtins"}
+DUNDER = re.compile(r"^__.*__$")
 BANNED_ATTR = re.compile(r"^_|^read_|^to_(?!numpy$|frame$|dict$|list$)|^(eval|query|load|loads|save|savez|savetxt|"
                          r"loadtxt|fromfile|tofile|genfromtxt|memmap|ctypeslib|lib|testing|f2py|show_config|system)$")
 
@@ -102,8 +105,14 @@ def check(code: str) -> None:
         bad = [m for m in mods if m.split(".")[0] not in ALLOWED_IMPORTS]
         if bad:
             raise ValueError(f"line {node.lineno}: only pandas, numpy and math can be imported, not {bad[0]}")
-        if isinstance(node, ast.Name) and node.id in BANNED_NAMES:
+        # `from numpy import load` / `from numpy import __builtins__` would skip the attribute check below
+        if isinstance(node, ast.ImportFrom) and any(BANNED_ATTR.search(a.name) for a in node.names):
+            raise ValueError(f"line {node.lineno}: that name cannot be imported in a strategy (no files, no internals)")
+        if isinstance(node, ast.Name) and (node.id in BANNED_NAMES or DUNDER.match(node.id)):
             raise ValueError(f"line {node.lineno}: '{node.id}' is not allowed in a strategy")
+        # a dunder name as a string reaches internals through subscripts (x["__import__"]) or getattr-style calls
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and DUNDER.match(node.value):
+            raise ValueError(f"line {node.lineno}: '{node.value}' is not allowed in a strategy (no internals)")
         if isinstance(node, ast.Attribute) and BANNED_ATTR.search(node.attr):
             raise ValueError(f"line {node.lineno}: '.{node.attr}' is not allowed in a strategy (no files, no internals)")
     if not any(isinstance(n, ast.FunctionDef) and n.name == "weights" for n in tree.body):
