@@ -27,7 +27,7 @@
    "refused_unanswerable": 12,
    "refused_unanswerable_pct": 100.0,
    "wrongly_refused_answerable": 20,
-   "number_check_rejects": 3,
+   "number_check_rejects": 2,
    "ragas_faithfulness": 0.625,
    "ragas_context_precision": 0.417,
    "judged": 1,
@@ -46,7 +46,7 @@
    "refused_unanswerable": 12,
    "refused_unanswerable_pct": 100.0,
    "wrongly_refused_answerable": 28,
-   "number_check_rejects": 3,
+   "number_check_rejects": 2,
    "ragas_faithfulness": 1.0,
    "ragas_context_precision": 1.0,
    "judged": 1,
@@ -61,11 +61,11 @@
    "questions": 51,
    "answerable": 39,
    "unanswerable": 12,
-   "answer_accuracy": 0.15,
+   "answer_accuracy": 0.158,
    "refused_unanswerable": 12,
    "refused_unanswerable_pct": 100.0,
    "wrongly_refused_answerable": 16,
-   "number_check_rejects": 6,
+   "number_check_rejects": 1,
    "ragas_faithfulness": 1.0,
    "ragas_context_precision": 0.417,
    "judged": 1,
@@ -106,7 +106,7 @@
    "verified": false,
    "refused_by": null,
    "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (10, 134.7 billion, 132.4 billion)"
+    "the written answer was replaced: numbers not in the passages it cites (10, 267 billion)"
    ],
    "text": "The most relevant passages are below; read them directly.",
    "raw": "Apple’s 2025 Form 10‑K shows it held roughly $134.7 billion in cash and cash equivalents and about $132.4 billion in marketable securities, for a combined “pile” of roughly $267 billion in cash‑like assets as of September 27 2025【p. 54】.",
@@ -154,7 +154,7 @@
    "verified": false,
    "refused_by": null,
    "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (10, 134.7 billion, 132.4 billion)"
+    "the written answer was replaced: numbers not in the passages it cites (10, 267 billion)"
    ],
    "text": "The most relevant passages are below; read them directly.",
    "raw": "Apple’s 2025 Form 10‑K shows it held roughly $134.7 billion in cash and cash equivalents and about $132.4 billion in marketable securities, for a combined “pile” of roughly $267 billion in cash‑like assets as of September 27 2025【p. 54】.",
@@ -201,12 +201,10 @@
    "kind": "paraphrase",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (135 billion)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s balance sheet shows it holds roughly $135 billion in cash, cash equivalents and marketable securities as of September 27 2025 [ p. 54 ].",
    "raw": "Apple’s balance sheet shows it holds roughly $135 billion in cash, cash equivalents and marketable securities as of September 27 2025 [ p. 54 ].",
    "fact_share": 0.0,
    "shown": [
@@ -905,14 +903,12 @@
    "kind": "paraphrase",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (66,952 million, 64,377 million)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s net sales fell in Greater China in 2025 compared with 2024, dropping from $66,952 million to $64,377 million. The decline was attributed primarily to lower iPhone sales in that region, which was only partially offset by higher Mac sales【p. 30-31】.",
    "raw": "Apple’s net sales fell in Greater China in 2025 compared with 2024, dropping from $66,952 million to $64,377 million. The decline was attributed primarily to lower iPhone sales in that region, which was only partially offset by higher Mac sales【p. 30-31】.",
-   "fact_share": 0.0,
+   "fact_share": 0.333,
    "shown": [
     [
      "aapl_10k_2025",
@@ -2595,12 +2591,10 @@
    "kind": "conceptual",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (19.7 billion, 215.9 billion)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "NVIDIA generated about $19.7 billion of revenue in fiscal 2026 from customers headquartered in China (including Hong Kong) — roughly 9 percent of its total $215.9 billion revenue that year [p. 116-117].  The company also notes that export‑control restrictions targeting China could materially affect its sales and supply chain, highlighting a regulatory exposure to the Chinese market [p. 41].",
    "raw": "NVIDIA generated about $19.7 billion of revenue in fiscal 2026 from customers headquartered in China (including Hong Kong) — roughly 9 percent of its total $215.9 billion revenue that year [p. 116-117].  The company also notes that export‑control restrictions targeting China could materially affect its sales and supply chain, highlighting a regulatory exposure to the Chinese market [p. 41].",
    "fact_share": 0.0,
    "shown": [
@@ -2777,12 +2771,10 @@
    "kind": "conceptual",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (209.6 billion, 416.2 billion)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s iPhone accounts for roughly half of the company’s total net sales. In fiscal 2025 the iPhone generated $209.6 billion of net sales, while total net sales were $416.2 billion, indicating that the iPhone represents about 50 % of Apple’s overall revenue [p. 31-32] and is the single largest product category [p. 52].",
    "raw": "Apple’s iPhone accounts for roughly half of the company’s total net sales. In fiscal 2025 the iPhone generated $209.6 billion of net sales, while total net sales were $416.2 billion, indicating that the iPhone represents about 50 % of Apple’s overall revenue [p. 31-32] and is the single largest product category [p. 52].",
    "fact_share": 0.0,
    "shown": [
@@ -2825,12 +2817,10 @@
    "kind": "conceptual",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (209.6 billion, 416.2 billion)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s iPhone accounts for roughly half of the company’s total net sales. In fiscal 2025 the iPhone generated $209.6 billion of net sales, while total net sales were $416.2 billion, indicating that the iPhone represents about 50 % of Apple’s overall revenue [p. 31-32] and is the single largest product category [p. 52].",
    "raw": "Apple’s iPhone accounts for roughly half of the company’s total net sales. In fiscal 2025 the iPhone generated $209.6 billion of net sales, while total net sales were $416.2 billion, indicating that the iPhone represents about 50 % of Apple’s overall revenue [p. 31-32] and is the single largest product category [p. 52].",
    "fact_share": 0.0,
    "shown": [
@@ -2873,12 +2863,10 @@
    "kind": "conceptual",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (209.6 billion, 416.2 billion)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Apple’s iPhone accounts for roughly half of the company’s total net sales. In 2025 the iPhone generated $209.6 billion of net sales out of total net sales of $416.2 billion, indicating that about 50 % of Apple’s revenue comes from the iPhone product line【p. 52】.",
    "raw": "Apple’s iPhone accounts for roughly half of the company’s total net sales. In 2025 the iPhone generated $209.6 billion of net sales out of total net sales of $416.2 billion, indicating that about 50 % of Apple’s revenue comes from the iPhone product line【p. 52】.",
    "fact_share": 0.0,
    "shown": [
@@ -3433,12 +3421,10 @@
    "kind": "conceptual",
    "answerable": true,
    "refused": false,
-   "verified": false,
+   "verified": true,
    "refused_by": null,
-   "warnings": [
-    "the written answer was replaced: numbers not in the passages it cites (42 billion)"
-   ],
-   "text": "The most relevant passages are below; read them directly.",
+   "warnings": [],
+   "text": "Taiwan is a major geographic source of NVIDIA’s revenue, accounting for about $42 billion in FY 2026, the second‑largest region after the United States. Much of NVIDIA’s data‑center business comes from customers headquartered in Taiwan, with roughly three‑quarters of that revenue ultimately serving end‑customers in the United States and Europe【p. 116-117】.",
    "raw": "Taiwan is a major geographic source of NVIDIA’s revenue, accounting for about $42 billion in FY 2026, the second‑largest region after the United States. Much of NVIDIA’s data‑center business comes from customers headquartered in Taiwan, with roughly three‑quarters of that revenue ultimately serving end‑customers in the United States and Europe【p. 116-117】.",
    "fact_share": 0.0,
    "shown": [
@@ -7187,5 +7173,7 @@
     "groq:openai/gpt-oss-120b"
    ]
   }
- ]
+ ],
+ "rescored_at": "2026-11-20T22:32:39+0530",
+ "rescored_git_sha": "7c475b9-dirty"
 }
