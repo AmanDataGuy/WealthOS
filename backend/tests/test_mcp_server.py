@@ -107,8 +107,10 @@ def test_portfolio_drift_on_samples(samples):
 
 
 # No prices: refused. With 70 days of INFY prices, HDFCBANK (51,000 of 66,800 = 76.35%) is reported as left out.
-def test_portfolio_risk_on_samples(samples, tmp_path):
+def test_portfolio_risk_on_samples(samples, tmp_path, monkeypatch):
     import pandas as pd
+    from app.features import risk
+    monkeypatch.setattr(risk, "sector_map", lambda: {})  # no network: the Nifty 500 list is not downloaded in tests
     with pytest.raises(Exception, match="too little price history"):
         _call("portfolio_risk")
     days = pd.bdate_range("2026-01-01", periods=70)
