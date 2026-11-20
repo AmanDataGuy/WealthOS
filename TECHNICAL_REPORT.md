@@ -539,7 +539,7 @@ All commands run from `backend/` on Python 3.11 after `pip install -r requiremen
 |---|---|---|
 | Tests (section 7) | `WEALTHOS_ENV=test pytest -q` and `WEALTHOS_ENV=test pytest --collect-only -q` | nothing |
 | Golden set replay, no keys | `python evals/run.py --offline` (add `--name openrouter`, `--name local_qwen3_8b` or `--arm baseline`) | nothing; fails on a cache miss |
-| Golden set, Groq | `OPENROUTER_API_KEY= python evals/run.py` | `evals/results.json` |
+| Golden set, Groq | `OPENROUTER_API_KEY= WEALTHOS_ENV=dev python evals/run.py` | `evals/results.json` |
 | Golden set, OpenRouter | `GROQ_API_KEY= LLM_FALLBACK_MODEL=openai/gpt-oss-120b WEALTHOS_ENV=dev python evals/run.py --name openrouter` | `evals/results_openrouter.json` |
 | Text-to-SQL baseline | `GROQ_API_KEY= LLM_FALLBACK_MODEL=openai/gpt-oss-120b WEALTHOS_ENV=dev python evals/run.py --arm baseline` | `evals/results_baseline.json` |
 | Local qwen3:8b (Ollama running) | `LLM_BASE_URL=http://localhost:11434/v1 GROQ_API_KEY=ollama LLM_MODEL=qwen3:8b LLM_REASONING_EFFORT=none OPENROUTER_API_KEY= LLM_TIMEOUT_S=300 WEALTHOS_ENV=dev python evals/run.py --name local_qwen3_8b` | `evals/results_local_qwen3_8b.json` |
