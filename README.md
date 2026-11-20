@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="tests" src="https://img.shields.io/badge/tests-243%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-249%20passing-brightgreen">
   <img alt="python" src="https://img.shields.io/badge/python-3.11-3776AB">
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
@@ -129,6 +129,7 @@ For local development on Python 3.11: `pip install -r backend/requirements-dev.t
 | Filing search, recall@5 |  66 questions |             **1.000** | 0.894 page BM25, 0.939 hybrid |
 | Paraphrased filing qs   |  39 questions | **0.769** hybrid + re-rank | 0.615 BM25                |
 | Filing answers          |  81 questions |  **15 / 15** unanswerable refused | 0.967 Ragas faithfulness (31 judged) |
+| Production check        |     12 checks |  **12 / 12** pass | 250 concurrent requests, 0 errors |
 
 Golden-set answers are replayed in CI with no keys, and the labelled sets fail the build if any rate gets worse.
 To reproduce live: `cd backend && python evals/run.py`. Every run and failure is in the
@@ -138,7 +139,8 @@ To reproduce live: `cd backend && python evals/run.py`. Every run and failure is
      results_sets.json (sql, numbers, pii), company_tieouts.json, company_quarters.json#totals,
      results_rag.json#arms.bm25/structure.recall_at_5, #arms.pages_bm25_before.recall_at_5, #arms.hybrid/structure.recall_at_5,
      results_rag_hard.json#arms.hybrid+rerank/fixed.recall_at_5, #arms.bm25/structure.recall_at_5,
-     results_rag_answers.json#summary.bm25/structure.refused_unanswerable, #summary.bm25/structure.ragas_faithfulness -->
+     results_rag_answers.json#summary.bm25/structure.refused_unanswerable, #summary.bm25/structure.ragas_faithfulness,
+     results_production_check.json#all_pass, #checks.6_load -->
 
 ## Status
 
