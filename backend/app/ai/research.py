@@ -75,6 +75,15 @@ class Coverage(BaseModel):
     answerable: bool
 # gpt-oss cites with full-width brackets (【p. 34】) and non-breaking hyphens (103‑105): read those as citations too.
 CITE = re.compile(r"[\[【]\s*pp?\.?\s*(\d+)(?:\s*[-–‑]\s*(\d+))?\s*[\]】]")
+TABLE_UNIT = re.compile(r"\bin (thousands|millions|billions)\b", re.I)  # "(In millions, except per-share amounts)"
+UNIT_SIZE = {"thousands": 1e3, "millions": 1e6, "billions": 1e9}
+
+
+# The numbers in a passage, plus each at its table's unit when the passage says "in millions" (etc.), so an answer
+# writing "13,308 million" for a table cell "13,308" under "(In millions)" is matched to that cell.
+def _passage_numbers(text: str) -> list[float]:
+    plain = numbers_in(text)
+    return plain + [v * UNIT_SIZE[u] for u in {m.lower() for m in TABLE_UNIT.findall(text)} for v in plain]
 FILTERS = ("company", "form", "period")
 
 
@@ -354,7 +363,7 @@ async def answer(user_id: str, question: str, workspace_id: str = "default", che
     stray = ", ".join(f"{a}" if a == b else f"{a}-{b}" for a, b in spans
                       if not any(h["page_start"] <= a and b <= h["page_end"] for h in hits))
     cited = [h for h in hits if any(h["page_start"] <= b and a <= h["page_end"] for a, b in spans)]
-    bad = check_numbers(CITE.sub(" ", raw), numbers_in(" ".join(h["text"] for h in cited)) + numbers_in(question))
+    bad = check_numbers(CITE.sub(" ", raw), [v for h in cited for v in _passage_numbers(h["text"])] + numbers_in(question))
     citations = [{"file": h["file"], "page": h["page_start"], "page_end": h["page_end"], "section": h["section"],
                   "excerpt": _excerpt(h["text"], question)} for h in cited or hits[:3]]
     if raw and not bad and not stray:
