@@ -24,6 +24,7 @@ Please report vulnerabilities privately through a GitHub security advisory on th
 | The price worker gets no `WEALTHOS_ENV`, so it runs with dev defaults under Docker | `docker-compose.yml` | It only fetches public prices |
 | `WEALTHOS_TRUSTED_PROXIES` is empty by default, so behind nginx every user shares one IP for rate limits | `backend/app/main.py`, `.env.example` | Single-user local runs; set it before any public deploy |
 | Account delete removes the user's files before the database transaction, so a failed transaction leaves an account with no data | `backend/app/api/account.py` | The user asked for deletion; data is not exposed |
+| The API's `/docs` page and route list are public in production | `backend/app/main.py` | Route names only, no data; turn it off or put it behind auth before a public deploy |
 
 ## Fixed issues
 
