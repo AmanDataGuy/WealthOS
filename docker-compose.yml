@@ -1,6 +1,6 @@
 # docker-compose.yml - the web app, the API, the price worker and Postgres (sign-in + LLM cost log).
 # User data lives in ./backend/storage (mounted into the API and the worker).
-# Start: docker compose up -d --build   ·   App: http://localhost:8080   ·   API docs: http://localhost:8000/docs
+# Start: docker compose up -d --build   ·   App: http://localhost:8080   ·   API docs (dev only): http://localhost:8000/docs
 services:
   wealthos-api:
     build:
@@ -14,6 +14,7 @@ services:
     environment:
       WEALTHOS_DB_URL: postgresql://wealthos:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@wealthos-db:5432/wealthos
       WEALTHOS_ENV: production
+      WEALTHOS_TRUSTED_PROXIES: 172.28.0.200   # the web container (nginx): its X-Forwarded-For names the real client
     volumes:
       - ./backend/storage:/app/storage
     depends_on:
@@ -30,6 +31,7 @@ services:
       - .env
     environment:
       WEALTHOS_DB_URL: postgresql://wealthos:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@wealthos-db:5432/wealthos
+      WEALTHOS_ENV: production   # same rules as the API: NSE prices only with WEALTHOS_ENABLE_NSE=1 in .env
     volumes:
       - ./backend/storage:/app/storage
     depends_on:
@@ -42,6 +44,9 @@ services:
     container_name: wealthos-web
     ports:
       - "8080:80"
+    networks:
+      default:
+        ipv4_address: 172.28.0.200   # fixed, so the API can trust this one proxy (WEALTHOS_TRUSTED_PROXIES)
     depends_on:
       - wealthos-api
     restart: unless-stopped
@@ -66,3 +71,10 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+          ip_range: 172.28.0.0/25   # other containers get addresses below .128, so .200 stays free for the web
