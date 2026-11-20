@@ -128,6 +128,15 @@ def test_python_lookahead_check():
     assert w.shape == close.shape and w.to_numpy().sum() > 0
 
 
+# An endless loop is stopped with the time-limit message, whether the CPU limit or the wall clock fires first.
+def test_python_endless_loop_says_time_limit(monkeypatch):
+    from app.features import sandbox
+    monkeypatch.setattr(sandbox, "TIMEOUT_S", 1)
+    close = pd.DataFrame({"A": [100.0 + i for i in range(30)]}, index=pd.bdate_range("2026-01-01", periods=30))
+    with pytest.raises(ValueError, match="ran longer than 1 s"):
+        sandbox.run_weights("def weights(close):\n    while True:\n        pass\n", close)
+
+
 # Bad rules are refused before anything runs.
 def test_signal_limits():
     deep = CLOSE
