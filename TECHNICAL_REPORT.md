@@ -31,7 +31,7 @@ five companies, and 573 of 573 workbook formulas recompute to the Python values.
 finds the answering page in the top 5 for every one of 66 questions worded like the filing, with BM25 over
 structure-aware chunks; on 39 paraphrased and multi-section questions BM25 falls to 0.615 and hybrid search with
 re-ranking reaches 0.769. The backend test suite passes
-(243 passed) with no keys and no network.
+(249 passed) with no keys and no network.
 
 <!-- src: backend/evals/results.json#summary.value_accuracy_pct, #summary.plan_match_pct;
      backend/evals/results_baseline.json#summary.value_accuracy_pct, #summary.plan_match_pct;
@@ -363,12 +363,13 @@ filings." and counting that reply refused all 15 easy ones. A relevance check be
 easy set. <!-- src: backend/evals/results_rag.json#refusal.test.hybrid/structure.unanswerable_refused;
 backend/evals/results_rag_hard.json#refusal.test.<arm>.unanswerable_refused -->
 
-**Answers, hard set.** On Groq's free tier (same model) the run stopped at the daily limit after
-45 of 51 questions, answered with BM25 with and without the relevance check. Both refused all 6 near misses they
-saw; the check also refused 28 of 39 answerable questions against 20 without it, so it stays off. When BM25 misses
-the page on a paraphrased question, the model says "Not found in the filings." rather than guessing.
-<!-- src: backend/evals/results_rag_hard_answers.json#stopped, #summary.<setup>.refused_unanswerable,
-.wrongly_refused_answerable -->
+**Answers, hard set** (Groq's free tier, same model, all 51 questions): every setup refused all 12 near misses.
+Hybrid + re-rank wrongly refused 16 of 39 answerable questions against 20 for BM25 and 28 for BM25 with the
+relevance check, and got the most key facts in (0.150 against 0.068 and 0.043). So re-ranking pays off on
+paraphrased questions, and the relevance check stays off. When the search misses the page, the model says "Not found
+in the filings." rather than guessing. Ragas was not measured on the hard set (Groq's daily limit stopped the judge).
+<!-- src: backend/evals/results_rag_hard_answers.json#summary.<setup>.refused_unanswerable,
+.wrongly_refused_answerable, .answer_accuracy; #judge.stopped -->
 
 ## 7. Tests and CI
 
@@ -377,7 +378,7 @@ already downloaded, and LibreOffice is installed on this machine):
 
 ```
 cd backend && WEALTHOS_ENV=test pytest -q
-243 passed in 198.94s
+249 passed in 202.46s
 ```
 
 Without LibreOffice one Excel test skips; without the downloaded filings the four filing eval tests skip.
@@ -388,7 +389,7 @@ and free fallback models. Run that way on 14 November, the suite gave `2 failed,
 `tests/test_strategy.py::test_generated_by_names_the_model_that_answered`), which is the production guard working.
 CI sets `WEALTHOS_ENV=test`.
 
-`pytest --collect-only -q` collects 243 tests in 25 modules:
+`pytest --collect-only -q` collects 249 tests in 26 modules:
 
 | Area | What the tests check | Modules | Tests |
 |---|---|---|---|
@@ -399,13 +400,13 @@ CI sets `WEALTHOS_ENV=test`.
 | Company mode | Ticker resolution, bank refusal, statements tie out on a recorded Apple filing, ratios and DCF, release figures verified, workbook recomputes, deadline stops a build; quarters, locked forecasts, kill rules, rebalance plan, DCF sensitivity grid and terminal-value cross-check recalculated, last-four-quarter sums, value-trap warning flags | `test_company`, `test_company_review` | 28 |
 | Auth and isolation | Weak or missing secret stops startup, lockout after ten failures, same message for unknown users; every user route checks the token | `test_settings`, `test_isolation` | 15 |
 | Ingest | Tradebooks, bank statements, holdings, Google Sheets CSV, three PDF bank layouts, CAS files, PDF financial statements with a planted wrong number | `test_ingest`, `test_bank_pdf`, `test_cas`, `test_extraction` | 33 |
-| Tax and strategy | Hand-computed tax cases; signal ops, no look-ahead per operator (future rows corrupted), textbook Wilder RSI and hand-computed EMA, Indian charges against a contract note, deflated Sharpe known answer, doubled-charge and last-30% warnings, uploaded strategies that read the future refused | `test_tax`, `test_strategy` | 24 |
+| Tax and strategy | Hand-computed tax cases; signal ops, no look-ahead per operator (future rows corrupted), textbook Wilder RSI and hand-computed EMA, Indian charges against a contract note, deflated Sharpe known answer, doubled-charge and last-30% warnings, uploaded strategies that read the future refused | `test_tax`, `test_strategy` | 25 |
 | MCP server | Read-only tools answer with provenance, token required | `test_mcp_server` | 8 |
 | Evals in CI | All 34 golden questions replayed through the graph from each of the 4 recorded runs; labelled sets must not regress | `test_evals_smoke`, `test_eval_sets` | 5 |
 | Filing Q&A | Chunks never cross an Item or Note, page ranges, fixed-window overlap, cover-page metadata; filters, fusion, re-ranking, refusals, the relevance check, full-width citations, the cited-chunk number check; recall@5 gate and answer replay on the real 10-Ks | `test_research`, `test_chunking`, `test_rag_eval` | 25 |
 | Other | Migrations run once in order, price refresh, NSE's older daily file and price quality flags, reports, Excel templates | `test_migrate`, `test_prices`, `test_reports`, `test_excel` | 10 |
-| Portfolio risk | Historical VaR and CVaR on a known return list, drawdown dates, risk shares of two uncorrelated holdings, holdings without prices reported, too little history refused | `test_risk` | 4 |
-| **Total** | | **25 modules** | **243** |
+| Portfolio risk | Historical VaR and CVaR on a known return list, drawdown dates, risk shares of two uncorrelated holdings, sector shares matching their holdings, holdings without prices reported, too little history refused; the Nifty 500 sector list parsed, cached, refreshed and switched off | `test_risk`, `test_sectors` | 9 |
+| **Total** | | **26 modules** | **249** |
 
 <!-- src: `cd backend && WEALTHOS_ENV=test pytest --collect-only -q` (per-module counts), run 2026-11-20 -->
 
@@ -417,6 +418,16 @@ requirements-dev.txt`, then `pytest -v --tb=short` with `WEALTHOS_ENV=test`. Zer
 CI also restores the two 10-K filings and the embedding models from its cache (or downloads them, with the
 `SEC_USER_AGENT` repo secret) so the filing recall gate and answer replay run. CI does not run the frontend
 typecheck or any live eval; live evals need keys and are run by hand.
+
+**Production check** (`backend/evals/run_production_check.py`, 20 Nov 2026): the API runs in production mode against
+Postgres with pgvector, and a second server in dev mode runs the two features production switches off. All 12 checks
+pass: NSE prices in both file formats (144 days in the older format, 120 in the current one, no gap longer than 4
+days); RSI and EMA against a hand-written loop on real prices; the risk report, strategy lab, sandbox look-ahead and
+time-limit refusals; compare and the workbook's sensitivity grid recalculated on live SEC data; 250 concurrent requests
+(50 at 10, 200 at 20) with no errors, risk report p95 5.3 s at 20 at once on one process; rate limits; 25 hostile
+inputs, each a clear 4xx with no path leaks; production refusing NSE downloads and Python strategies.
+<!-- src: backend/evals/results_production_check.json#all_pass, #checks.1_nse_live, #checks.6_load.200_at_20,
+#checks.7_hostile_inputs -->
 
 ## 8. Failures and what was fixed
 
