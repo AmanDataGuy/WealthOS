@@ -1,8 +1,8 @@
 """
 # workbook.py - the company model as an .xlsx a finance user can audit
 
-Sheets: Cover (company, filings with links, colour key, notes), Income Statement, Balance Sheet, Cash Flow, Ratios,
-Valuation (DCF, terminal-value cross-check, rate x growth grid), Releases (figures read from the earnings release,
+Sheets: Cover (company, filings with links, colour key, notes), Income Statement, Balance Sheet, Cash Flow, Ratios
+(with the value-trap warnings of `analysis.flags` under the ratios), Valuation (DCF, terminal-value cross-check, rate x growth grid), Releases (figures read from the earnings release,
 verified or not), Checks (tie-outs as live formulas).
 
 - Blue = a number copied from a filing (hover a cell for its XBRL concept, accession number and filing date);
@@ -23,7 +23,7 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from app.company.analysis import ASSUMPTIONS, GROWTH_STEPS, RATE_STEPS, RATIOS
+from app.company.analysis import ASSUMPTIONS, GROWTH_STEPS, RATE_STEPS, RATIOS, flags
 from app.company.statements import evaluate
 from app.company.tieout import CHECKS, TOLERANCE
 
@@ -120,6 +120,12 @@ def build(result: dict, path: Path) -> dict:
     for r, (key, label, formula, fmt) in enumerate(RATIOS, start=5):
         _write_row(ws, r, label, fmt, formula, result["ratios"][key], None, where, expected)
         ws.cell(row=r, column=source_col, value=_REF.sub(lambda m: m.group(1) + (" (prior year)" if m.group(2) else ""), formula))
+    r = 6 + len(RATIOS)
+    ws.cell(row=r, column=1, value="Warning flags (fixed rules to look into, not a verdict)").font = BOLD
+    for f in flags(values, result["ratios"]) or [{"flag": "none", "warning": "No warning rule fired."}]:
+        r += 1
+        ws.cell(row=r, column=1, value=f["flag"].replace("_", " "))
+        ws.cell(row=r, column=2, value=f["warning"]).font = Font() if f["flag"] == "none" else RED
 
     _valuation(wb.create_sheet("Valuation"), result, where, years, expected)
     _releases(wb.create_sheet("Releases"), result.get("releases") or {})
