@@ -35,7 +35,7 @@ def _call(name, args=None):
 def test_tools_answer_with_provenance(data):
     names = {t.name for t in asyncio.run(mcp_server.mcp.list_tools())}
     assert names == {"list_workspaces", "list_metrics", "query_metric", "explain_number", "tax_estimate",
-                     "portfolio_drift", "list_backtests"}  # read-only, no SQL tool
+                     "portfolio_drift", "portfolio_risk", "list_backtests"}  # read-only, no SQL tool
     assert _call("list_workspaces")[0]["tables"][0]["file"] == "bank.csv"
     assert "total_spend" in _call("list_metrics")["metrics"]
     r = _call("query_metric", {"metrics": ["total_spend"], "time": "2026-04-01..2026-06-30"})
@@ -104,6 +104,22 @@ def test_portfolio_drift_on_samples(samples):
     assert d["total_value"] == 66800.0  # 15,800 INFY + 51,000 HDFCBANK
     assert rows["INFY"]["change_to_target"] == 17600.0 and rows["HDFCBANK"]["change_to_target"] == -17600.0
     assert rows["INFY"]["off_target"] and rows["HDFCBANK"]["drift_pts"] == 26.35
+
+
+# No prices: refused. With 70 days of INFY prices, HDFCBANK (51,000 of 66,800 = 76.35%) is reported as left out.
+def test_portfolio_risk_on_samples(samples, tmp_path):
+    import pandas as pd
+    with pytest.raises(Exception, match="too little price history"):
+        _call("portfolio_risk")
+    days = pd.bdate_range("2026-01-01", periods=70)
+    prices = tmp_path / "prices.csv"
+    prices.write_text("date,symbol,close\n" + "".join(f"{d.date()},INFY,{100 + i % 3}\n" for i, d in enumerate(days)),
+                      encoding="utf-8")
+    engine.save_tables("u", parse_file(prices))
+    r = _call("portfolio_risk")
+    assert r["label"].startswith("Backward-looking") and r["priced_value"] == 15800.0 and r["period"]["days"] == 69
+    assert r["left_out"] == [{"holding": "HDFCBANK", "value": 51000.0, "share_pct": 76.35, "reason": "no price history"}]
+    assert r["holdings"][0]["risk_share_pct"] == 100.0 and r["top_correlations"] == []
 
 
 def test_list_backtests_on_samples(samples, tmp_path):
