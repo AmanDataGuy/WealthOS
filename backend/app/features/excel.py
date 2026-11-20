@@ -9,11 +9,13 @@
 
 **Checked at upload (`check`), refused with the reason:** not `.xlsx` (no `.xlsm` / macros), over 10 MB, macros
 (`vbaProject.bin`), links to other workbooks, Excel Tables / structured references (`Tbl[col]`), OFFSET / INDIRECT,
-dynamic-array functions, any function outside `ALLOWED`, no `Data` sheet, no named output cells. openpyxl reads the
-XML with defusedxml (installed), so XML bombs are refused too.
+dynamic-array functions, any function outside `ALLOWED`, no `Data` sheet, no named output cells. Defined names get
+the same formula check, so a name cannot hide WEBSERVICE / HYPERLINK, another workbook (`[1]Sheet!A1`) or a DDE link
+(`cmd|...`). openpyxl reads the XML with defusedxml (installed), so XML bombs are refused too.
 
-**Running (`run`):** copy the template -> write the data with openpyxl -> LibreOffice (headless, its own profile set
-to "always recalculate on load", 120 s timeout, one job at a time) saves a recalculated copy -> outputs read with
+**Running (`run`):** copy the template -> write the data with openpyxl (strings starting with = + - @ are written as
+text, so data never becomes a formula) -> LibreOffice (headless, its own profile set to "always recalculate on
+load", 120 s timeout, one job at a time) saves a recalculated copy -> outputs read with
 `data_only=True` -> any `#REF!`, `#NAME?`, `#VALUE!`, `#DIV/0!` ... in an output is reported, never hidden. The filled
 workbook is kept for download. Results say "calculated by LibreOffice": Excel itself never ran.
 """
@@ -32,7 +34,9 @@ from pathlib import Path
 
 import openpyxl
 from dotenv import load_dotenv
+from openpyxl.cell.cell import Cell
 from openpyxl.formula import Tokenizer
+from openpyxl.formula.tokenizer import TokenizerError
 
 from app.data import engine
 
@@ -74,15 +78,19 @@ def soffice() -> str:
 # Why a formula is not allowed (blocked or unlisted function, structured / external reference); [] if fine.
 def _formula_problems(formula: str) -> list[str]:
     out = []
-    for tok in Tokenizer(formula).items:
+    try:
+        items = Tokenizer(formula).items
+    except TokenizerError:
+        return ["the formula cannot be read"]
+    for tok in items:
         if tok.type == "FUNC" and tok.subtype == "OPEN":
             name = tok.value[:-1].upper().removeprefix("_XLFN.").removeprefix("_XLWS.")
             if name in BLOCKED:
                 out.append(f"{name} is not allowed ({BLOCKED[name]})")
             elif name not in ALLOWED:
                 out.append(f"function {name} is not on the allowed list")
-        elif tok.type == "OPERAND" and tok.subtype == "RANGE" and "[" in tok.value:
-            out.append("structured / external references ([...]) are not allowed")
+        elif tok.type == "OPERAND" and tok.subtype == "RANGE" and ("[" in tok.value or "|" in tok.value):
+            out.append("structured / external references ([...] or DDE links) are not allowed")
     return out
 
 
@@ -110,6 +118,9 @@ def check(path: Path) -> dict:
                     problems += [f"{ws.title}!{cell.coordinate}: {why}" for why in _formula_problems(cell.value)]
     if "Data" not in wb.sheetnames:
         problems.append("there is no sheet named 'Data' (WealthOS writes your table there)")
+    names = [*wb.defined_names.items(), *(item for ws in wb.worksheets for item in ws.defined_names.items())]
+    for name, dn in names:
+        problems += [f"defined name {name}: {why}" for why in _formula_problems("=" + str(dn.attr_text))]
     outputs = {name: str(dn.attr_text) for name, dn in wb.defined_names.items() if not name.startswith("_xlnm")}
     if not outputs:
         problems.append("no named output cells: name the result cells in Excel (Formulas > Define Name)")
@@ -185,6 +196,15 @@ def recalc(src: Path, out_dir: Path) -> Path:
     return out
 
 
+# A workspace value for the Data sheet: a string that starts like a formula becomes a text cell, shown as typed.
+def _as_text(ws, value):
+    if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
+        cell = Cell(ws, value=value)
+        cell.data_type, cell.quotePrefix = "s", True
+        return cell
+    return value
+
+
 # A cell, or the nested tuples of cells for a range, as one flat stream of cells.
 def _cells(x):
     if isinstance(x, tuple):
@@ -213,9 +233,9 @@ def run(user_id: str, workspace_id: str, tid: str) -> dict:
         wb = openpyxl.load_workbook(folder / "template.xlsx")
         ws = wb["Data"]
         ws.delete_rows(1, ws.max_row)
-        ws.append(keep)
+        ws.append([_as_text(ws, c) for c in keep])
         for r in rows:
-            ws.append([r[c] for c in keep])
+            ws.append([_as_text(ws, r[c]) for c in keep])
         wb.save(work)
         shutil.copy(recalc(work, Path(tmp)), folder / "filled.xlsx")
 
