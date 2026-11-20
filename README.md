@@ -29,7 +29,7 @@
 
 | Result                                          |       WealthOS |        Baseline |
 | :---------------------------------------------- | -------------: | --------------: |
-| Right numbers, 25 number questions of 34        |        **96%** | 72%<sup>1</sup> |
+| Right numbers, 25 number questions of 34        | **96 to 100%** | 72%<sup>1</sup> |
 | Right kind of answer (answer, ask back, refuse) |       **100%** |             85% |
 | SQL attacks blocked                             |   **53 of 53** |               – |
 | Normal queries wrongly blocked                  |        0 of 16 |               – |
@@ -37,7 +37,7 @@
 | Company accounting checks that tie out          | **115 of 117** |               – |
 
 <sup>1</sup> The same model writing SQL directly. Model `openai/gpt-oss-120b` on Groq and on OpenRouter, measured
-13 and 14 Nov 2026 on synthetic data, 2.9 s median per question. Method and every run: [technical report](TECHNICAL_REPORT.md).
+13 and 20 Nov 2026 on synthetic data (96% on OpenRouter, 100% on Groq: one question apart), about 3 s median per question. Method and every run: [technical report](TECHNICAL_REPORT.md).
 
 <!-- src:
   right numbers: backend/evals/results.json#summary.value_accuracy_pct, backend/evals/results_openrouter.json#summary.value_accuracy_pct
@@ -101,7 +101,7 @@ flowchart LR
 3. The explainer sees at most 40 rows. `verify` matches every number in its text to the rows, or shows the table.
 
 The main design choice is a metrics layer of 18 defined measures instead of free text-to-SQL. With the same model
-and questions it gets 96% of numbers right against 72%. More in [architecture](docs/architecture.md).
+and questions it gets 96 to 100% of numbers right against 72%. More in [architecture](docs/architecture.md).
 
 ## Quickstart
 
@@ -119,7 +119,7 @@ For local development on Python 3.11: `pip install -r backend/requirements-dev.t
 
 | Eval                    |          Size |                Result | Compared with                 |
 | :---------------------- | ------------: | --------------------: | :---------------------------- |
-| Golden set, numbers     |  25 questions |               **96%** | 72% text-to-SQL, 44% local 8B |
+| Golden set, numbers     |  25 questions |        **96 to 100%** | 72% text-to-SQL, 44% local 8B |
 | Golden set, answer kind |  34 questions |              **100%** | 85% text-to-SQL               |
 | SQL guard               |    69 queries |   **53 / 53** blocked | 0 / 16 normal ones blocked    |
 | Number check            | 179 sentences | **1.5%** false accept | 0% false reject               |
