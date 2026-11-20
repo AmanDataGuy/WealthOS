@@ -99,6 +99,15 @@ export default function Strategy({ u, boards, onError }: { u: string; boards: { 
                   <td className="num">{k in result.buy_and_hold ? formatNumber(result.buy_and_hold[k], f) : ""}</td></tr>
               ))}</tbody>
             </table>
+            {result.returns_by_year?.length > 0 && (
+              <table className="metrics">
+                <thead><tr><th>Year</th><th className="num">This rule</th><th className="num">Buy and hold</th></tr></thead>
+                <tbody>{result.returns_by_year.map((y: any) => (
+                  <tr key={y.year}><td>{y.year}</td><td className="num">{formatNumber(y.strategy_pct, "pct")}</td>
+                    <td className="num">{formatNumber(y.buy_and_hold_pct, "pct")}</td></tr>
+                ))}</tbody>
+              </table>
+            )}
             <p className="muted">
               Period {result.run_card.period.start} to {result.run_card.period.end} · rules tried on these stocks and dates: {result.run_card.n_trials}
               {" · "}chance the Sharpe ratio is real (deflated): {result.run_card.deflated_sharpe == null ? "–" : formatNumber(100 * result.run_card.deflated_sharpe, "pct")}
