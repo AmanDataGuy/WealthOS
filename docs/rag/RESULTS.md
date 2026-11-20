@@ -90,9 +90,9 @@ precision were judged by the same model. <!-- src: results_rag_answers.json#answ
 
 | Setup | Fact accuracy | Unanswerable refused | Answerable wrongly refused | Number-check rejects | Ragas faithfulness | Ragas context precision |
 |---|---|---|---|---|---|---|
-| BM25, structure | 0.515 | 15 of 15 | 0 | 6 | 0.967 | 0.862 |
-| BM25 + relevance check | 0.508 | 15 of 15 | 1 | 6 | 0.980 | 0.866 |
-| Hybrid + re-rank, structure | 0.485 | 15 of 15 | 4 | 8 | 0.953 | 0.862 |
+| BM25, structure | 0.561 | 15 of 15 | 0 | 2 | 0.967 | 0.862 |
+| BM25 + relevance check | 0.553 | 15 of 15 | 1 | 2 | 0.980 | 0.866 |
+| Hybrid + re-rank, structure | 0.535 | 15 of 15 | 4 | 3 | 0.953 | 0.862 |
 
 <!-- src: results_rag_answers.json#summary.<setup>.answer_accuracy, .refused_unanswerable, .wrongly_refused_answerable, .number_check_rejects, .ragas_faithfulness, .ragas_context_precision -->
 
@@ -105,9 +105,10 @@ precision were judged by the same model. <!-- src: results_rag_answers.json#answ
   model calls; the run above replayed them from the cache. Per question: BM25 3.40 s median, 10.74 s p95, $0.00017
   billed; with the relevance check 2.94 s and 6.71 s, $0.00014; hybrid + re-rank 9.19 s and 14.30 s, $0.00015.
   <!-- src: results_rag_answers_before_cite_fix.json#summary.<setup>.p50_seconds, .p95_seconds, .usd_per_question_billed -->
-- Most remaining number-check rejects are false: the model writes a table value with its unit ("13,308 million")
-  where the table prints "13,308" under "(in millions)", and the shared number check does not apply the table's scale.
-  A few are right to reject (a citation in a made-up format, a page the model was never shown).
+- The number check now reads a table's unit: an answer writing "13,308 million" for a cell "13,308" under "(In
+  millions)" passes, a wrong figure still fails (commit 5c02ed9). Re-checking the same recorded replies with that fix
+  (`run_rag.py --rescore`, no model calls) cut rejects from 6, 6 and 8 to 2, 2 and 3, and lifted fact accuracy by
+  0.045 to 0.05. Ragas scores, time and cost are unchanged: the replies are the same.
 
 ## 5. Refusing what the filings do not say
 
@@ -130,15 +131,15 @@ were the real test, and the check lost there too: see section 6.
 
 | Setup | Near misses refused | Answerable wrongly refused | Fact accuracy | Number-check rejects | p50 / p95 s | USD / question (list price) |
 |---|---|---|---|---|---|---|
-| BM25, structure | 12 of 12 | 20 of 39 | 0.068 | 3 | 1.94 / 3.16 | 0.000360 |
-| BM25 + relevance check | 12 of 12 | 28 of 39 | 0.043 | 3 | 2.75 / 3.81 | 0.000343 |
-| Hybrid + re-rank, structure | 12 of 12 | **16 of 39** | **0.150** | 6 | not measured | not measured |
+| BM25, structure | 12 of 12 | 20 of 39 | 0.068 | 2 | 1.94 / 3.16 | 0.000360 |
+| BM25 + relevance check | 12 of 12 | 28 of 39 | 0.043 | 2 | 2.75 / 3.81 | 0.000343 |
+| Hybrid + re-rank, structure | 12 of 12 | **16 of 39** | **0.158** | 1 | not measured | not measured |
 
 <!-- src: results_rag_hard_answers.json#summary.<setup>.refused_unanswerable, .wrongly_refused_answerable,
      .answer_accuracy, .number_check_rejects, .p50_seconds, .p95_seconds, .usd_per_question_list -->
 
 - **Re-ranking pays off at the answer level on paraphrased questions:** it finds more of the right passages
-  (section 2), so the model refuses fewer answerable questions (16 against 20) and gets more key facts in (0.150
+  (section 2), so the model refuses fewer answerable questions (16 against 20) and gets more key facts in (0.158
   against 0.068). Every setup refused all 12 near misses.
 - **The relevance check does not help.** The answer step alone refused every near miss, and the check refused 8 more
   answerable questions. It stays off (`research.answer(check=False)` is the default).
