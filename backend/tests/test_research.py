@@ -184,6 +184,15 @@ def test_numbers_must_be_in_cited_chunks(two_docs, monkeypatch):
     assert not stray["verified"] and "(9)" in stray["warnings"][0]
 
 
+# A table cell under "(In millions)" may be written with its unit; a wrong figure, or a unit the passage lacks, may not.
+def test_table_unit_numbers():
+    from app.ai.verify import check_numbers
+    table = "Term debt 13,308 and total net sales 95,183 (In millions, except per-share amounts)"
+    assert check_numbers("Term debt was 13,308 million and sales $95.2 billion.", research._passage_numbers(table)) == []
+    assert check_numbers("Sales were $97.0 billion.", research._passage_numbers(table)) == ["97.0 billion"]
+    assert check_numbers("Debt was 13,308 million.", research._passage_numbers("Term debt 13,308")) == ["13,308 million"]
+
+
 # A stand-in for main._vectors that records every statement and answers searches with chunk 2 of Acme.
 def _fake_store(monkeypatch, fail=False):
     from app import main
