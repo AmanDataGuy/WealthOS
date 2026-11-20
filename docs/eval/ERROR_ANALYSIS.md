@@ -148,7 +148,8 @@ about 1% high, which makes the test slightly conservative.
 
 1. Period filters on the planner: the OpenRouter run read "last financial year" as this year, and the Groq run
    (`backend/evals/results.json`, 2026-11-14) answered "What was my total income in FY 2025-26?" with "No matching
-   data" after adding a filter `date = "2025-2026"` that matches no row. Both are planner choices; the fix is the
+   data" after adding a filter `date = "2025-2026"` that matches no row; the Groq re-run on 2026-11-20 answered it right,
+   so it is run-to-run noise rather than a fixed bug. Both are planner choices; the fix is the
    same code check on named periods as in section 1, measured with a new live run.
 2. Derived-number attribution in `check_numbers`: tightening it will reject some correct comparison sentences; it
    needs its own labelled set of real explanations before the rule changes.
