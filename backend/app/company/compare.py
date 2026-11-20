@@ -3,7 +3,9 @@
 
 One row per company: the latest fiscal year's revenue, growth, margins, returns and leverage (the same formulas as
 the company workbook, `analysis.RATIOS`), the latest quarter's revenue growth and operating margin (`quarters.py`),
-and, when the user types a share price, P/E on the latest fiscal year's diluted EPS. No AI step; every row names the
+and, when the user types a share price, P/E on the latest fiscal year's diluted EPS. Because fiscal years end in different months, each row also carries
+last-four-quarter (LTM) revenue and net income with the end date of that span (`ltm()`), and the value-trap warnings
+of `analysis.flags()`. No AI step; every row names the
 filing its revenue came from. A company that cannot be modelled (ambiguous name, bank, foreign filer) gets an
 `error` instead of a row, so the other companies still compare.
 
@@ -35,10 +37,26 @@ def row(query: str, price: float | None = None) -> dict:
            "latest_quarter_end": last.get("end"), "quarter_revenue_yoy_pct": last.get("revenue_yoy_pct"),
            "quarter_operating_margin_pct": last.get("operating_margin_pct"),
            "price": price, "pe": round(price / eps, 2) if price and eps and eps > 0 else None}
+    out |= ltm(facts)
+    out["flags"] = analysis.flags(values, ratios)
     for key, series in ratios.items():
         v = series[-1]
         out[key] = None if v is None else round(100 * v, 2) if key in _PCT else round(v, 2)
     return out
+
+
+# Last-four-quarter revenue and net income ($M): the newest four back-to-back quarters (Q4 = year minus nine months,
+# as `quarters.series` derives it). Blank with a note when four such quarters with both figures are not there.
+def ltm(facts: dict) -> dict:
+    q = quarters.series(facts, 4)
+    lo, hi = quarters.NINE_MONTH_DAYS  # first to last quarter end of four back-to-back quarters
+    if len(q) == 4 and lo <= quarters._days(q[0]["end"], q[-1]["end"]) <= hi and \
+            all(r["revenue"] is not None and r["net_income"] is not None for r in q):
+        return {"ltm_end": q[-1]["end"], "ltm_quarters": [r["end"] for r in q], "ltm_note": None,
+                "ltm_revenue_musd": round(sum(r["revenue"] for r in q), 2),
+                "ltm_net_income_musd": round(sum(r["net_income"] for r in q), 2)}
+    return {"ltm_end": None, "ltm_quarters": [r["end"] for r in q], "ltm_revenue_musd": None, "ltm_net_income_musd": None,
+            "ltm_note": "fewer than four back-to-back reported quarters with revenue and net income; LTM left blank"}
 
 
 # Every company's row, in the order asked; failures become {"ticker", "error"} rows.
