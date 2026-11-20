@@ -227,6 +227,11 @@ def fact_share(facts: list[str], answer: str) -> float:
     return sum(norm(f) in a or re.sub(r"[$,\s]", "", norm(f)) in bare for f in facts) / len(facts) if facts else 0.0
 
 
+# A provider error as short text for the result file, with account ids (e.g. org_...) masked: these files are public.
+def _scrub(e: Exception) -> str:
+    return re.sub(r"\borg_[A-Za-z0-9]+", "org_<masked>", str(e))[:160]
+
+
 class Stop(Exception):
     """The run must end now: spend cap or a provider's daily limit."""
 
@@ -340,7 +345,7 @@ async def judge(rows: list[dict], provider: str, spent: float, max_usd: float, d
                 r = await create(*a, **kw)
             except RateLimitError as e:
                 if "per day" in str(e):
-                    raise Stop(f"{provider} daily limit: {str(e)[:160]}") from e
+                    raise Stop(f"{provider} daily limit: {_scrub(e)}") from e
                 used["waited"] += 20
                 await asyncio.sleep(20)
                 continue
@@ -374,7 +379,7 @@ async def judge(rows: list[dict], provider: str, spent: float, max_usd: float, d
             except Stop:
                 raise
             except Exception as e:
-                row["judge_error"] = f"{type(e).__name__}: {str(e)[:160]}"
+                row["judge_error"] = f"{type(e).__name__}: {_scrub(e)}"
 
     try:
         await asyncio.gather(*(one(r) for r in rows if not r["refused"] and r["raw"]))
