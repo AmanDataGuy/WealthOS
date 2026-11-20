@@ -125,25 +125,30 @@ were the real test, and the check lost there too: see section 6.
 
 ## 6. Answers (live, hard set)
 
-Groq's free tier served the same `gpt-oss-120b` model for this run after the OpenRouter credit ran out. Its daily
-limit stopped the run after 45 of the 51 questions, answered with both setups; the 6 questions left (h46 to h51) are
-all near-miss unanswerable ones. Ragas was not run on this set. <!-- src: results_rag_hard_answers.json#answer_model, #stopped, #summary.<setup>.questions -->
+`gpt-oss-120b` on Groq's free tier answered all 51 hard questions with three setups (20 Nov 2026).
+<!-- src: results_rag_hard_answers.json#answer_model, #summary.<setup>.questions -->
 
-| Setup | Unanswerable refused | Answerable wrongly refused | Fact accuracy | Number-check rejects | p50 / p95 s | USD / question (list price) |
+| Setup | Near misses refused | Answerable wrongly refused | Fact accuracy | Number-check rejects | p50 / p95 s | USD / question (list price) |
 |---|---|---|---|---|---|---|
-| BM25, structure | 6 of 6 | 20 of 39 | 0.068 | 3 | 1.98 / 3.22 | 0.000385 |
-| BM25 + relevance check | 6 of 6 | 28 of 39 | 0.043 | 3 | 2.82 / 3.83 | 0.000358 |
+| BM25, structure | 12 of 12 | 20 of 39 | 0.068 | 3 | 1.94 / 3.16 | 0.000360 |
+| BM25 + relevance check | 12 of 12 | 28 of 39 | 0.043 | 3 | 2.75 / 3.81 | 0.000343 |
+| Hybrid + re-rank, structure | 12 of 12 | **16 of 39** | **0.150** | 6 | not measured | not measured |
 
-<!-- src: results_rag_hard_answers.json#summary.<setup>.refused_unanswerable, .unanswerable, .wrongly_refused_answerable,
-     .answerable, .answer_accuracy, .number_check_rejects, .p50_seconds, .p95_seconds, .usd_per_question_list -->
+<!-- src: results_rag_hard_answers.json#summary.<setup>.refused_unanswerable, .wrongly_refused_answerable,
+     .answer_accuracy, .number_check_rejects, .p50_seconds, .p95_seconds, .usd_per_question_list -->
 
-- **The relevance check does not help.** The answer step alone refused every near miss it saw, and the check refused
-  8 more answerable questions. It stays off (`research.answer(check=False)` is the default).
-- **Missed retrieval shows up as a refusal, not a wrong answer.** On paraphrased questions BM25 often misses the page
-  (section 2), and the model then says "Not found in the filings." instead of guessing: 20 of 39 answerable hard
-  questions were refused. That is the safe failure; the fix is better retrieval for this kind of question (hybrid +
-  re-rank), not a different answer step.
-- Groq's free tier bills $0; the USD column is tokens at Groq's list price.
+- **Re-ranking pays off at the answer level on paraphrased questions:** it finds more of the right passages
+  (section 2), so the model refuses fewer answerable questions (16 against 20) and gets more key facts in (0.150
+  against 0.068). Every setup refused all 12 near misses.
+- **The relevance check does not help.** The answer step alone refused every near miss, and the check refused 8 more
+  answerable questions. It stays off (`research.answer(check=False)` is the default).
+- **Missed retrieval shows up as a refusal, not a wrong answer.** When the search misses the page, the model says
+  "Not found in the filings." instead of guessing. That is the safe failure; the fix is better retrieval.
+- Latency and cost for hybrid + re-rank are not reported: 46 of its 51 replies were replayed from an earlier run's
+  recorded replies (no tokens, no model time), so its averages would understate both. Its search alone takes 6 to 8 s
+  on a CPU (section 2). The BM25 setups made 46 of 51 calls live. Groq's free tier bills $0; USD is tokens at list price.
+- Ragas was not measured on the hard set: Groq's daily limit stopped the judge after one answer per setup.
+  <!-- src: results_rag_hard_answers.json#judge.stopped, #summary.<setup>.judged -->
 - Under Groq's rate limits one relevance-check call got no reply and that question was answered without a verdict
   (the check fails open); the offline replay in CI reproduces every recorded outcome, including that one.
 
