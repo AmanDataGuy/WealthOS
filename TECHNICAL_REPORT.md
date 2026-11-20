@@ -23,7 +23,7 @@ filings.
 WealthOS is an AI analyst for a person's own money (Indian bank, broker and mutual-fund statements) with a second
 mode that builds a US company model from SEC filings. The model plans and explains; code computes; every number in
 a written answer is checked against the computed rows. On a 34-question golden set, the assistant gets the right
-number on 96% of the 25 questions that have a numeric answer, against 72% for a plain text-to-SQL bot on the same
+number on 96% to 100% of the 25 questions that have a numeric answer (100% on the latest Groq run, 96% on OpenRouter), against 72% for a plain text-to-SQL bot on the same
 model (`openai/gpt-oss-120b`), and gives the right kind of answer (answer, ask back or refuse) on 100% of all 34,
 against 85.3%. The SQL guard blocked all 53 attack queries and none of 16 normal ones. The number check let through
 1.5% of wrong numbers and rejected 0% of right ones. In company mode, 115 of 117 accounting checks tie out across
@@ -111,18 +111,18 @@ plain Python from the fixture rows, not by the engine.
 | | Assistant, Groq | Assistant, OpenRouter | Text-to-SQL baseline | Assistant, local qwen3:8b |
 |---|---|---|---|---|
 | Model | `openai/gpt-oss-120b` | `openai/gpt-oss-120b` | `openai/gpt-oss-120b` (OpenRouter) | `qwen3:8b` via Ollama, thinking off |
-| Run at | 2026-11-14 | 2026-11-13 | 2026-11-13 | 2026-11-13 |
-| Right numbers (25) | **96.0%** | **96.0%** | 72.0% | 44.0% |
+| Run at | 2026-11-20 | 2026-11-13 | 2026-11-13 | 2026-11-13 |
+| Right numbers (25) | **100.0%** | **96.0%** | 72.0% | 44.0% |
 | Right kind of answer (34) | **100.0%** | **100.0%** | 85.3% | 100.0% |
-| Value answers marked trusted | 88.0% | 92.0% | 0.0% | 60.0% |
+| Value answers marked trusted | 92.0% | 92.0% | 0.0% | 60.0% |
 | Advice questions refused (5) | 100.0% | 100.0% | 100.0% | 100.0% |
 | Sentences the number check threw away | 2 | 2 | no check | 3 |
-| Seconds per question, p50 / p95 | 2.91 / 4.71 | 2.92 / 4.79 | 1.5 / 4.58 | 3.74 / 13.78 |
+| Seconds per question, p50 / p95 | 3.24 / 5.01 | 2.92 / 4.79 | 1.5 / 4.58 | 3.74 / 13.78 |
 | Seconds per model call, p50 / p95 | 1.07 / 1.54 | 1.28 / 3.22 | 1.42 / 4.49 | 2.79 / 7.26 |
 | Model calls per question | 1.65 | 1.65 | 1.0 | 1.44 |
-| Tokens per question | 2,872 | 2,867 | 833 | 2,648 |
-| USD per question | $0.000523 at list price; $0 billed on the free tier | $0.000219 as billed | $0.000064 as billed | $0 (local) |
-| Time spent waiting out rate limits (not in latency) | 375 s | 0 s | 0 s | 0 s |
+| Tokens per question | 2,869 | 2,867 | 833 | 2,648 |
+| USD per question | $0.000522 at list price; $0 billed on the free tier | $0.000219 as billed | $0.000064 as billed | $0 (local) |
+| Time spent waiting out rate limits (not in latency) | 435 s | 0 s | 0 s | 0 s |
 
 <!-- src: backend/evals/results.json#summary.*; backend/evals/results_openrouter.json#summary.*;
      backend/evals/results_baseline.json#summary.*; backend/evals/results_local_qwen3_8b.json#summary.*
@@ -140,11 +140,11 @@ How the arms differ:
   checks hold up with a weak model.
 
 **What the numbers show.**
-- **The metrics layer is worth about 24 points.** Same model, same questions: 96.0% right numbers through the
+- **The metrics layer is worth about 24 points.** Same model, same questions: 96.0% (OpenRouter) and 100.0% (Groq) right numbers through the
   assistant vs 72.0% when the model writes SQL directly. The baseline is faster and uses about 29% of the tokens
-  (833 vs 2,872 per question), because it makes one call instead of a plan call plus an explain call.
-- **The two assistant runs each miss one different value question**, and both misses are planner choices of
-  period or filter (section 8). One question is 4 points on the value set, so treat a one-question difference
+  (833 vs 2,867 per question), because it makes one call instead of a plan call plus an explain call.
+- **The OpenRouter run misses one value question and the latest Groq run none.** An earlier Groq run (14 Nov) missed a
+  different one; both misses are planner choices of period or filter (section 8). One question is 4 points on the value set, so treat a one-question difference
   between runs as noise.
 - **The checks limit a weak model but do not fix it.** The 8B model picks the right kind of answer every time but
   fills in the metric query badly: 44.0% right numbers. Of its 14 wrong value answers, 10 failed safely (refused or
