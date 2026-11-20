@@ -164,6 +164,46 @@ def test_guest_account_has_sample_data_and_no_password(monkeypatch, tmp_path):
     assert client.post("/auth/login", json={"username": r["username"], "password": "!"}).status_code == 401
 
 
+# Account delete removes the database rows first: if that transaction fails the files stay; once it works they go.
+def test_account_delete_keeps_files_when_the_transaction_fails(monkeypatch, tmp_path):
+    from contextlib import asynccontextmanager
+    from app.data import engine
+    async def fake_users(query, uid, *args):
+        return {"username": "alice"} if uid == "7" else None
+    fail = {"on": True}
+
+    class Conn:
+        @asynccontextmanager
+        async def transaction(self):
+            yield
+
+        async def execute(self, query, *args):
+            if fail["on"] and query.startswith("DELETE"):
+                raise RuntimeError("the database went away")
+
+    class Pool:
+        @asynccontextmanager
+        async def acquire(self):
+            yield Conn()
+
+    async def fake_pool():
+        return Pool()
+    monkeypatch.setattr(main, "_users", fake_users)
+    monkeypatch.setattr(main, "_pool", fake_pool)
+    monkeypatch.setattr(main, "JWT_SECRET", STRONG)
+    monkeypatch.setattr(engine, "DATA_ROOT", tmp_path / "users")
+    saved = engine.user_dir("7") / "kept.csv"
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    saved.write_text("a,b\n1,2\n", encoding="utf-8")
+    client = TestClient(main.app, raise_server_exceptions=False)
+    delete = lambda: client.request("DELETE", "/account/7", json={"confirm": "alice"},
+                                    headers={"Authorization": f"Bearer {main._issue_token('7', 'alice')}"})
+    assert delete().status_code >= 500 and saved.exists()
+    fail["on"] = False
+    r = delete()
+    assert r.status_code == 200 and r.json()["deleted_files"] >= 1 and not saved.exists()
+
+
 # The caller's IP for rate limits as the API sees it from `peer`, with an X-Forwarded-For header.
 def _caller_ip(peer: str, forwarded: str = "203.0.113.7") -> str:
     from starlette.requests import Request
