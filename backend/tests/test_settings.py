@@ -162,3 +162,35 @@ def test_guest_account_has_sample_data_and_no_password(monkeypatch, tmp_path):
     datasets = client.get("/sources/7/datasets", headers={"Authorization": f"Bearer {r['token']}"}).json()
     assert {d["shape"] for d in datasets} == {"transactions", "trades", "holdings"}
     assert client.post("/auth/login", json={"username": r["username"], "password": "!"}).status_code == 401
+
+
+# The caller's IP for rate limits as the API sees it from `peer`, with an X-Forwarded-For header.
+def _caller_ip(peer: str, forwarded: str = "203.0.113.7") -> str:
+    from starlette.requests import Request
+    return main._caller(Request({"type": "http", "method": "GET", "path": "/x", "query_string": b"",
+                                 "headers": [(b"x-forwarded-for", forwarded.encode())], "client": (peer, 5000)}))
+
+
+# X-Forwarded-For is believed only from a trusted proxy, given as an exact IP or a CIDR range; anyone else
+# spoofing the header keeps their own address.
+def test_trusted_proxies_exact_ip_and_cidr(monkeypatch):
+    monkeypatch.setattr(main, "_TRUSTED_PROXIES", [main.ipaddress.ip_network(p, strict=False)
+                                                   for p in ("10.0.0.5", "172.28.0.0/24")])
+    assert _caller_ip("10.0.0.5") == "ip:203.0.113.7"
+    assert _caller_ip("172.28.0.200", "1.1.1.1, 198.51.100.9") == "ip:198.51.100.9"  # the address nginx saw
+    assert _caller_ip("10.0.0.6") == "ip:10.0.0.6"
+    assert _caller_ip("192.0.2.44") == "ip:192.0.2.44"
+    assert _caller_ip("unknown") == "ip:unknown"
+
+
+# The /docs page and route list are off in production and on in dev and test.
+@pytest.mark.parametrize("env,status", [("production", 404), ("dev", 200), ("test", 200)])
+def test_docs_only_outside_production(env, status):
+    import os
+    import subprocess
+    import sys
+    code = ("from fastapi.testclient import TestClient\nimport app.main as m\nc = TestClient(m.app)\n"
+            "print([c.get(p).status_code for p in ('/docs', '/redoc', '/openapi.json')])")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60,
+                         env={**os.environ, "WEALTHOS_ENV": env})
+    assert out.stdout.strip() == str([status] * 3), out.stderr[-500:]
