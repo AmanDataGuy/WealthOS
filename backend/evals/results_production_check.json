@@ -1,6 +1,6 @@
 {
- "run_at": "2026-11-20T04:04:10+00:00",
- "git_sha": "8dbc4e1-dirty",
+ "run_at": "2026-11-20T15:51:33+00:00",
+ "git_sha": "160e057",
  "environment": {
   "python": "3.11.18",
   "database": "pgvector/pgvector:pg16 (docker, real Postgres)",
@@ -35,7 +35,7 @@
     "end": "2024-06-30",
     "how": "prices.fetch_nse in this process with WEALTHOS_ENABLE_NSE=1 (production refuses it: check 8)"
    },
-   "seconds": 1.1,
+   "seconds": 2.0,
    "nse_requests_this_run": 0,
    "nse_requests_by_status": {},
    "weekdays_in_window": 282,
@@ -92,7 +92,7 @@
   "data_upload": {
    "nse_prices.csv": {
     "status": 200,
-    "seconds": 0.385,
+    "seconds": 0.656,
     "tables": [
      {
       "shape": "prices",
@@ -102,7 +102,7 @@
    },
    "holdings.csv": {
     "status": 200,
-    "seconds": 0.007,
+    "seconds": 0.013,
     "tables": [
      {
       "shape": "holdings",
@@ -151,7 +151,7 @@
     "workspace": "default"
    },
    "status": 200,
-   "seconds": 0.15,
+   "seconds": 0.225,
    "missing_fields": [],
    "numbers_checked": 30,
    "all_finite": true,
@@ -202,7 +202,7 @@
   "drift_concentration": {
    "pass": true,
    "status": 200,
-   "seconds": 0.042,
+   "seconds": 0.084,
    "concentration": {
     "effective_holdings": 4.65,
     "top5_share_pct": 98.87
@@ -256,7 +256,7 @@
     },
     "description": "Buy RELIANCE, TCS, INFY, HDFCBANK, ITC when the 14-day RSI of the price is below 35; sell when the 14-day RSI of the price is above 65. Checked daily, equal weight, \u20b91,00,000 to start, india equity delivery charges, from the first price to the last price.",
     "status": 200,
-    "seconds": 0.074,
+    "seconds": 0.142,
     "metrics": {
      "final_value": 110056.0,
      "total_return_pct": 10.06,
@@ -356,7 +356,7 @@
     },
     "description": "Buy RELIANCE, TCS, INFY, HDFCBANK, ITC when the 20-day average of the price crosses above the 50-day average of the price; sell when the 50-day average of the price crosses above the 20-day average of the price. Checked daily, equal weight, \u20b91,00,000 to start, india equity delivery charges, from the first price to the last price.",
     "status": 200,
-    "seconds": 0.079,
+    "seconds": 0.117,
     "metrics": {
      "final_value": 109070.46,
      "total_return_pct": 9.07,
@@ -411,7 +411,7 @@
    },
    "compare": {
     "status": 200,
-    "seconds_cold": 0.312,
+    "seconds_cold": 0.518,
     "rows": [
      {
       "ticker": "AAPL",
@@ -477,7 +477,7 @@
     "centre_value_per_share": 171.2002,
     "value_per_share": null,
     "python_recalc": "pass",
-    "libreoffice_seconds": 0.6,
+    "libreoffice_seconds": 1.3,
     "accounting_tieouts": {
      "balance_sheet_balances": "pass",
      "reported_totals_agree": "pass",
@@ -488,98 +488,98 @@
    }
   },
   "6_load": {
-   "rss_mb_before": 247.3,
+   "rss_mb_before": 245.6,
    "50_at_10": {
-    "wall_seconds": 3.2,
+    "wall_seconds": 6.3,
     "status_counts": {
      "200": 50
     },
     "per_endpoint": {
      "drift": {
       "n": 10,
-      "p50_s": 0.436,
-      "p95_s": 0.508,
-      "max_s": 0.532
+      "p50_s": 0.823,
+      "p95_s": 0.968,
+      "max_s": 1.009
      },
      "risk": {
       "n": 10,
-      "p50_s": 1.151,
-      "p95_s": 1.389,
-      "max_s": 1.448
+      "p50_s": 2.375,
+      "p95_s": 2.537,
+      "max_s": 2.565
      },
      "metric": {
       "n": 10,
-      "p50_s": 0.351,
-      "p95_s": 0.587,
-      "max_s": 0.641
+      "p50_s": 0.73,
+      "p95_s": 0.87,
+      "max_s": 0.879
      },
      "compare_cached": {
       "n": 10,
-      "p50_s": 0.277,
-      "p95_s": 0.441,
-      "max_s": 0.5
+      "p50_s": 0.663,
+      "p95_s": 0.95,
+      "max_s": 1.106
      },
      "strategy_run": {
       "n": 10,
-      "p50_s": 0.903,
-      "p95_s": 1.052,
-      "max_s": 1.072
+      "p50_s": 1.595,
+      "p95_s": 1.966,
+      "max_s": 2.089
      }
     },
     "responses_5xx": 0,
     "responses_with_paths": 0
    },
    "200_at_20": {
-    "wall_seconds": 18.0,
+    "wall_seconds": 26.6,
     "status_counts": {
      "200": 200
     },
     "per_endpoint": {
      "drift": {
       "n": 40,
-      "p50_s": 0.948,
-      "p95_s": 2.08,
-      "max_s": 2.527
+      "p50_s": 1.597,
+      "p95_s": 2.116,
+      "max_s": 2.318
      },
      "risk": {
       "n": 40,
-      "p50_s": 2.61,
-      "p95_s": 5.147,
-      "max_s": 5.395
+      "p50_s": 4.78,
+      "p95_s": 5.304,
+      "max_s": 5.96
      },
      "metric": {
       "n": 40,
-      "p50_s": 0.923,
-      "p95_s": 1.838,
-      "max_s": 2.163
+      "p50_s": 1.486,
+      "p95_s": 2.111,
+      "max_s": 2.247
      },
      "compare_cached": {
       "n": 40,
-      "p50_s": 0.809,
-      "p95_s": 1.979,
-      "max_s": 2.289
+      "p50_s": 1.598,
+      "p95_s": 2.114,
+      "max_s": 2.475
      },
      "strategy_run": {
       "n": 40,
-      "p50_s": 2.472,
-      "p95_s": 4.989,
-      "max_s": 5.415
+      "p50_s": 3.845,
+      "p95_s": 4.6,
+      "max_s": 4.747
      }
     },
     "responses_5xx": 0,
     "responses_with_paths": 0
    },
-   "rss_mb_after": 354.0,
+   "rss_mb_after": 349.0,
    "pass": true
   },
   "6_rate_limits": {
    "pass": true,
    "default_rule": "300 per minute per user",
    "burst_requests": 330,
-   "burst_seconds": 0.9,
-   "allowed": 304,
-   "allowed_ceiling_with_refill": 304.5,
-   "limited_429": 26,
+   "burst_seconds": 1.16,
+   "allowed": 305,
+   "allowed_ceiling_with_refill": 305.8,
+   "limited_429": 25,
    "retry_after_header_on_every_429": true,
    "auth_rule": "10 per minute per IP",
    "login_attempt_statuses": [
@@ -610,7 +610,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "this token does not belong to that user",
-     "seconds": 0.003
+     "seconds": 0.006
     },
     {
      "case": "A reads B's drift",
@@ -621,7 +621,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "this token does not belong to that user",
-     "seconds": 0.002
+     "seconds": 0.004
     },
     {
      "case": "B reads A's risk",
@@ -632,7 +632,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "this token does not belong to that user",
-     "seconds": 0.002
+     "seconds": 0.004
     },
     {
      "case": "A queries B's metrics",
@@ -643,7 +643,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "this token does not belong to that user",
-     "seconds": 0.002
+     "seconds": 0.005
     },
     {
      "case": "no token on risk",
@@ -654,7 +654,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "missing or malformed Authorization header",
-     "seconds": 0.002
+     "seconds": 0.004
     },
     {
      "case": "forged token on risk",
@@ -665,7 +665,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "invalid token: Invalid crypto padding",
-     "seconds": 0.002
+     "seconds": 0.004
     },
     {
      "case": "traversal workspace risk",
@@ -676,7 +676,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "Not Found",
-     "seconds": 0.002
+     "seconds": 0.004
     },
     {
      "case": "traversal workspace drift",
@@ -687,7 +687,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "Not Found",
-     "seconds": 0.002
+     "seconds": 0.004
     },
     {
      "case": "dot-dot workspace",
@@ -699,7 +699,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "Not Found",
-     "seconds": 0.002
+     "seconds": 0.004
     },
     {
      "case": "traversal run id",
@@ -710,7 +710,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "Not Found",
-     "seconds": 0.002
+     "seconds": 0.004
     },
     {
      "case": "traversal upload workspace",
@@ -721,7 +721,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "workspace not found",
-     "seconds": 0.004
+     "seconds": 0.009
     },
     {
      "case": "oversized upload (21 MB)",
@@ -732,7 +732,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "file too large: 20 MB at most",
-     "seconds": 0.103
+     "seconds": 0.145
     },
     {
      "case": "upload as another user",
@@ -743,7 +743,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "this token does not belong to that user",
-     "seconds": 0.003
+     "seconds": 0.005
     },
     {
      "case": "executable upload",
@@ -754,7 +754,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "upload a .csv, .xlsx, .pdf, .md or .txt file",
-     "seconds": 0.003
+     "seconds": 0.005
     },
     {
      "case": "malformed holdings",
@@ -766,7 +766,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "ok",
-     "seconds": 0.004
+     "seconds": 0.009
     },
     {
      "case": "risk on malformed holdings",
@@ -778,7 +778,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "no holdings data yet: upload a file that contains holdings first",
-     "seconds": 0.038
+     "seconds": 0.065
     },
     {
      "case": "drift on malformed holdings",
@@ -791,7 +791,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "no holdings data yet: upload a file that contains holdings first",
-     "seconds": 0.036
+     "seconds": 0.055
     },
     {
      "case": "invalid strategy spec",
@@ -802,7 +802,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "1 validation error for StrategySpec\nentry.op\n  Input should be 'close', 'sma', 'ema', 'rsi', 'delta', 'lag', 'ts_mean', 'ts_std', 'rank', 'crossover', 'gt', 'lt', 'and', 'or', 'const' or 'mul' [type=l",
-     "seconds": 0.005
+     "seconds": 0.012
     },
     {
      "case": "strategy window too long",
@@ -813,7 +813,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "'sma' needs a whole number of days between 1 and 400, got 1000000000",
-     "seconds": 0.044
+     "seconds": 0.071
     },
     {
      "case": "strategy unknown symbol",
@@ -824,7 +824,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "no prices for ['../../ETC']; available: ['HDFCBANK', 'INFY', 'ITC', 'RELIANCE', 'TCS']",
-     "seconds": 0.037
+     "seconds": 0.069
     },
     {
      "case": "invalid python strategy file",
@@ -835,7 +835,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "Python strategies are switched off on this server",
-     "seconds": 0.044
+     "seconds": 0.088
     },
     {
      "case": "compare with one ticker",
@@ -846,7 +846,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "[{'type': 'too_short', 'loc': ['body', 'tickers'], 'msg': 'List should have at least 2 items after validation, not 1', 'input': ['AAPL'], 'ctx': {'field_type': 'List', 'min_length': 2, 'actual_length'",
-     "seconds": 0.003
+     "seconds": 0.006
     },
     {
      "case": "compare with a blank ticker",
@@ -857,7 +857,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "type a ticker or name for each company",
-     "seconds": 0.002
+     "seconds": 0.005
     },
     {
      "case": "target over 100%",
@@ -868,7 +868,7 @@
      "pass": true,
      "path_leak": false,
      "detail": "each target must be between 0 and 100 (%)",
-     "seconds": 0.002
+     "seconds": 0.006
     },
     {
      "case": "compare with an unknown ticker",
@@ -885,28 +885,28 @@
   "4_sandbox": {
    "plain": {
     "status": 200,
-    "seconds": 0.438,
+    "seconds": 0.783,
     "expected": 200,
     "detail": null,
     "total_return_pct": 6.24
    },
    "shift_minus_1": {
     "status": 400,
-    "seconds": 0.371,
+    "seconds": 0.689,
     "expected": 400,
     "detail": "the strategy looks into the future: its weights for 2023-11-02 change when prices after 2023-11-02 are removed (for example shift(-1) or a full-history max). Use only past prices.",
     "total_return_pct": null
    },
    "endless_loop": {
     "status": 400,
-    "seconds": 28.604,
+    "seconds": 28.763,
     "expected": 400,
-    "detail": "the strategy failed: it stopped without saying why",
+    "detail": "the strategy ran longer than 30 s and was stopped",
     "total_return_pct": null
    },
    "import_os": {
     "status": 400,
-    "seconds": 0.103,
+    "seconds": 0.088,
     "expected": 400,
     "detail": "line 1: only pandas, numpy and math can be imported, not os",
     "total_return_pct": null
@@ -927,10 +927,10 @@
     "start": "2026-10-21"
    },
    "status": 200,
-   "seconds": 1.622,
+   "seconds": 1.39,
    "detail": null,
-   "rows": 105,
-   "last_date": "2026-11-19",
+   "rows": 110,
+   "last_date": "2026-11-20",
    "warnings": [
     "NSE closes are not adjusted for splits or bonuses"
    ],
