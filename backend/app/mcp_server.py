@@ -12,6 +12,7 @@ metrics instead of guessing. It can't upload, edit, delete or run free SQL.
 | `explain_number` | how one metric is defined (its SQL / method), which files and dates it covers, and its value |
 | `tax_estimate` | old vs new regime for a FY, capital gains from the tradebook |
 | `portfolio_drift` | current vs target mix of the holdings |
+| `portfolio_risk` | today's holdings on past prices: volatility, drawdown, VaR / CVaR, risk shares |
 | `list_backtests` | earlier strategy-lab runs |
 
 **Who you are:** set `WEALTHOS_TOKEN` to the token the app gave you at sign-in; it is checked with
@@ -128,6 +129,16 @@ def portfolio_drift(workspace: str = "default") -> dict:
     the rupee change back to target. Arithmetic on the user's own targets, not advice."""
     from app.features.rebalance import drift
     return drift(current_user(), workspace)
+
+
+# Tool: how risky today's holdings would have been on past prices.
+@mcp.tool()
+def portfolio_risk(workspace: str = "default") -> dict:
+    """Today's holdings applied to the workspace's past prices: yearly volatility, max drawdown with dates, worst
+    month, 1-day 95% VaR and CVaR (% and rupees), each holding's share of the risk, the most correlated pairs and
+    the holdings left out for missing price history. Backward-looking, not a forecast and not advice."""
+    from app.features.risk import report
+    return report(current_user(), workspace)
 
 
 # Tool: earlier backtests.
