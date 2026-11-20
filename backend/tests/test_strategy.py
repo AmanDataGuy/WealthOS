@@ -199,6 +199,19 @@ def test_split_check_and_run_cards(tmp_path):
 # Deflated Sharpe against the published worked example (López de Prado, Nomura QIS conference slides 2015, from
 # Bailey & López de Prado 2014): annual SR 2.5 on T=1250 daily returns, skew -3, kurtosis 10, variance of the trial
 # Sharpes 0.5 (annual) -> DSR 0.9004 after 100 trials, 0.9505 after 46. Daily units: SR/sqrt(250), variance/250.
+# Calendar-year returns: 100 -> 120 by the end of 2025 (+20%), -> 132 in 2026 (+10%). In a run, an always-held
+# rule without charges gains 10% in each year, the same as buy-and-hold.
+def test_returns_by_year(tmp_path):
+    equity = pd.Series([110, 120, 126, 132.0], index=pd.to_datetime(["2025-12-30", "2025-12-31", "2026-01-02", "2026-06-30"]))
+    assert strategy.returns_by_year(100, equity) == {2025: 20.0, 2026: 10.0}
+    closes = [("2025-12-29", 100), ("2025-12-30", 100), ("2025-12-31", 110), ("2026-01-01", 110), ("2026-01-02", 121),
+              ("2026-01-05", 121)]
+    _prices(tmp_path, [(d, "UP", c, c) for d, c in closes])
+    r = strategy.run("u", None, {"universe": ["UP"], "entry": S("gt", CLOSE, 0).model_dump(), "costs": "none"})
+    assert r["returns_by_year"] == [{"year": 2025, "strategy_pct": 10.0, "buy_and_hold_pct": 10.0},
+                                    {"year": 2026, "strategy_pct": 10.0, "buy_and_hold_pct": 10.0}]
+
+
 def test_deflated_sharpe_known_answer():
     sr, var = 2.5 / 250 ** 0.5, 0.5 / 250
     assert abs(strategy.dsr(sr, 1250, -3, 10, 100, var) - 0.9004) < 5e-5
