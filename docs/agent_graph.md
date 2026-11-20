@@ -56,5 +56,5 @@ already resumes in one step and keeps the HTTP contract unchanged.
 ## Checking a change
 
 `python evals/run.py --offline` replays the recorded model replies (keyed by a hash of the exact prompt), so any change
-to a prompt shows up as a cache miss. Re-record with one live run (`python evals/run.py`) only when a prompt changes on
+to a prompt shows up as a cache miss. Re-record with one live run (`WEALTHOS_ENV=dev python evals/run.py`) only when a prompt changes on
 purpose.
