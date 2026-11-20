@@ -9,6 +9,7 @@ past daily returns, so every number here is **backward-looking, not a forecast**
 - 1-day historical VaR and CVaR at 95%: the loss only 5% of past days were worse than, and the average of those days,
   as % and as rupees of the priced holdings' value.
 - Each holding's share of the portfolio's risk (its contribution to the variance) and the 3 most correlated pairs.
+- The same shares by sector, from the Nifty 500 industry list (`data/sectors.py`); holdings not on it are "Unknown".
 - A holding is matched to prices by name (case-insensitive). Holdings without at least `MIN_DAYS` daily returns are
   left out and listed with their share of value; too little shared history overall is refused.
 - Used by `GET /strategy/{user}/{workspace}/risk`, the MCP tool `portfolio_risk` and the Rebalance page.
@@ -20,6 +21,8 @@ import pandas as pd
 
 from app.data import engine
 from app.data.engine import MetricQuery
+from app.data.prices import nse_enabled
+from app.data.sectors import sector_map
 from app.features.strategy import TRADING_DAYS, load_prices
 
 LABEL = "Backward-looking: today's holdings applied to past prices; not a forecast."
@@ -87,7 +90,24 @@ def report(user_id: str, workspace_id: str | None = None) -> dict:
     corr = returns.corr()
     pairs = sorted(((corr.loc[a, b], a, b) for i, a in enumerate(used) for b in used[i + 1:]), key=lambda p: -p[0])
 
-    warnings = list(r.warnings) + ["sector split skipped: the holdings carry no sector"]
+    warnings = list(r.warnings)
+    known = sector_map()
+    sectors = None
+    if not known:
+        why = "NSE data is switched off on this server" if not nse_enabled() else "the Nifty 500 list could not be downloaded"
+        warnings.append(f"sector split skipped: the holdings carry no sector ({why})")
+    else:
+        split: dict[str, list[float]] = {}
+        for h in used:
+            s = split.setdefault(known.get(h.strip().upper(), "Unknown"), [0.0, 0.0])
+            s[0] += float(w[h])
+            s[1] += float(share[h])
+        sectors = [{"sector": k, "value_pct": round(100 * v, 2),
+                    "risk_share_pct": None if math.isnan(rs) else round(100 * rs, 2)}
+                   for k, (v, rs) in sorted(split.items(), key=lambda kv: -kv[1][0])]
+        unknown = sum(h.strip().upper() not in known for h in used)
+        if unknown:
+            warnings.append(f"{unknown} holding(s) not in the Nifty 500 industry list, grouped as Unknown")
     if left_out:
         warnings.append(f"{len(left_out)} holding(s), {round(100 * (total - priced) / total, 2)}% of the value, left out "
                         "for missing or short price history")
@@ -101,6 +121,6 @@ def report(user_id: str, workspace_id: str | None = None) -> dict:
             "cvar_95_1d": {"pct": round(100 * cvar, 2), "inr": round(cvar * priced, 2)},
             "holdings": [{"holding": h, "value": round(values[h], 2), "weight_pct": round(100 * w[h], 2),
                           "risk_share_pct": None if math.isnan(share[h]) else round(100 * float(share[h]), 2)} for h in used],
-            "sectors": None,
+            "sectors": sectors,
             "top_correlations": [{"a": a, "b": b, "correlation": round(float(c), 3)} for c, a, b in pairs[:3]],
             "left_out": left_out, "warnings": warnings, "provenance": r.provenance.model_dump()}
