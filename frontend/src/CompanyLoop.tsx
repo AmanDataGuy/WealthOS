@@ -21,7 +21,8 @@ const COMPARE_ROWS: [string, string, "usd" | "pct" | "x" | "eps"][] = [
   ["operating_margin", "Operating margin", "pct"], ["net_margin", "Net margin", "pct"], ["fcf_margin", "Free cash flow margin", "pct"],
   ["roe", "Return on equity", "pct"], ["debt_to_equity", "Debt to equity", "x"], ["cash_conversion", "Cash conversion", "x"],
   ["quarter_revenue_yoy_pct", "Latest quarter revenue YoY", "pct"], ["quarter_operating_margin_pct", "Latest quarter operating margin", "pct"],
-  ["eps_diluted", "Diluted EPS ($)", "eps"], ["pe", "P/E at your price", "x"]];
+  ["eps_diluted", "Diluted EPS ($)", "eps"], ["pe", "P/E at your price", "x"],
+  ["ltm_revenue_musd", "Last 4 quarters revenue ($M)", "usd"], ["ltm_net_income_musd", "Last 4 quarters net income ($M)", "usd"]];
 
 // Two to six companies side by side.
 export function Compare({ u, onError }: Props) {
@@ -52,11 +53,14 @@ export function Compare({ u, onError }: Props) {
         {r.rows.filter((x: any) => x.error).map((x: any) => <p key={x.ticker} className="muted">{x.ticker}: {x.error}</p>)}
         {rows.length > 0 && <div className="table-wrap"><table>
           <thead><tr><th></th>{rows.map((x: any) => <th key={x.ticker} className="num" title={x.name}>{x.ticker}<br />
-            <span className="muted">FY to {x.fiscal_year_end}</span></th>)}</tr></thead>
+            <span className="muted">FY to {x.fiscal_year_end}</span>
+            {x.ltm_end && <><br /><span className="muted">last 4 qtrs to {x.ltm_end}</span></>}</th>)}</tr></thead>
           <tbody>{COMPARE_ROWS.map(([k, label, kind]) => (
             <tr key={k}><td>{label}</td>{rows.map((x: any) => <td key={x.ticker} className="num">
               {x[k] == null ? "–" : kind === "pct" ? formatNumber(x[k], "pct") : kind === "usd" ? num(x[k], 0) : num(x[k])}</td>)}</tr>))}</tbody>
         </table></div>}
+        {rows.flatMap((x: any) => (x.flags ?? []).map((f: any) =>
+          <div key={x.ticker + f.flag} className="muted">{x.ticker}: {f.warning}</div>))}
         <p className="muted">{r.note}</p>
       </>}
     </div>
