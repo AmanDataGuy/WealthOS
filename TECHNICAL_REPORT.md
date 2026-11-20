@@ -31,7 +31,7 @@ five companies, and 573 of 573 workbook formulas recompute to the Python values.
 finds the answering page in the top 5 for every one of 66 questions worded like the filing, with BM25 over
 structure-aware chunks; on 39 paraphrased and multi-section questions BM25 falls to 0.615 and hybrid search with
 re-ranking reaches 0.769. The backend test suite passes
-(249 passed) with no keys and no network.
+(269 passed) with no keys and no network.
 
 <!-- src: backend/evals/results.json#summary.value_accuracy_pct, #summary.plan_match_pct;
      backend/evals/results_baseline.json#summary.value_accuracy_pct, #summary.plan_match_pct;
@@ -378,7 +378,7 @@ already downloaded, and LibreOffice is installed on this machine):
 
 ```
 cd backend && WEALTHOS_ENV=test pytest -q
-249 passed in 202.46s
+269 passed in 187.85s
 ```
 
 Without LibreOffice one Excel test skips; without the downloaded filings the four filing eval tests skip.
@@ -389,7 +389,7 @@ and free fallback models. Run that way on 14 November, the suite gave `2 failed,
 `tests/test_strategy.py::test_generated_by_names_the_model_that_answered`), which is the production guard working.
 CI sets `WEALTHOS_ENV=test`.
 
-`pytest --collect-only -q` collects 249 tests in 26 modules:
+`pytest --collect-only -q` collects 269 tests in 26 modules:
 
 | Area | What the tests check | Modules | Tests |
 |---|---|---|---|
@@ -398,15 +398,15 @@ CI sets `WEALTHOS_ENV=test`.
 | Hostile input | Path escapes, bad uploads and queries, calculator bombs: always a clear 4xx, never a 500, no leaks | `test_stress` | 15 |
 | Assistant graph | Fake model: metric answers verified, invented numbers replaced, empty result not trusted, advice refused, clarify round trip, multi-step plans, per-chat checkpoints, vague questions asked back in code, streamed steps | `test_agent` | 14 |
 | Company mode | Ticker resolution, bank refusal, statements tie out on a recorded Apple filing, ratios and DCF, release figures verified, workbook recomputes, deadline stops a build; quarters, locked forecasts, kill rules, rebalance plan, DCF sensitivity grid and terminal-value cross-check recalculated, last-four-quarter sums, value-trap warning flags | `test_company`, `test_company_review` | 28 |
-| Auth and isolation | Weak or missing secret stops startup, lockout after ten failures, same message for unknown users; every user route checks the token | `test_settings`, `test_isolation` | 15 |
+| Auth and isolation | Weak or missing secret stops startup, lockout after ten failures, same message for unknown users; every user route checks the token; cost cap fails closed without a database in production, trusted proxy ranges and spoofed forwarding, account delete keeps files when the transaction fails, API docs off in production | `test_settings`, `test_isolation` | 21 |
 | Ingest | Tradebooks, bank statements, holdings, Google Sheets CSV, three PDF bank layouts, CAS files, PDF financial statements with a planted wrong number | `test_ingest`, `test_bank_pdf`, `test_cas`, `test_extraction` | 33 |
-| Tax and strategy | Hand-computed tax cases; signal ops, no look-ahead per operator (future rows corrupted), textbook Wilder RSI and hand-computed EMA, Indian charges against a contract note, deflated Sharpe known answer, doubled-charge and last-30% warnings, uploaded strategies that read the future refused | `test_tax`, `test_strategy` | 25 |
+| Tax and strategy | Hand-computed tax cases; signal ops, no look-ahead per operator (future rows corrupted), textbook Wilder RSI and hand-computed EMA, Indian charges against a contract note, deflated Sharpe known answer, doubled-charge and last-30% warnings, uploaded strategies that read the future refused, known sandbox escapes (builtins, dunder names and strings) refused | `test_tax`, `test_strategy` | 36 |
 | MCP server | Read-only tools answer with provenance, token required | `test_mcp_server` | 8 |
 | Evals in CI | All 34 golden questions replayed through the graph from each of the 4 recorded runs; labelled sets must not regress | `test_evals_smoke`, `test_eval_sets` | 5 |
-| Filing Q&A | Chunks never cross an Item or Note, page ranges, fixed-window overlap, cover-page metadata; filters, fusion, re-ranking, refusals, the relevance check, full-width citations, the cited-chunk number check; recall@5 gate and answer replay on the real 10-Ks | `test_research`, `test_chunking`, `test_rag_eval` | 25 |
-| Other | Migrations run once in order, price refresh, NSE's older daily file and price quality flags, reports, Excel templates | `test_migrate`, `test_prices`, `test_reports`, `test_excel` | 10 |
+| Filing Q&A | Chunks never cross an Item or Note, page ranges, fixed-window overlap, cover-page metadata; filters, fusion, re-ranking, refusals, the relevance check, full-width citations, the cited-chunk number check; recall@5 gate and answer replay on the real 10-Ks, table-unit figures | `test_research`, `test_chunking`, `test_rag_eval` | 26 |
+| Other | Migrations run once in order, price refresh, NSE's older daily file and price quality flags, reports, Excel templates, formula-like data written as text and template defined names checked | `test_migrate`, `test_prices`, `test_reports`, `test_excel` | 12 |
 | Portfolio risk | Historical VaR and CVaR on a known return list, drawdown dates, risk shares of two uncorrelated holdings, sector shares matching their holdings, holdings without prices reported, too little history refused; the Nifty 500 sector list parsed, cached, refreshed and switched off | `test_risk`, `test_sectors` | 9 |
-| **Total** | | **26 modules** | **249** |
+| **Total** | | **26 modules** | **269** |
 
 <!-- src: `cd backend && WEALTHOS_ENV=test pytest --collect-only -q` (per-module counts), run 2026-11-20 -->
 
