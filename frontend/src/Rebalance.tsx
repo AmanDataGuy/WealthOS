@@ -1,5 +1,6 @@
 // Rebalance.tsx - your holdings' current mix vs the target mix you set: drift per holding (in percentage points) and
 // the rupee change that would bring each back to target. Arithmetic on your own targets, never advice.
+// A risk panel applies today's holdings to past prices (volatility, drawdown, VaR, risk shares); backward-looking.
 // The chat below can answer questions about it ("which holdings are off target?").
 import { useEffect, useState } from "react";
 import Chat from "./Chat";
@@ -20,6 +21,13 @@ export default function Rebalance({ u, boards, onError }: Props) {
     } catch (e) { setMissing((e as Error).message); }
   };
   useEffect(() => { load(); }, [u]);
+  const [risk, setRisk] = useState<any>(null);
+  const [riskNote, setRiskNote] = useState("");
+  // Load the risk report; a refusal (no prices, too little history) is shown as a note.
+  useEffect(() => {
+    get(`/strategy/${u}/default/risk`).then((r) => { setRisk(r); setRiskNote(""); },
+      (e) => { setRisk(null); setRiskNote((e as Error).message); });
+  }, [u]);
 
   // Save the typed target mix (blank = no target).
   async function save() {
@@ -58,6 +66,35 @@ export default function Rebalance({ u, boards, onError }: Props) {
               ))}</tbody>
             </table></div>
             {data.warnings.map((w: string) => <div key={w} className="muted">{w}</div>)}
+          </div>
+        )}
+        {data && (riskNote || risk) && (
+          <div className="card-box">
+            <h3>Risk of today's holdings</h3>
+            {riskNote && <p className="muted">{riskNote}</p>}
+            {risk && <>
+              <div className="notice">{risk.label}</div>
+              <p className="muted">{risk.period.start} to {risk.period.end}, {risk.period.days} days, on {formatNumber(risk.priced_value, "inr")} of holdings with prices</p>
+              <div className="table-wrap"><table className="metrics"><tbody>
+                <tr><td>Volatility (a year)</td><td className="num">{formatNumber(risk.volatility_pct, "pct")}</td></tr>
+                <tr><td>Max drawdown ({risk.max_drawdown.peak} to {risk.max_drawdown.trough}{risk.max_drawdown.recovered ? `, back by ${risk.max_drawdown.recovered}` : ", not yet recovered"})</td>
+                  <td className="num">{formatNumber(risk.max_drawdown.pct, "pct")}</td></tr>
+                <tr><td>Worst month ({risk.worst_month.month})</td><td className="num">{formatNumber(risk.worst_month.return_pct, "pct")}</td></tr>
+                <tr><td>1-day VaR 95%</td><td className="num">{formatNumber(risk.var_95_1d.pct, "pct")} · {formatNumber(risk.var_95_1d.inr, "inr")}</td></tr>
+                <tr><td>1-day CVaR 95% (average of the worst 5% of days)</td><td className="num">{formatNumber(risk.cvar_95_1d.pct, "pct")} · {formatNumber(risk.cvar_95_1d.inr, "inr")}</td></tr>
+              </tbody></table></div>
+              <div className="table-wrap"><table>
+                <thead><tr><th>Holding</th><th className="num">Weight</th><th className="num">Share of risk</th></tr></thead>
+                <tbody>{risk.holdings.map((h: any) => (
+                  <tr key={h.holding}><td>{h.holding}</td><td className="num">{formatNumber(h.weight_pct, "pct")}</td>
+                    <td className="num">{formatNumber(h.risk_share_pct, "pct")}</td></tr>
+                ))}</tbody>
+              </table></div>
+              {risk.top_correlations.length > 0 && <p className="muted">Most correlated: {risk.top_correlations.map((c: any) =>
+                `${c.a} / ${c.b} ${formatNumber(c.correlation, "plain")}`).join(" · ")}</p>}
+              {risk.left_out.map((x: any) => <div key={x.holding} className="muted">Left out: {x.holding} ({formatNumber(x.share_pct, "pct")} of value), {x.reason}</div>)}
+              {risk.warnings.map((w: string) => <div key={w} className="muted">{w}</div>)}
+            </>}
           </div>
         )}
         <Chat u={u} boards={boards} onPinned={() => {}} compact placeholder="Ask about your mix, e.g. which holdings are off target?" />
