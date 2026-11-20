@@ -48,6 +48,7 @@ All tools take an optional `workspace` (default `"default"`, the "My files" work
 | `explain_number` | `metric`, `time`, `workspace` | One metric's definition (its SQL, or the code that computes it), its `value`, and the same provenance fields as above. An unknown metric is an error that points to `list_metrics`. |
 | `tax_estimate` | `fy` (e.g. `"2026-27"`), `salary`, `other_income`, `deductions_80c`, `deductions_80d`, `workspace` | Tax under the new and the old regime, which is `lower` and by how much, capital gains (short and long term) taken from your uploaded tradebook with their provenance, 80C headroom, warnings and the rules' sources. An educational estimate, not tax advice. |
 | `portfolio_drift` | `workspace` | Total holdings value and, per holding, its value, current and target weight, drift in percentage points, the rupee change back to target and whether it is outside the 5-point band. Targets are the ones you set in the app. |
+| `portfolio_risk` | `workspace` | Today's holdings over their past prices: yearly volatility, worst drawdown and month, one-day 95% VaR and CVaR in % and rupees, each holding's share of risk, the three most correlated pairs, and holdings left out for lack of prices. Backward-looking, not a forecast. |
 | `list_backtests` | none | Your earlier strategy-lab runs, newest first: stocks, period, number of tries, Sharpe and deflated Sharpe. Historical simulation, not advice. |
 
 There is deliberately no tool that runs free SQL, uploads, edits or deletes anything.
