@@ -444,6 +444,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--live", action="store_true", help="also answer and judge (keys from the repo .env)")
     ap.add_argument("--offline", action="store_true", help="replay the recorded answers from llm_cache_rag.json")
+    ap.add_argument("--rescore", action="store_true", help="re-check the recorded replies with the current code and "
+                    "rewrite the answers file; time, tokens, cost and Ragas scores stay as recorded (no network)")
     ap.add_argument("--provider", choices=list(PROVIDERS), default="groq", help="where gpt-oss-120b runs for --live")
     ap.add_argument("--max-usd", type=float, default=MAX_USD)
     ap.add_argument("--set", choices=list(QUESTION_SETS), default="easy", help="easy: the filing's own words; hard: paraphrased")
@@ -479,6 +481,19 @@ if __name__ == "__main__":
                      and (r["refused"], r["verified"]) != (was[(r["arm"], r["id"])]["refused"], was[(r["arm"], r["id"])]["verified"])]
             print(f"replayed {len(got)} answers, {len(drift)} changed outcome(s): {drift}")
             sys.exit(1 if drift else 0)
+        if args.rescore:  # same replies, current checks: only outcomes change; measured fields are kept from the live run
+            was = {(r["arm"], r["id"]): r for r in prev["rows"]}
+            got, _ = asyncio.run(answers(rows, vecs, prev["arms"], prev["thresholds"], offline=True, only=set(was)))
+            measured = ("seconds", "llm_cached", "tokens", "prompt_tokens", "completion_tokens", "usd_llm_client", "billed",
+                        "served_by", "faithfulness", "context_precision", "judge_error")
+            rows_out = [r | {k: was[(r["arm"], r["id"])][k] for k in measured if k in was[(r["arm"], r["id"])]} for r in got]
+            changed = [(r["arm"], r["id"]) for r in rows_out
+                       if (r["refused"], r["verified"]) != (was[(r["arm"], r["id"])]["refused"], was[(r["arm"], r["id"])]["verified"])]
+            OUT_ANSWERS.write_text(json.dumps(prev | {"rows": rows_out, "summary": summarize(rows_out, prev["arms"]),
+                                                      "rescored_at": run_at, "rescored_git_sha": sha},
+                                              indent=1, ensure_ascii=False), encoding="utf-8")
+            print(f"rescored {len(rows_out)} answers, {len(changed)} changed outcome(s): {changed}")
+            sys.exit()
         done = {(r["arm"], r["id"]): r for r in prev["rows"]}  # an earlier, cut-short run: keep its rows
         spent_before = prev.get("spend", {}).get("billed_total", 0.0)
         rows_out, stopped = asyncio.run(answers(rows, vecs, live_arms, committed["thresholds"], False, args.provider,
