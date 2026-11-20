@@ -90,6 +90,13 @@ export default function Rebalance({ u, boards, onError }: Props) {
                     <td className="num">{formatNumber(h.risk_share_pct, "pct")}</td></tr>
                 ))}</tbody>
               </table></div>
+              {risk.sectors && <div className="table-wrap"><table>
+                <thead><tr><th>Sector</th><th className="num">Weight</th><th className="num">Share of risk</th></tr></thead>
+                <tbody>{risk.sectors.map((s: any) => (
+                  <tr key={s.sector}><td>{s.sector}</td><td className="num">{formatNumber(s.value_pct, "pct")}</td>
+                    <td className="num">{formatNumber(s.risk_share_pct, "pct")}</td></tr>
+                ))}</tbody>
+              </table></div>}
               {risk.top_correlations.length > 0 && <p className="muted">Most correlated: {risk.top_correlations.map((c: any) =>
                 `${c.a} / ${c.b} ${formatNumber(c.correlation, "plain")}`).join(" · ")}</p>}
               {risk.left_out.map((x: any) => <div key={x.holding} className="muted">Left out: {x.holding} ({formatNumber(x.share_pct, "pct")} of value), {x.reason}</div>)}
