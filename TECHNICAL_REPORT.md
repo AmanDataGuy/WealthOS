@@ -344,9 +344,9 @@ median. <!-- src: backend/evals/results_rag_pgvector.json#pgvector_version, #arm
 
 | Setup | Fact accuracy | Unanswerable refused | Wrongly refused | Number-check rejects | Ragas faithfulness | Ragas context precision | p50 / p95 s | USD / question |
 |---|---|---|---|---|---|---|---|---|
-| BM25 | 0.515 | 15 of 15 | 0 | 6 | 0.967 | 0.862 | 3.40 / 10.74 | 0.00017 |
-| BM25 + relevance check | 0.508 | 15 of 15 | 1 | 6 | 0.980 | 0.866 | 2.94 / 6.71 | 0.00014 |
-| Hybrid + re-rank | 0.485 | 15 of 15 | 4 | 8 | 0.953 | 0.862 | 9.19 / 14.30 | 0.00015 |
+| BM25 | 0.561 | 15 of 15 | 0 | 2 | 0.967 | 0.862 | 3.40 / 10.74 | 0.00017 |
+| BM25 + relevance check | 0.553 | 15 of 15 | 1 | 2 | 0.980 | 0.866 | 2.94 / 6.71 | 0.00014 |
+| Hybrid + re-rank | 0.535 | 15 of 15 | 4 | 3 | 0.953 | 0.862 | 9.19 / 14.30 | 0.00015 |
 
 <!-- src: backend/evals/results_rag_answers.json#summary.<setup>.answer_accuracy, .refused_unanswerable,
      .wrongly_refused_answerable, .number_check_rejects, .ragas_faithfulness, .ragas_context_precision;
@@ -365,7 +365,7 @@ backend/evals/results_rag_hard.json#refusal.test.<arm>.unanswerable_refused -->
 
 **Answers, hard set** (Groq's free tier, same model, all 51 questions): every setup refused all 12 near misses.
 Hybrid + re-rank wrongly refused 16 of 39 answerable questions against 20 for BM25 and 28 for BM25 with the
-relevance check, and got the most key facts in (0.150 against 0.068 and 0.043). So re-ranking pays off on
+relevance check, and got the most key facts in (0.158 against 0.068 and 0.043). So re-ranking pays off on
 paraphrased questions, and the relevance check stays off. When the search misses the page, the model says "Not found
 in the filings." rather than guessing. Ragas was not measured on the hard set (Groq's daily limit stopped the judge).
 <!-- src: backend/evals/results_rag_hard_answers.json#summary.<setup>.refused_unanswerable,
@@ -484,6 +484,7 @@ question. *Trusted* means "a defined metric over your data", not "the question w
 | ICICI, Kotak, Axis, card, Groww, CAMS column names not recognised | Column-mapping set | Names added to the rules (which makes the rules-only score in-sample) |
 | Baseline recorded replies could not be replayed (a load-date column changed the prompt daily) | CI replay | The baseline prompt leaves bookkeeping columns out |
 | `gpt-oss-120b` cites as `【p. 34】`, which the citation reader did not accept, so the filing number check saw no cited passage and rejected correct answers: 28 of 81 easy answers with BM25 | Filing Q&A live run | Full-width brackets and non-breaking hyphens are read as citations; rejects fell to 6 of 81 and fact accuracy rose from 0.285 to 0.515 |
+| A table cell written with its unit ("13,308 million" for "13,308" under "(In millions)") was rejected by the filing number check | Rejected answers in the live filing run | The filing check also allows each cited number at its table's unit; rejects fell from 6 to 2 of 81 (BM25) and fact accuracy rose from 0.515 to 0.561, re-checked on the same replies |
 | Structure chunks did not start at a Note beginning mid-page, because upload dropped finx's section starts | Filing chunk counts | The section starts are kept on each page |
 | A BM25 refusal cut-off tuned on two 10-Ks refused every good question in a one-filing workspace (BM25 scores grow with the number of documents) | Filing Q&A tests | A low floor only; refusals come from the answer step |
 
@@ -501,8 +502,6 @@ question. *Trusted* means "a defined metric over your data", not "the question w
 - **Mapping misses**: ICICI card, Dhan, KFintech and NSE bhavcopy still fail with rules only and with rules + AI.
 - **Planner period choice**: a code check that "last financial year" must map to the previous FY would have fixed
   the OpenRouter miss.
-- **Filing number check and table units**: an answer that writes a table value with its unit ("13,308 million")
-  where the table prints "13,308" under "(in millions)" is rejected; the check does not apply a table's scale.
 - **CPU re-ranking** takes 6 to 8 s per question, too slow to be the default without a GPU.
 
 <!-- src: backend/evals/results_sets.json#numbers.derived_sum_accept_pct, #pii.misses, #pii.wrongly_redacted,
