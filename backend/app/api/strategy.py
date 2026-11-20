@@ -1,5 +1,5 @@
 """
-# strategy.py - free daily prices, the strategy lab (backtests) and rebalancing; educational, never advice
+# strategy.py - free daily prices, the strategy lab (backtests), holdings risk and rebalancing; educational, never advice
 
 - Routes under `/prices`, `/strategy` and `/rebalance`.
 """
@@ -85,6 +85,13 @@ def strategy_run(user_id: str, workspace_id: str, body: StrategyRunBody):
     """Test a rule on the workspace's past prices against buy-and-hold."""
     from app.features.strategy import run
     return run(user_id, workspace_id, body.spec, body.generated_by)
+
+
+@router.get("/strategy/{user_id}/{workspace_id}/risk", dependencies=USER_WS)
+def strategy_risk(user_id: str, workspace_id: str):
+    """Today's holdings on past prices: volatility, drawdown, worst month, 1-day VaR / CVaR, risk shares."""
+    from app.features.risk import report
+    return report(user_id, workspace_id)
 
 
 @router.get("/strategy/{user_id}/runs", dependencies=USER)
