@@ -14,7 +14,8 @@ Measures the assistant end to end on synthetic data whose right answers are comp
    Seconds exclude the time spent waiting out a provider rate limit (`waited_seconds` in the summary).
 
 LLM replies are cached in `evals/llm_cache.json` keyed by a hash of the prompt:
-- `python evals/run.py` runs live and records every new reply (needs the Groq / OpenRouter keys); a cached prompt is
+- `WEALTHOS_ENV=dev python evals/run.py` runs live and records every new reply (needs the Groq / OpenRouter keys; dev
+  mode because evals run without the database, and production refuses model calls it cannot cost-check); a cached prompt is
   replayed, so for fresh latency and cost numbers move `llm_cache.json` aside first;
 - `python evals/run.py --offline` replays the cache only (no network; a miss is an error; writes no result file):
   this is what CI runs;
