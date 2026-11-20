@@ -186,3 +186,62 @@ def test_libreoffice_recalculates_the_new_valuation_cells(monkeypatch, tmp_path)
     for coord, want in new.items():
         assert ws[coord].value == pytest.approx(want, rel=1e-9), coord
     assert ws["D42"].value == pytest.approx(result["valuation"]["per_share"])
+
+
+# Each value-trap rule fires on numbers built to cross its threshold and stays quiet just inside it.
+def test_value_trap_flags_fire_and_stay_quiet():
+    calm = {"revenue": [100.0, 96.0], "net_income": [10.0, 12.0], "fcf": [8.0, 9.0], "cfo": [11.0, 10.0]}
+    calm_ratios = {"operating_margin": [0.20, 0.175], "debt_to_equity": [1.0, 1.4]}
+    assert analysis.flags(calm, calm_ratios) == []  # -4% revenue, -2.5 pts margin, +0.4x debt, cash 83% of profit
+    hot = {"revenue": [100.0, None, 90.0], "net_income": [10.0, 11.0, 12.0], "fcf": [8.0, 6.0, -1.0], "cfo": [11.0, 9.0, 9.0]}
+    hot_ratios = {"operating_margin": [0.20, 0.18, 0.16], "debt_to_equity": [1.0, 1.2, 1.6]}
+    out = {f["flag"]: f["warning"] for f in analysis.flags(hot, hot_ratios)}
+    assert list(out) == ["revenue_falling", "margin_shrinking", "debt_rising", "fcf_vs_profit", "profit_not_cash"]
+    assert out["revenue_falling"] == "Revenue fell 10.0% over the years shown ($100M to $90M)."
+    assert "20.0% to 16.0%" in out["margin_shrinking"] and "1.00x to 1.60x" in out["debt_rising"]
+    assert "is negative ($8M to $-1M)" in out["fcf_vs_profit"] and out["profit_not_cash"].startswith("Latest operating cash flow is 75%")
+    falling_fcf = analysis.flags({"net_income": [10.0, 12.0], "fcf": [9.0, 8.0]}, {})
+    assert [f["flag"] for f in falling_fcf] == ["fcf_vs_profit"] and "fell ($9M to $8M)" in falling_fcf[0]["warning"]
+    assert analysis.flags({"net_income": [12.0, 10.0], "fcf": [9.0, 8.0]}, {}) == []  # profit fell too: no mismatch
+    assert analysis.flags({"revenue": [100.0]}, {"debt_to_equity": [None, 3.0]}) == []  # one year is not a trend
+
+
+def _q(start, end, val, form="10-Q"):
+    return {"start": start, "end": end, "val": val * 1e6, "form": form, "filed": end, "accn": f"acc-{end}"}
+
+
+# A made-up June fiscal year ($M): FY2025 in full plus three quarters of FY2026, revenue and net income.
+def _quarterly_facts(with_10k=True):
+    rev = [_q("2024-07-01", "2024-09-30", 10), _q("2024-10-01", "2024-12-31", 20), _q("2025-01-01", "2025-03-31", 30),
+           _q("2024-07-01", "2025-06-30", 100, "10-K"), _q("2025-07-01", "2025-09-30", 50),
+           _q("2025-10-01", "2025-12-31", 60), _q("2026-01-01", "2026-03-31", 70)]
+    rev = rev if with_10k else rev[:3] + rev[4:]  # no 10-K: Q4 cannot be derived
+    ni = [{**r, "val": r["val"] / 10} for r in rev]
+    usd = lambda rows: {"units": {"USD": rows}}  # noqa: E731
+    return {"facts": {"us-gaap": {"Revenues": usd(rev), "NetIncomeLoss": usd(ni)}}}
+
+
+# LTM sums the newest four quarters (derived Q4 = 100 - 60 = 40, then 50 + 60 + 70); a gap leaves it blank with a note.
+def test_ltm_sums_the_last_four_quarters_and_blanks_without_them():
+    from app.company import compare
+    out = compare.ltm(_quarterly_facts())
+    assert out["ltm_quarters"] == ["2025-06-30", "2025-09-30", "2025-12-31", "2026-03-31"]
+    assert (out["ltm_end"], out["ltm_revenue_musd"], out["ltm_net_income_musd"], out["ltm_note"]) == ("2026-03-31", 220, 22, None)
+    gap = compare.ltm(_quarterly_facts(with_10k=False))  # newest four skip Q4: Mar-25, Sep-25, Dec-25, Mar-26
+    assert gap["ltm_revenue_musd"] is None and gap["ltm_end"] is None and "fewer than four" in gap["ltm_note"]
+    assert compare.ltm(_facts())["ltm_revenue_musd"] is None  # the recorded Apple facts hold 10-K years only
+
+
+# The Ratios sheet lists the warnings under the ratios; Apple's recorded years fire none, a planted fall does.
+def test_ratios_sheet_shows_the_warning_flags(monkeypatch, tmp_path):
+    result = _run_apple(monkeypatch)
+    workbook.build(result, tmp_path / "a.xlsx")
+    ws = openpyxl.load_workbook(tmp_path / "a.xlsx")["Ratios"]
+    head = 6 + len(analysis.RATIOS)
+    assert ws.cell(row=head, column=1).value.startswith("Warning flags")
+    assert ws.cell(row=head + 1, column=2).value == "No warning rule fired."
+    result["statements"]["values"]["revenue"][-1] = result["statements"]["values"]["revenue"][0] * 0.9
+    workbook.build(result, tmp_path / "b.xlsx")
+    ws = openpyxl.load_workbook(tmp_path / "b.xlsx")["Ratios"]
+    assert ws.cell(row=head + 1, column=1).value == "revenue falling"
+    assert ws.cell(row=head + 1, column=2).value.startswith("Revenue fell 10.0%")
