@@ -124,10 +124,11 @@ async def account_delete(user_id: str, body: DeleteAccount):
     row = await main._users("SELECT username FROM users WHERE id::text = $1", user_id)
     if not row or row["username"] != body.confirm.strip():
         raise HTTPException(400, "type your username to confirm")
-    files = await asyncio.to_thread(account.delete_files, user_id)
+    # The rows first: if the transaction fails the files stay, so the account is never left without its data.
     async with (await main._pool()).acquire() as conn, conn.transaction():
         await conn.execute("UPDATE llm_usage SET user_id = NULL WHERE user_id = $1", user_id)
         await conn.execute("DELETE FROM users WHERE id::text = $1", user_id)
     main._USER_SEEN.pop(user_id, None)
+    files = await asyncio.to_thread(account.delete_files, user_id)
     logger.info("account deleted (%d files)", files)
     return {"deleted_files": files, "at": datetime.now(timezone.utc).isoformat()}
