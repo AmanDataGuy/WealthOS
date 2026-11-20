@@ -33,7 +33,8 @@ Trees are at most 8 deep, windows 1..400 days, and unknown keys are refused (`ex
   with the whole period visible.
 - EMA and RSI (Wilder) start from the simple average of the first n values; a flat price has RSI 50.
 - Results: CAGR, volatility, Sharpe (risk-free 6.5% a year unless `WEALTHOS_RISK_FREE_RATE` says otherwise), max
-  drawdown, turnover, hit rate, time invested, and the same for **buy-and-hold** of the same stocks.
+  drawdown, turnover, hit rate, time invested, and the same for **buy-and-hold** of the same stocks; plus the
+  return in each calendar year for both.
 - Prices must be split-adjusted: a one-day move beyond -45% / +80% on prices not marked adjusted stops the run.
 
 ## 3. Run card (`strategy_runs/<id>.json`)
@@ -361,6 +362,13 @@ def stats(start: float, equity: pd.Series, daily: pd.Series, exposure: pd.DataFr
     return {k: None if v is None or not math.isfinite(v) else round(float(v), 2) for k, v in out.items()}
 
 
+# Return (%) in each calendar year of an equity curve that started at `start` (the first year from the start).
+def returns_by_year(start: float, equity: pd.Series) -> dict[int, float]:
+    year_end = equity.groupby(equity.index.year).last()
+    before = pd.Series([start, *year_end.iloc[:-1]], index=year_end.index)
+    return {int(y): round(100 * float(v), 2) for y, v in (year_end / before - 1).items()}
+
+
 # ── Run card + deflated Sharpe ──────────────────────────────────────────────────────────
 
 # Folder where saved strategy runs live.
@@ -458,6 +466,8 @@ def _score_and_save(user_id, workspace_id, sim, universe, capital, warnings, fin
     result = {"label": LABEL, "description": description, "spec": spec_json,
               "metrics": stats(capital, equity, net, exposure, traded),
               "buy_and_hold": stats(capital, bench_equity, bench_equity.pct_change().fillna(bench.iloc[0] - 1)),
+              "returns_by_year": [{"year": y, "strategy_pct": s, "buy_and_hold_pct": b} for (y, s), b in zip(
+                  returns_by_year(capital, equity).items(), returns_by_year(capital, bench_equity).values())],
               "equity_curve": curve, "warnings": warnings, "run_card": card}
     _runs_dir(user_id).mkdir(parents=True, exist_ok=True)
     (_runs_dir(user_id) / f"{card['id']}.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
