@@ -9,8 +9,10 @@
   change them; there is no market data (no share price, beta or bond yield is fetched). It also returns a terminal
   value cross-check (implied exit EV / EBITDA, terminal share of EV) and a value-per-share grid over discount rate x
   terminal growth (`RATE_STEPS` x `GROWTH_STEPS`).
+- `flags()`: up to five value-trap warnings, fixed rules over the rows and ratios above, each with the numbers that
+  set it off. Warnings to look into, never a verdict.
 
-Used by `pipeline.py`, `workbook.py` and `tieout.py`.
+Used by `pipeline.py`, `workbook.py`, `tieout.py` and `compare.py`.
 """
 from __future__ import annotations
 
@@ -38,6 +40,12 @@ ASSUMPTIONS = {"discount_rate": 0.09, "terminal_growth": 0.03, "growth_cap": 0.1
 # Sensitivity grid: steps added to the discount rate (rows) and to terminal growth (columns).
 RATE_STEPS = (-0.02, -0.01, 0.0, 0.01, 0.02)
 GROWTH_STEPS = (-0.01, -0.005, 0.0, 0.005, 0.01)
+
+# Value-trap thresholds, compared from the first to the latest year shown.
+REVENUE_FALL = -0.05  # revenue down 5% or more: a shrinking business, not one soft year's noise
+MARGIN_DROP = -0.03  # operating margin down 3 percentage points or more: pricing power or costs slipping
+DEBT_RISE = 0.5  # debt to equity up 0.5x or more: growth or buybacks paid for with borrowing
+CASH_BACKING_MIN = 0.8  # operating cash flow under 80% of a positive net income: profit not turning into cash
 
 
 # Every ratio for every year column: {key: [value or None per year]}.
@@ -101,3 +109,31 @@ def dcf(i: dict, grid: bool = True) -> dict:
             "pe": per_share / i["eps_diluted"] if i["eps_diluted"] else None,
             "exit_ev_to_ebitda": terminal / ebitda_n if ebitda_n else None, "terminal_share": pv_terminal / ev,
             "sensitivity": sens}
+
+
+# First and latest non-blank value of a series, or None when fewer than two years have one.
+def _span(series: list) -> tuple | None:
+    known = [v for v in series or [] if v is not None]
+    return (known[0], known[-1]) if len(known) >= 2 else None
+
+
+# Value-trap warnings: [{"flag", "warning"}] for each rule that fires; the warning text carries the triggering numbers.
+def flags(values: dict[str, list], ratio: dict[str, list]) -> list[dict]:
+    out = []
+    rev, ni, fcf = _span(values.get("revenue")), _span(values.get("net_income")), _span(values.get("fcf"))
+    margin, de = _span(ratio.get("operating_margin")), _span(ratio.get("debt_to_equity"))
+    if rev and rev[0] > 0 and rev[1] / rev[0] - 1 <= REVENUE_FALL:
+        out.append(("revenue_falling", f"Revenue fell {1 - rev[1] / rev[0]:.1%} over the years shown "
+                    f"(${rev[0]:,.0f}M to ${rev[1]:,.0f}M)."))
+    if margin and margin[1] - margin[0] <= MARGIN_DROP:
+        out.append(("margin_shrinking", f"Operating margin fell from {margin[0]:.1%} to {margin[1]:.1%} over the years shown."))
+    if de and de[1] - de[0] >= DEBT_RISE:
+        out.append(("debt_rising", f"Debt to equity rose from {de[0]:.2f}x to {de[1]:.2f}x over the years shown."))
+    if fcf and ni and ni[1] > ni[0] and (fcf[1] < 0 or fcf[1] < fcf[0]):
+        out.append(("fcf_vs_profit", f"Net income rose (${ni[0]:,.0f}M to ${ni[1]:,.0f}M) while free cash flow "
+                    f"{'is negative' if fcf[1] < 0 else 'fell'} (${fcf[0]:,.0f}M to ${fcf[1]:,.0f}M)."))
+    cfo, n = (values.get("cfo") or [None])[-1], (values.get("net_income") or [None])[-1]
+    if cfo is not None and n and n > 0 and cfo / n < CASH_BACKING_MIN:
+        out.append(("profit_not_cash", f"Latest operating cash flow is {cfo / n:.0%} of net income "
+                    f"(${cfo:,.0f}M against ${n:,.0f}M)."))
+    return [{"flag": k, "warning": w} for k, w in out]
