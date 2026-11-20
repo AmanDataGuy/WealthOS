@@ -46,6 +46,7 @@
 "answerable": true
 },
 "0d25e9d3708b0cd220cd5be8": "The AI Diffusion IFR would have required NVIDIA to obtain a worldwide license for its data‑center products such as the H200, GB200 and GB300, placing most countries in a “Tier 2” group and creating a complex, burdensome licensing‑approval scheme.  That regime was expected to add significant compliance costs and could materially affect the company’s business, operating results and financial condition.  The rule was later rescinded, but its potential impact was described as a material risk to NVIDIA’s competitive position. [p. 14]",
+"0d3a994e266816c3fcab1847": "Not found in the filings.",
 "0da93aeb500525c0d4429c07": "Apple’s fixed‑rate notes have coupons that do not change when market rates rise, but the company has used interest‑rate swaps to convert a portion of those fixed‑rate obligations into floating‑rate exposure. When rates increase, the floating leg of the swaps requires higher interest payments, which raises Apple’s overall interest cost even though the underlying notes remain fixed‑coupon [p. 66-67]. The company reports that future interest payments on its notes total $37.0 billion, of which $2.6 billion is payable within the next 12 months [p. 34].",
 "0e24b7529d57528670225f67": "Not found in the filings.",
 "0e462ceb9c34bbe97873db96": {
@@ -57,6 +58,9 @@
 "1073ab3ae50369de9b93fe58": "NVIDIA reported that the total carrying amount of goodwill at the end of fiscal 2026 was $20.8 billion【p. 92-94】.",
 "10f086bf98382c78d907a58d": "Not found in the filings.",
 "10fb023c03b74ec91c92df5b": {
+"answerable": false
+},
+"11b20295733c35815b78c226": {
 "answerable": false
 },
 "13a704498be6bdb7a40bdeb7": "Apple had $8.0 billion of commercial paper outstanding as of September 27, 2025, the end of its fiscal year【p. aapl_10k_2025.pdf Note 9】.",
@@ -132,6 +136,7 @@
 "2f0198a6ea608f62d95c1a1d": {
 "answerable": true
 },
+"2f70ab7969f983bddb5ee529": "Not found in the filings.",
 "2f81fe55ea10dc1cc2c8b2ac": {
 "answerable": true
 },
@@ -213,6 +218,9 @@
 "4e09865b510ddf101ed9e267": "Apple’s term‑debt notes were valued at $80.4 billion at the end of fiscal 2025 (as of September 27, 2025) based on Level 2 inputs.【p. aapl_10k_2025.pdf [pp. 66-67]】",
 "4e34ee77823847b26e488a00": "Not found in the filings.",
 "4e90295dd0b5e7509225aa99": "Launching a new chip architecture each year can create several risks. The company notes that a higher frequency and greater complexity of product introductions may lead to “unanticipated quality or production issues” that increase inventory provisions, warranty or other costs and can cause product delays [p. 24]. Additionally, customers might postpone purchases of existing products when new generations arrive more often, potentially suppressing demand for current‑generation chips [p. 24].",
+"531f4b6a5434a5edf474c1ae": {
+"answerable": false
+},
 "5332f647922aa5a57457ff5a": {
 "answerable": false
 },
@@ -226,6 +234,9 @@
 "536fc7f8cfa5e56f7b19c308": "The U.S. government told NVIDIA in April 2025 that a license was required to export its H20 integrated‑circuit products (or any circuits with the same memory‑bandwidth or interconnect‑bandwidth) to China (including Hong Kong and Macau) and other Country‑Group D5 destinations【p. 14】. Because of that licensing requirement, NVIDIA recorded a $4.5 billion charge for excess inventory and purchase obligations related to H20 in the first quarter of fiscal 2026【p. 14】. Not found in the filings.",
 "54e68aff01a893caa1710af8": {
 "answerable": true
+},
+"55271a090345f232619c2dc9": {
+"answerable": false
 },
 "5659dd74d0d78684419b2048": "NVIDIA’s manufacturing, supply and capacity commitments total $95.2 billion as of January 25, 2026, with essentially all of that amount expected to be paid through fiscal year 2027【pp. 103-105】.",
 "5662e70f00a62c85af1a287c": {
@@ -307,6 +318,9 @@
 "answerable": false
 },
 "7045870c73a19abc085f16a7": "Not found in the filings.",
+"74777b10c2181b6fc01edb7b": {
+"answerable": false
+},
 "747d690c39cfb059992633de": "Not found in the filings.",
 "752f8cc1ef25f17736d8097d": "Apple’s supply chain is heavily concentrated, with many of its new products relying on custom components that are available from only a single supplier, and some components and products using new technologies that initially have limited capacity until the supplier’s yields mature. This reliance on a few manufacturing partners creates a risk that Apple could be unable to obtain sufficient quantities or favorable terms, and makes the company vulnerable to supply shortages or price increases [p. 12]. Additionally, the majority of Apple’s manufacturing and assembly sites are located outside the United States, meaning the company’s operations depend significantly on its global network of contract manufacturers and logistics providers [p. 9].",
 "7636415a3bdc5f420a141068": "Apple’s results are quite sensitive to currency swings because the company is a net receiver of foreign currencies; a stronger U.S. dollar reduces its net sales and gross margins when expressed in dollars【p. 38】.  Fluctuations in exchange rates can also affect the fair values of assets and liabilities and may force Apple to raise international pricing, which could dampen demand【pp. 15】.  The company therefore uses derivatives and other hedging strategies to mitigate this risk, but it may choose not to hedge certain exposures【pp. 38】.",
@@ -381,6 +395,7 @@
 "8f16ea64049c052b21408568": "NVIDIA recorded $14.4 billion of goodwill and a $2.5 billion developed‑technology intangible asset in connection with the non‑exclusive license agreement with Groq, Inc. The total consideration for the deal was $13.0 billion paid at closing plus $4.0 billion (including imputed interest) payable within one year [p. 90].",
 "8f79230b028a33829dd4b491": "Apple’s first fiscal quarter normally generates the company’s highest net‑sales volume.  The 10‑K notes that “the Company has historically experienced higher net sales in its first quarter compared to other quarters in its fiscal year due in part to seasonal holiday demand,” and that product‑launch timing can also influence sales patterns [p. 8].",
 "8f7b2495565fbc950d5d04e8": "Apple Vision Pro™ is the company’s spatial computer that runs on its visionOS® operating system. It is listed among Apple’s wearables, home and accessories as the “spatial computer” product line. [p. 4‑5]",
+"9078dfe955b9a5a2f7456639": "Not found in the filings.",
 "90fa6d6f29cb5024b2d51efe": "NVIDIA’s fiscal‑2026 Data Center revenue rose sharply because the business was powered by the shift to accelerated‑computing and AI workloads, with strong demand for its data‑center compute and networking platforms—particularly the new Blackwell architectures that made up the bulk of the segment’s sales【p. 50】. The company notes that “Data Center revenue for fiscal year 2026 was up 68%… driven by the major platform shifts – accelerated computing and AI”【pp. 51-53】.",
 "927a88e7c726b697270fd86b": "Apple spent $34,550 million on research and development in 2025, i.e., about $34.6 billion [pp. 39-42].",
 "92b54c50555f77c62bfd945a": "CUDA is NVIDIA’s parallel‑processing development platform that exposes the compute power of its GPUs to a wide range of compute‑intensive applications.  The company introduced CUDA in 2006, opening the parallel processing capabilities of its GPUs to developers and thereby paving the way for modern AI workloads [p. 5].  CUDA is a core element of NVIDIA’s full‑stack platform strategy: it underpins the software layer of the accelerated computing platform together with the CUDA‑X libraries, APIs, SDKs and domain‑specific frameworks that run on the same unified, programmable architecture across data‑center, gaming, professional visualization and automotive markets [p. 8] and [p. 10].",
@@ -453,10 +468,12 @@
 "b72f97ab6b759d08b50aa07c": "Apple records revenue from third‑party applications sold through the App Store on a net basis – it does not treat the gross sales as its own. Instead, Apple recognizes only the commission it retains as “Services” net sales, and the remainder is accounted for as a pass‑through to the developer [p. 51].",
 "b7f9bf716153faf2fe7fc376": "NVIDIA recorded a $14.4 billion goodwill charge and a $2.5 billion developed‑technology intangible asset for the non‑exclusive license agreement with Groq, Inc. The total consideration was $13.0 billion paid at closing plus $4.0 billion (including imputed interest) payable within one year [p. 90].",
 "b803c0223bcb389697553946": "The AI Diffusion rule would have required NVIDIA to obtain a license for every data‑center product it sold worldwide – including its H200, GB200 and GB300 chips – and would have split all countries into three tiers, placing most of them in “Tier 2” and creating a complicated, costly licensing approval process. These requirements were described as a “worldwide licensing requirement” and a “complex and burdensome scheme for licensing approvals” that could materially affect the company’s business [p. 40] and [p. 14].",
+"b80fab175188401f332f3cbd": "Not found in the filings.",
 "b88ca8a96d0bf14dcc71dfe8": "Not found in the filings.",
 "b8939e36e74fc843bb96c39c": {
 "answerable": false
 },
+"ba727b2fbf5f649287bf12fc": "Not found in the filings.",
 "bb6129a467dd91f6c088bc09": "Apple reported that, as of October 17 2025, it had **22,429 shareholders of record** [ p. 26-28 ].",
 "bc578428c7a9e1983a7aefcc": "Apple’s headquarters is located in Cupertino, California. The company owns or leases facilities and land for corporate functions, research and development, data centers, retail operations and other purposes at locations throughout the United States and in various places outside the United States【p. 24】.",
 "bc6107aecc3adb3158d6e8a0": {
@@ -476,6 +493,7 @@
 "bfc108a6976288d9164c1a46": "NVIDIA records a warranty reserve of about $2.8 billion for product warranty liabilities as of January 25, 2026, which is intended to cover the cost of fixing or replacing hardware that fails after sale【p. 103-105】.",
 "c00e36aec14bbb27726b3b11": "Yes. NVIDIA notes that power or electricity shortages could limit customers’ ability to expand data‑center capacity and use its products, which could in turn negatively affect its sales and overall business. [p. 32]",
 "c075de8950ddfc53e666ba65": "Not found in the filings.",
+"c0b7b5c45d65371cfaa05e75": "Not found in the filings.",
 "c0d350bdec3fc9164446e129": {
 "answerable": false
 },
@@ -546,6 +564,7 @@
 "df37d418eb71aab858ac6771": {
 "answerable": true
 },
+"e1cc89b3cade3d897383b464": "Not found in the filings.",
 "e1def3c5a2c316585729818d": "NVIDIA’s gross margin for fiscal 2026 was **71.1 %**【pp. 51-53】. This reflects a decline from the 75.0 % margin recorded in fiscal 2025【pp. 57-58】.",
 "e23b176126391a2fb74933bd": {
 "answerable": true
