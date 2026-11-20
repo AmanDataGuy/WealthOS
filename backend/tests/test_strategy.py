@@ -128,6 +128,34 @@ def test_python_lookahead_check():
     assert w.shape == close.shape and w.to_numpy().sum() > 0
 
 
+# Known escapes are refused before anything runs: builtins, dunder names, dunder strings in subscripts, file readers
+# imported by name. Plain and moving-average strategies still pass the check.
+@pytest.mark.parametrize("code", [
+    "def weights(close):\n    return __builtins__['__import__']('os')\n",
+    "import builtins\ndef weights(close):\n    return close\n",
+    "def weights(close):\n    return builtins.open('x')\n",
+    "def weights(close):\n    b = close.__class__\n    return close\n",
+    "def weights(close):\n    return __loader__\n",
+    "import pandas as pd\ndef weights(close):\n    return pd.__dict__['__builtins__']\n",
+    "import numpy as np\ndef weights(close):\n    return {}['__import__']\n",
+    "from numpy import __builtins__\ndef weights(close):\n    return close\n",
+    "from pandas import read_csv\ndef weights(close):\n    return read_csv('x')\n",
+    "def weights(close):\n    return close.pipe(lambda c: c)['__class__']\n",
+])
+def test_python_sandbox_refuses_escapes(code):
+    from app.features import sandbox
+    with pytest.raises(ValueError, match="not allowed|cannot be imported|only pandas"):
+        sandbox.check(code)
+
+
+def test_python_sandbox_allows_plain_strategies():
+    from app.features import sandbox
+    sandbox.check("def weights(close):\n    return close * 0\n")
+    sandbox.check("import pandas as pd\nimport numpy as np\nimport math\nfrom pandas import DataFrame\n"
+                  "def weights(close):\n    held = (close > close.rolling(5).mean()).astype(float)\n"
+                  "    return held.div(held.sum(axis=1).where(lambda s: s > 0), axis=0).fillna(0)\n")
+
+
 # An endless loop is stopped with the time-limit message, whether the CPU limit or the wall clock fires first.
 def test_python_endless_loop_says_time_limit(monkeypatch):
     from app.features import sandbox
