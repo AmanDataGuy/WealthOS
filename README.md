@@ -158,8 +158,6 @@ Open:
 - Ragas judged about half the easy filing answers before the eval's OpenRouter credit ran out. The hard-set
   answer run on Groq's free tier stopped at its daily limit after 45 of 51 questions; the last 6 near-miss questions
   and Ragas for that set are not measured.
-- The filing number check does not apply a table's units, so "13,308 million" read from an "(in millions)" table is
-  rejected.
 
 ## Limitations
 
