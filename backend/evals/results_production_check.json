@@ -1,0 +1,949 @@
+{
+ "run_at": "2026-11-20T04:04:10+00:00",
+ "git_sha": "8dbc4e1-dirty",
+ "environment": {
+  "python": "3.11.18",
+  "database": "pgvector/pgvector:pg16 (docker, real Postgres)",
+  "production_server": {
+   "WEALTHOS_ENV": "production",
+   "port": 8771,
+   "llm_keys": "empty"
+  },
+  "dev_server": {
+   "WEALTHOS_ENV": "dev",
+   "WEALTHOS_ENABLE_NSE": "1",
+   "WEALTHOS_ENABLE_PY_STRATEGIES": "1",
+   "port": 8772,
+   "llm_keys": "empty",
+   "used_for": "sandbox and the NSE fetch route, which production refuses"
+  },
+  "user_files": "a temporary folder, deleted after the run",
+  "uvicorn": "one process each"
+ },
+ "checks": {
+  "1_nse_live": {
+   "pass": true,
+   "inputs": {
+    "symbols": [
+     "RELIANCE",
+     "TCS",
+     "INFY",
+     "HDFCBANK",
+     "ITC"
+    ],
+    "start": "2023-06-01",
+    "end": "2024-06-30",
+    "how": "prices.fetch_nse in this process with WEALTHOS_ENABLE_NSE=1 (production refuses it: check 8)"
+   },
+   "seconds": 1.1,
+   "nse_requests_this_run": 0,
+   "nse_requests_by_status": {},
+   "weekdays_in_window": 282,
+   "trading_days_with_prices": 264,
+   "holidays_or_missing_weekdays": 18,
+   "days_by_format": {
+    "udiff": 120,
+    "old_bhav": 144,
+    "unknown": 0
+   },
+   "last_old_format_day": "2023-12-29",
+   "first_udiff_day": "2024-01-01",
+   "rows_per_symbol": {
+    "RELIANCE": 264,
+    "TCS": 264,
+    "INFY": 264,
+    "HDFCBANK": 264,
+    "ITC": 264
+   },
+   "longest_gaps_calendar_days": [
+    [
+     4,
+     "2024-06-14",
+     "2024-06-18"
+    ],
+    [
+     4,
+     "2024-05-17",
+     "2024-05-21"
+    ],
+    [
+     4,
+     "2024-03-28",
+     "2024-04-01"
+    ]
+   ],
+   "gap_limit_days": 5,
+   "fetch_warnings": [
+    "NSE closes are not adjusted for splits or bonuses"
+   ],
+   "quality_flags_as_of_end": [],
+   "indicators": {
+    "pass": true,
+    "symbol": "RELIANCE",
+    "window": 14,
+    "days": 264,
+    "max_abs_diff_rsi": 3.552713678800501e-14,
+    "max_abs_diff_ema": 0.0,
+    "first_values_blank_alike": true,
+    "last_rsi": 67.1373,
+    "last_ema": 2971.7281
+   }
+  },
+  "data_upload": {
+   "nse_prices.csv": {
+    "status": 200,
+    "seconds": 0.385,
+    "tables": [
+     {
+      "shape": "prices",
+      "rows": 1320
+     }
+    ]
+   },
+   "holdings.csv": {
+    "status": 200,
+    "seconds": 0.007,
+    "tables": [
+     {
+      "shape": "holdings",
+      "rows": 6
+     }
+    ]
+   },
+   "targets": 200,
+   "values_inr": {
+    "RELIANCE": 156540.0,
+    "TCS": 78083.0,
+    "INFY": 94005.0,
+    "HDFCBANK": 67352.0,
+    "ITC": 127470.0,
+    "GOLDBEES": 6000.0
+   },
+   "pass": true
+  },
+  "8_production_gates": {
+   "pass": true,
+   "nse_fetch": {
+    "status": 400,
+    "detail": "NSE prices are disabled on this server (licensing); upload a prices CSV instead"
+   },
+   "python_strategy": {
+    "status": 400,
+    "detail": "Python strategies are switched off on this server"
+   },
+   "fallback_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+   "fallback_is_free": true,
+   "free_fallback_allowed_in_production": false,
+   "docs_page_status": 200,
+   "cost_cap_without_db": "not checked: these servers run with a database"
+  },
+  "2_risk_report": {
+   "pass": true,
+   "inputs": {
+    "holdings": {
+     "RELIANCE": 50,
+     "TCS": 20,
+     "INFY": 60,
+     "HDFCBANK": 40,
+     "ITC": 300,
+     "GOLDBEES": 100
+    },
+    "workspace": "default"
+   },
+   "status": 200,
+   "seconds": 0.15,
+   "missing_fields": [],
+   "numbers_checked": 30,
+   "all_finite": true,
+   "risk_share_sum_pct": 99.99,
+   "volatility_pct": 13.23,
+   "max_drawdown": {
+    "pct": -12.38,
+    "peak": "2023-07-19",
+    "trough": "2023-10-26",
+    "recovered": "2024-01-12"
+   },
+   "worst_month": {
+    "month": "2023-10",
+    "return_pct": -3.49
+   },
+   "var_95_1d": {
+    "pct": 1.16,
+    "inr": 6082.9
+   },
+   "cvar_95_1d": {
+    "pct": 1.82,
+    "inr": 9539.46
+   },
+   "recomputed_here": {
+    "var_pct": 1.16,
+    "cvar_pct": 1.82
+   },
+   "var_plausible": true,
+   "period": {
+    "start": "2023-06-01",
+    "end": "2024-06-28",
+    "days": 263
+   },
+   "left_out": [
+    {
+     "holding": "GOLDBEES",
+     "value": 6000.0,
+     "share_pct": 1.13,
+     "reason": "no price history"
+    }
+   ],
+   "warnings": [
+    "sector split skipped: the holdings carry no sector (NSE data is switched off on this server)",
+    "1 holding(s), 1.13% of the value, left out for missing or short price history"
+   ],
+   "mcp_portfolio_risk_identical": true
+  },
+  "drift_concentration": {
+   "pass": true,
+   "status": 200,
+   "seconds": 0.042,
+   "concentration": {
+    "effective_holdings": 4.65,
+    "top5_share_pct": 98.87
+   },
+   "warnings": [
+    "1 holding(s) have no target: GOLDBEES"
+   ]
+  },
+  "3_strategy_lab": {
+   "rsi": {
+    "pass": true,
+    "rule": "RSI(14) below 35, sell above 65",
+    "spec": {
+     "universe": [
+      "RELIANCE",
+      "TCS",
+      "INFY",
+      "HDFCBANK",
+      "ITC"
+     ],
+     "entry": {
+      "op": "lt",
+      "args": [
+       {
+        "op": "rsi",
+        "args": [
+         {
+          "op": "close"
+         },
+         14
+        ]
+       },
+       35
+      ]
+     },
+     "exit": {
+      "op": "gt",
+      "args": [
+       {
+        "op": "rsi",
+        "args": [
+         {
+          "op": "close"
+         },
+         14
+        ]
+       },
+       65
+      ]
+     }
+    },
+    "description": "Buy RELIANCE, TCS, INFY, HDFCBANK, ITC when the 14-day RSI of the price is below 35; sell when the 14-day RSI of the price is above 65. Checked daily, equal weight, \u20b91,00,000 to start, india equity delivery charges, from the first price to the last price.",
+    "status": 200,
+    "seconds": 0.074,
+    "metrics": {
+     "final_value": 110056.0,
+     "total_return_pct": 10.06,
+     "cagr_pct": 9.62,
+     "volatility_pct": 15.9,
+     "sharpe": 0.25,
+     "max_drawdown_pct": -10.31,
+     "time_invested_pct": 71.1,
+     "hit_rate_pct": 50.8,
+     "turnover_per_year": 12.14
+    },
+    "buy_and_hold": {
+     "final_value": 111981.33,
+     "total_return_pct": 11.98,
+     "cagr_pct": 11.45,
+     "volatility_pct": 13.6,
+     "sharpe": 0.39,
+     "max_drawdown_pct": -10.93
+    },
+    "returns_by_year": [
+     {
+      "year": 2023,
+      "strategy_pct": 10.57,
+      "buy_and_hold_pct": 8.63
+     },
+     {
+      "year": 2024,
+      "strategy_pct": -0.46,
+      "buy_and_hold_pct": 3.09
+     }
+    ],
+    "years_compound_to_total": 10.06,
+    "robustness_warnings": [],
+    "warnings": [
+     "prices are not marked as adjusted for splits and dividends; dividends are not counted"
+    ],
+    "deflated_sharpe": 0.5999,
+    "n_trials": 1
+   },
+   "moving_average": {
+    "pass": true,
+    "rule": "20-day SMA crosses above 50-day, sell on the reverse",
+    "spec": {
+     "universe": [
+      "RELIANCE",
+      "TCS",
+      "INFY",
+      "HDFCBANK",
+      "ITC"
+     ],
+     "entry": {
+      "op": "crossover",
+      "args": [
+       {
+        "op": "sma",
+        "args": [
+         {
+          "op": "close"
+         },
+         20
+        ]
+       },
+       {
+        "op": "sma",
+        "args": [
+         {
+          "op": "close"
+         },
+         50
+        ]
+       }
+      ]
+     },
+     "exit": {
+      "op": "crossover",
+      "args": [
+       {
+        "op": "sma",
+        "args": [
+         {
+          "op": "close"
+         },
+         50
+        ]
+       },
+       {
+        "op": "sma",
+        "args": [
+         {
+          "op": "close"
+         },
+         20
+        ]
+       }
+      ]
+     }
+    },
+    "description": "Buy RELIANCE, TCS, INFY, HDFCBANK, ITC when the 20-day average of the price crosses above the 50-day average of the price; sell when the 50-day average of the price crosses above the 20-day average of the price. Checked daily, equal weight, \u20b91,00,000 to start, india equity delivery charges, from the first price to the last price.",
+    "status": 200,
+    "seconds": 0.079,
+    "metrics": {
+     "final_value": 109070.46,
+     "total_return_pct": 9.07,
+     "cagr_pct": 8.68,
+     "volatility_pct": 12.25,
+     "sharpe": 0.21,
+     "max_drawdown_pct": -7.35,
+     "time_invested_pct": 53.61,
+     "hit_rate_pct": 51.06,
+     "turnover_per_year": 12.1
+    },
+    "buy_and_hold": {
+     "final_value": 111981.33,
+     "total_return_pct": 11.98,
+     "cagr_pct": 11.45,
+     "volatility_pct": 13.6,
+     "sharpe": 0.39,
+     "max_drawdown_pct": -10.93
+    },
+    "returns_by_year": [
+     {
+      "year": 2023,
+      "strategy_pct": 4.91,
+      "buy_and_hold_pct": 8.63
+     },
+     {
+      "year": 2024,
+      "strategy_pct": 3.97,
+      "buy_and_hold_pct": 3.09
+     }
+    ],
+    "years_compound_to_total": 9.07,
+    "robustness_warnings": [],
+    "warnings": [
+     "prices are not marked as adjusted for splits and dividends; dividends are not counted",
+     "you have tested 2 rules on these stocks and dates; the deflated Sharpe allows for that"
+    ],
+    "deflated_sharpe": 0.3801,
+    "n_trials": 2
+   },
+   "pass": true
+  },
+  "5_company": {
+   "pass": true,
+   "inputs": {
+    "tickers": [
+     "AAPL",
+     "MSFT",
+     "NVDA"
+    ],
+    "release_reading": "off"
+   },
+   "compare": {
+    "status": 200,
+    "seconds_cold": 0.312,
+    "rows": [
+     {
+      "ticker": "AAPL",
+      "fiscal_year_end": "2026-09-26",
+      "revenue_musd": 478834.0,
+      "ltm_end": "2026-09-26",
+      "ltm_quarters": [
+       "2025-12-27",
+       "2026-03-28",
+       "2026-06-27",
+       "2026-09-26"
+      ],
+      "ltm_revenue_musd": 478834.0,
+      "ltm_net_income_musd": 132175.0,
+      "ltm_note": null,
+      "error": null,
+      "flags": []
+     },
+     {
+      "ticker": "MSFT",
+      "fiscal_year_end": "2026-06-30",
+      "revenue_musd": 331839.0,
+      "ltm_end": "2026-09-30",
+      "ltm_quarters": [
+       "2025-12-31",
+       "2026-03-31",
+       "2026-06-30",
+       "2026-09-30"
+      ],
+      "ltm_revenue_musd": 346445.0,
+      "ltm_net_income_musd": 142631.0,
+      "ltm_note": null,
+      "error": null,
+      "flags": []
+     },
+     {
+      "ticker": "NVDA",
+      "fiscal_year_end": "2026-01-25",
+      "revenue_musd": 215938.0,
+      "ltm_end": "2026-07-26",
+      "ltm_quarters": [
+       "2025-10-26",
+       "2026-01-25",
+       "2026-04-26",
+       "2026-07-26"
+      ],
+      "ltm_revenue_musd": 302969.0,
+      "ltm_net_income_musd": 192879.0,
+      "ltm_note": null,
+      "error": null,
+      "flags": []
+     }
+    ]
+   },
+   "workbook": {
+    "pass": true,
+    "valuation_skipped": null,
+    "sensitivity_cells": 35,
+    "sensitivity_mismatches": [],
+    "formula_cells_checked": 165,
+    "mismatches": [],
+    "max_relative_diff": 3.690130707426042e-15,
+    "centre_value_per_share": 171.2002,
+    "value_per_share": null,
+    "python_recalc": "pass",
+    "libreoffice_seconds": 0.6,
+    "accounting_tieouts": {
+     "balance_sheet_balances": "pass",
+     "reported_totals_agree": "pass",
+     "cash_flow_sums": "pass",
+     "cash_roll_forward": "pass",
+     "gross_profit_ties": "pass"
+    }
+   }
+  },
+  "6_load": {
+   "rss_mb_before": 247.3,
+   "50_at_10": {
+    "wall_seconds": 3.2,
+    "status_counts": {
+     "200": 50
+    },
+    "per_endpoint": {
+     "drift": {
+      "n": 10,
+      "p50_s": 0.436,
+      "p95_s": 0.508,
+      "max_s": 0.532
+     },
+     "risk": {
+      "n": 10,
+      "p50_s": 1.151,
+      "p95_s": 1.389,
+      "max_s": 1.448
+     },
+     "metric": {
+      "n": 10,
+      "p50_s": 0.351,
+      "p95_s": 0.587,
+      "max_s": 0.641
+     },
+     "compare_cached": {
+      "n": 10,
+      "p50_s": 0.277,
+      "p95_s": 0.441,
+      "max_s": 0.5
+     },
+     "strategy_run": {
+      "n": 10,
+      "p50_s": 0.903,
+      "p95_s": 1.052,
+      "max_s": 1.072
+     }
+    },
+    "responses_5xx": 0,
+    "responses_with_paths": 0
+   },
+   "200_at_20": {
+    "wall_seconds": 18.0,
+    "status_counts": {
+     "200": 200
+    },
+    "per_endpoint": {
+     "drift": {
+      "n": 40,
+      "p50_s": 0.948,
+      "p95_s": 2.08,
+      "max_s": 2.527
+     },
+     "risk": {
+      "n": 40,
+      "p50_s": 2.61,
+      "p95_s": 5.147,
+      "max_s": 5.395
+     },
+     "metric": {
+      "n": 40,
+      "p50_s": 0.923,
+      "p95_s": 1.838,
+      "max_s": 2.163
+     },
+     "compare_cached": {
+      "n": 40,
+      "p50_s": 0.809,
+      "p95_s": 1.979,
+      "max_s": 2.289
+     },
+     "strategy_run": {
+      "n": 40,
+      "p50_s": 2.472,
+      "p95_s": 4.989,
+      "max_s": 5.415
+     }
+    },
+    "responses_5xx": 0,
+    "responses_with_paths": 0
+   },
+   "rss_mb_after": 354.0,
+   "pass": true
+  },
+  "6_rate_limits": {
+   "pass": true,
+   "default_rule": "300 per minute per user",
+   "burst_requests": 330,
+   "burst_seconds": 0.9,
+   "allowed": 304,
+   "allowed_ceiling_with_refill": 304.5,
+   "limited_429": 26,
+   "retry_after_header_on_every_429": true,
+   "auth_rule": "10 per minute per IP",
+   "login_attempt_statuses": [
+    401,
+    401,
+    401,
+    401,
+    401,
+    401,
+    401,
+    401,
+    401,
+    401,
+    429,
+    429
+   ],
+   "first_429_at_login_attempt": 11
+  },
+  "7_hostile_inputs": {
+   "pass": true,
+   "cases": [
+    {
+     "case": "A reads B's risk",
+     "status": 403,
+     "expected": [
+      403
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "this token does not belong to that user",
+     "seconds": 0.003
+    },
+    {
+     "case": "A reads B's drift",
+     "status": 403,
+     "expected": [
+      403
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "this token does not belong to that user",
+     "seconds": 0.002
+    },
+    {
+     "case": "B reads A's risk",
+     "status": 403,
+     "expected": [
+      403
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "this token does not belong to that user",
+     "seconds": 0.002
+    },
+    {
+     "case": "A queries B's metrics",
+     "status": 403,
+     "expected": [
+      403
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "this token does not belong to that user",
+     "seconds": 0.002
+    },
+    {
+     "case": "no token on risk",
+     "status": 401,
+     "expected": [
+      401
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "missing or malformed Authorization header",
+     "seconds": 0.002
+    },
+    {
+     "case": "forged token on risk",
+     "status": 401,
+     "expected": [
+      401
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "invalid token: Invalid crypto padding",
+     "seconds": 0.002
+    },
+    {
+     "case": "traversal workspace risk",
+     "status": 404,
+     "expected": [
+      404
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "Not Found",
+     "seconds": 0.002
+    },
+    {
+     "case": "traversal workspace drift",
+     "status": 404,
+     "expected": [
+      404
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "Not Found",
+     "seconds": 0.002
+    },
+    {
+     "case": "dot-dot workspace",
+     "status": 404,
+     "expected": [
+      404,
+      405
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "Not Found",
+     "seconds": 0.002
+    },
+    {
+     "case": "traversal run id",
+     "status": 404,
+     "expected": [
+      404
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "Not Found",
+     "seconds": 0.002
+    },
+    {
+     "case": "traversal upload workspace",
+     "status": 404,
+     "expected": [
+      404
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "workspace not found",
+     "seconds": 0.004
+    },
+    {
+     "case": "oversized upload (21 MB)",
+     "status": 413,
+     "expected": [
+      413
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "file too large: 20 MB at most",
+     "seconds": 0.103
+    },
+    {
+     "case": "upload as another user",
+     "status": 403,
+     "expected": [
+      403
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "this token does not belong to that user",
+     "seconds": 0.003
+    },
+    {
+     "case": "executable upload",
+     "status": 400,
+     "expected": [
+      400
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "upload a .csv, .xlsx, .pdf, .md or .txt file",
+     "seconds": 0.003
+    },
+    {
+     "case": "malformed holdings",
+     "status": 200,
+     "expected": [
+      200,
+      400
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "ok",
+     "seconds": 0.004
+    },
+    {
+     "case": "risk on malformed holdings",
+     "status": 404,
+     "expected": [
+      400,
+      404
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "no holdings data yet: upload a file that contains holdings first",
+     "seconds": 0.038
+    },
+    {
+     "case": "drift on malformed holdings",
+     "status": 404,
+     "expected": [
+      200,
+      400,
+      404
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "no holdings data yet: upload a file that contains holdings first",
+     "seconds": 0.036
+    },
+    {
+     "case": "invalid strategy spec",
+     "status": 400,
+     "expected": [
+      400
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "1 validation error for StrategySpec\nentry.op\n  Input should be 'close', 'sma', 'ema', 'rsi', 'delta', 'lag', 'ts_mean', 'ts_std', 'rank', 'crossover', 'gt', 'lt', 'and', 'or', 'const' or 'mul' [type=l",
+     "seconds": 0.005
+    },
+    {
+     "case": "strategy window too long",
+     "status": 400,
+     "expected": [
+      400
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "'sma' needs a whole number of days between 1 and 400, got 1000000000",
+     "seconds": 0.044
+    },
+    {
+     "case": "strategy unknown symbol",
+     "status": 400,
+     "expected": [
+      400
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "no prices for ['../../ETC']; available: ['HDFCBANK', 'INFY', 'ITC', 'RELIANCE', 'TCS']",
+     "seconds": 0.037
+    },
+    {
+     "case": "invalid python strategy file",
+     "status": 400,
+     "expected": [
+      400
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "Python strategies are switched off on this server",
+     "seconds": 0.044
+    },
+    {
+     "case": "compare with one ticker",
+     "status": 422,
+     "expected": [
+      422
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "[{'type': 'too_short', 'loc': ['body', 'tickers'], 'msg': 'List should have at least 2 items after validation, not 1', 'input': ['AAPL'], 'ctx': {'field_type': 'List', 'min_length': 2, 'actual_length'",
+     "seconds": 0.003
+    },
+    {
+     "case": "compare with a blank ticker",
+     "status": 400,
+     "expected": [
+      400
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "type a ticker or name for each company",
+     "seconds": 0.002
+    },
+    {
+     "case": "target over 100%",
+     "status": 400,
+     "expected": [
+      400
+     ],
+     "pass": true,
+     "path_leak": false,
+     "detail": "each target must be between 0 and 100 (%)",
+     "seconds": 0.002
+    },
+    {
+     "case": "compare with an unknown ticker",
+     "status": 200,
+     "expected": [
+      200,
+      400
+     ],
+     "pass": true,
+     "detail": "'ZZZZQQ' is not one company (candidates: none found); type the ticker"
+    }
+   ]
+  },
+  "4_sandbox": {
+   "plain": {
+    "status": 200,
+    "seconds": 0.438,
+    "expected": 200,
+    "detail": null,
+    "total_return_pct": 6.24
+   },
+   "shift_minus_1": {
+    "status": 400,
+    "seconds": 0.371,
+    "expected": 400,
+    "detail": "the strategy looks into the future: its weights for 2023-11-02 change when prices after 2023-11-02 are removed (for example shift(-1) or a full-history max). Use only past prices.",
+    "total_return_pct": null
+   },
+   "endless_loop": {
+    "status": 400,
+    "seconds": 28.604,
+    "expected": 400,
+    "detail": "the strategy failed: it stopped without saying why",
+    "total_return_pct": null
+   },
+   "import_os": {
+    "status": 400,
+    "seconds": 0.103,
+    "expected": 400,
+    "detail": "line 1: only pandas, numpy and math can be imported, not os",
+    "total_return_pct": null
+   },
+   "pass": true,
+   "note": "dev server (WEALTHOS_ENV=dev, WEALTHOS_ENABLE_PY_STRATEGIES=1); production refuses this route (check 8)"
+  },
+  "1b_nse_api_dev": {
+   "pass": true,
+   "inputs": {
+    "symbols": [
+     "RELIANCE",
+     "TCS",
+     "INFY",
+     "HDFCBANK",
+     "ITC"
+    ],
+    "start": "2026-10-21"
+   },
+   "status": 200,
+   "seconds": 1.622,
+   "detail": null,
+   "rows": 105,
+   "last_date": "2026-11-19",
+   "warnings": [
+    "NSE closes are not adjusted for splits or bonuses"
+   ],
+   "note": "dev server; the route fetches from `start` to today, so the long window is fetched in-process (check 1)"
+  }
+ },
+ "cleanup_delete_status": {
+  "user_a": 200,
+  "user_b": 200
+ },
+ "server_logs": {
+  "unhandled_errors": 0,
+  "tracebacks": 0
+ },
+ "all_pass": true
+}
