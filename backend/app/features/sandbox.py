@@ -30,6 +30,7 @@ import ast
 import io
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -133,6 +134,10 @@ def run_weights(code: str, close: pd.DataFrame) -> pd.DataFrame:
         except subprocess.TimeoutExpired:
             raise ValueError(f"the strategy ran longer than {TIMEOUT_S} s and was stopped") from None
     if proc.returncode:
+        # The CPU limit (same 30 s) usually fires before the wall-clock timeout on a busy loop: it is the same timeout.
+        # With soft == hard limit Linux sends SIGKILL; SIGXCPU covers systems that warn first.
+        if os.name == "posix" and -proc.returncode in (signal.SIGKILL, getattr(signal, "SIGXCPU", 0)):
+            raise ValueError(f"the strategy ran longer than {TIMEOUT_S} s and was stopped")
         if proc.stderr.strip().startswith(LOOKAHEAD):
             day = proc.stderr.strip()[len(LOOKAHEAD):][:10]
             raise ValueError(f"the strategy looks into the future: its weights for {day} change when prices after "
