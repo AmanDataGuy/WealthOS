@@ -132,7 +132,7 @@ For local development on Python 3.11: `pip install -r backend/requirements-dev.t
 | Production check        |     12 checks |  **12 / 12** pass | 250 concurrent requests, 0 errors |
 
 Golden-set answers are replayed in CI with no keys, and the labelled sets fail the build if any rate gets worse.
-To reproduce live: `cd backend && python evals/run.py`. Every run and failure is in the
+To reproduce live: `cd backend && WEALTHOS_ENV=dev python evals/run.py`. Every run and failure is in the
 [eval results](docs/eval/README.md) and the [error analysis](docs/eval/ERROR_ANALYSIS.md).
 
 <!-- src: backend/evals/results.json, results_openrouter.json, results_baseline.json, results_local_qwen3_8b.json,
