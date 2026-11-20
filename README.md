@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AmanDataGuy/WealthOS/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="tests" src="https://img.shields.io/badge/tests-234%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-243%20passing-brightgreen">
   <img alt="python" src="https://img.shields.io/badge/python-3.11-3776AB">
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
@@ -69,7 +69,8 @@
 - **Every number is checked.** The model plans and explains; code computes. If a sentence has a number that is not
   in the results, the user sees the table instead. ([assistant graph](docs/agent_graph.md))
 - **Company analyst.** Type a US ticker to get five years of statements, ratios and a DCF as an Excel model where
-  every figure names its SEC filing. Compare 2 to 6 companies, review each quarter against a forecast you locked
+  every figure names its SEC filing. Compare 2 to 6 companies (also over the last four quarters, with fixed-rule
+  warning flags such as falling revenue or profit not backed by cash), review each quarter against a forecast you locked
   before the results, and check a rebalance plan against your own limits. ([company mode](docs/company_mode.md))
 - **Ask your filings.** Upload a 10-K or annual report PDF and ask about risks, segments, lawsuits or notes. Answers
   cite pages, every number must appear in a passage the answer cites, and a question the filing does not answer
@@ -78,7 +79,9 @@
 - Dashboards you build by hand or by asking, with Excel export and your own Excel templates.
 - A strategy lab that backtests a rule with Indian charges and a deflated Sharpe ratio, warns when the profit does not
   survive doubled charges or the last 30% of the period, and refuses uploaded strategies that read future prices.
-- Drift from your target mix, with how concentrated the holdings are (effective number of holdings, top five's share).
+- Drift from your target mix, with how concentrated the holdings are (effective number of holdings, top five's share),
+  and a risk report on today's holdings over past prices: volatility, worst drawdown and month, one-day VaR, each
+  holding's share of risk and the most correlated pairs.
 - A read-only MCP server for metrics, tax, drift and backtests. ([MCP](docs/mcp.md))
 - No buy, sell or hold advice. WealthOS is not SEBI-registered.
 
