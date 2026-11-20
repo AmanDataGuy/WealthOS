@@ -13,9 +13,10 @@ live in `app/api/` (one router per area) and are included at the end of this fil
 - **Rate limits** per signed-in user (or IP before sign-in), see `core/ratelimit.py`; over the limit -> 429.
 - Plain `def` routes run in a background thread (FastAPI does that), so slow work never blocks other requests.
 
-Run: `uvicorn app.main:app --port 8000`. Every route is listed at http://localhost:8000/docs.
+Run: `uvicorn app.main:app --port 8000`. Every route is listed at http://localhost:8000/docs (not in production).
 """
 import contextvars
+import ipaddress
 import logging
 import math
 import os
@@ -127,11 +128,25 @@ async def lifespan(app: FastAPI):
         POOL = None
 
 
-app = FastAPI(title="WealthOS API", description="Your data in, trusted numbers and dashboards out", lifespan=lifespan)
+_DOCS = settings.env() != "production"  # the /docs page and route list only outside production
+app = FastAPI(title="WealthOS API", description="Your data in, trusted numbers and dashboards out", lifespan=lifespan,
+              docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None,
+              openapi_url="/openapi.json" if _DOCS else None)
 
 _REQUEST_ID_OK = re.compile(r"^[A-Za-z0-9-]{8,64}$")
-# Proxies (Caddy) whose X-Forwarded-For is believed; from anyone else the header is ignored.
-_TRUSTED_PROXIES = {p.strip() for p in os.getenv("WEALTHOS_TRUSTED_PROXIES", "").split(",") if p.strip()}
+# Proxies (nginx, Caddy) whose X-Forwarded-For is believed, as exact IPs or CIDR ranges (172.28.0.0/24); from anyone
+# else the header is ignored.
+_TRUSTED_PROXIES = [ipaddress.ip_network(p.strip(), strict=False)
+                    for p in os.getenv("WEALTHOS_TRUSTED_PROXIES", "").split(",") if p.strip()]
+
+
+# True when the address that connected is one of the trusted proxies.
+def _trusted_proxy(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:  # "unknown", or a test client's name
+        return False
+    return any(addr in net for net in _TRUSTED_PROXIES)
 
 
 # Who is calling, for rate limits: the signed-in user when the token checks out, otherwise the client IP.
@@ -144,7 +159,7 @@ def _caller(request: Request) -> str:
             pass
     ip = request.client.host if request.client else "unknown"
     forwarded = request.headers.get("x-forwarded-for", "")
-    if ip in _TRUSTED_PROXIES and forwarded:
+    if forwarded and _trusted_proxy(ip):
         ip = forwarded.split(",")[-1].strip()  # the proxy appends the address it saw
     return "ip:" + ip
 
