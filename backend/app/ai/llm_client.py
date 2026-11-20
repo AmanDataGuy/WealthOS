@@ -10,7 +10,8 @@
 - One key per provider.
 - **Redaction**: every prompt goes through `redact_pii` here, so no call site can send raw PAN/phone/account numbers.
 - **Daily cost caps** over the last 24h: per user (`WEALTHOS_MAX_DAILY_COST_USD_USER`, default $0.50) and for the
-  whole server (`WEALTHOS_MAX_DAILY_COST_USD`, default $5). In production a budget that can't be checked refuses.
+  whole server (`WEALTHOS_MAX_DAILY_COST_USD`, default $5). In production a budget that can't be checked refuses,
+  including when no database URL is set.
 - **Usage log**: every call's tokens, cost and duration go to the `llm_usage` table, with the user it was for.
 - `call_json(...)`: ask for JSON matching a Pydantic model; the answer is checked, and wrong answers get one retry
   with the error shown to the model. Nothing unchecked comes out of it.
@@ -96,11 +97,14 @@ async def _spend_last_day(user_id: str | None) -> tuple[float, float]:
     return float(row[0]), float(row[1])
 
 
-# Stop if this user's or everyone's last-24h LLM spend reached its cap. If the DB can't be checked, production refuses
-# the call (an unchecked budget is unbounded spend) and dev allows it with a warning.
+# Stop if this user's or everyone's last-24h LLM spend reached its cap. If the DB can't be checked (or none is set),
+# production refuses the call (an unchecked budget is unbounded spend) and dev / test allow it.
 # ponytail: no lock, two parallel calls can both pass (a few cents over); a per-user advisory lock fixes it.
 async def _check_cost_cap(user_id: str | None = None):
     if not _db_url():
+        if settings.env() == "production":
+            logger.error("[llm_client] No WEALTHOS_DB_URL in production, refusing call: the AI budget can't be checked")
+            raise CostCapReached("the AI budget can't be checked right now; try again shortly")
         return
     try:
         mine, total = await _spend_last_day(user_id)
