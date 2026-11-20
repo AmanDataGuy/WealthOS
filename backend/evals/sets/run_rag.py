@@ -465,7 +465,7 @@ if __name__ == "__main__":
     sha, run_at = git_sha(), time.strftime("%Y-%m-%dT%H:%M:%S%z")  # at the start: the code that runs, not later edits
     with tempfile.TemporaryDirectory() as tmp:
         engine.DATA_ROOT = Path(tmp) / "users"
-        if not (args.live or args.offline):
+        if not (args.live or args.offline or args.rescore):
             result, vecs = keyless(rows, set_file)
             OUT.write_text(json.dumps(result | {"run_at": run_at, "git_sha": sha}, indent=1), encoding="utf-8")
             print("best arm", result["best_arm"], "| thresholds", {a: t["threshold"] for a, t in result["thresholds"].items()})
