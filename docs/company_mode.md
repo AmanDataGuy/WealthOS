@@ -1,7 +1,7 @@
 # Company mode
 
 Type a US-listed company's name or ticker on the **Company** tab and get an Excel model built from its SEC filings:
-five fiscal years of income statement, balance sheet and cash flow, ratios, a small DCF with a discount-rate by growth sensitivity grid, the figures in its latest
+five fiscal years of income statement, balance sheet and cash flow, ratios with fixed-rule warning flags, a small DCF with a discount-rate by growth sensitivity grid, the figures in its latest
 earnings release, and a sheet of accounting checks. Every reported number is copied from a filing (blue, with its
 XBRL concept, accession number and filing date as a cell comment); every derived number is a live Excel formula.
 
