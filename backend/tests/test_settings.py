@@ -45,6 +45,18 @@ def test_insecure_auth_only_in_dev(monkeypatch):
     assert settings.jwt_secret() == STRONG
 
 
+# With no database URL the AI budget can't be checked: production refuses the call, dev and test allow it.
+def test_cost_cap_fails_closed_without_db_in_production(monkeypatch):
+    from app.ai import llm_client as llm
+    monkeypatch.setenv("WEALTHOS_DB_URL", "")
+    monkeypatch.setenv("WEALTHOS_ENV", "production")
+    with pytest.raises(llm.CostCapReached):
+        asyncio.run(llm._check_cost_cap("u"))
+    for env in ("dev", "test"):
+        monkeypatch.setenv("WEALTHOS_ENV", env)
+        asyncio.run(llm._check_cost_cap("u"))
+
+
 # The app with no secret, outside dev, refuses to start; a route reached without startup refuses too.
 def test_no_fail_open_without_secret(monkeypatch):
     with pytest.raises(RuntimeError):
